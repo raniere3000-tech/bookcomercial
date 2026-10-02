@@ -11,8 +11,8 @@ Identificados pelo nome ou, se o nome não ajudar, pelas colunas do cabeçalho. 
 
 | Arquivo | Reconhecido por | Uso |
 |---|---|---|
-| `Comercial*.xlsx` | coluna `DSC_CLASSE` | Realizado: faturamento, economias, volumes, cancelamento, por Sup/cidade/curva/situação |
-| `Arrec*.xlsx` | coluna `Arrecadacao_Acumulada` | Arrecadação, clientes e contas por cidade/mês |
+| `Comercial*.xlsx` (um ou vários) | coluna `DSC_CLASSE` | Realizado: faturamento, economias, volumes, cancelamento, por Sup/cidade/curva/situação |
+| `Arrec*.xlsx` (um ou vários) | coluna `Arrecadacao_Acumulada` | Arrecadação, clientes e contas por cidade/mês |
 | `RF*T*_painel.xlsx` | nome `RFnTyy` ou coluna `Rubrica` | Orçado por superintendência e mês (ex.: `RF3T25`, `RF01T26` → `RF1T26`) |
 
 ## Regras de leitura (editáveis em `CONFIG`, no topo do script de `DRE_Unificado.html`)
@@ -38,3 +38,4 @@ O número da versão aparece no topo da página, ao lado de "Book Executivo". El
 | v1 | DRE unificado (Comercial + Faturamento) com leitura de Excel por pasta, leitura em blocos para arquivos grandes, superintendência por cidade (LAGOS/LESTE), Visão Auditoria, Orçado RF, resumo por mês na aba Dados, barra de progresso e detalhes da leitura, mês opcional no Comercial. |
 | v2 | Cabeçalho enxuto (título "DRE - Comercial"; detalhes da leitura ocultos após carregar, disponíveis na aba Dados). Nova ordem das abas: DRE, Arrecadação (antiga Caixa), Receita, Drivers comerciais, DRE Mensais (antiga DRE mês a mês), DRE Histórico, Orçado RF, Dados. |
 | v3 | DRE Histórico passa para depois do Orçado RF. Ordem das abas: DRE, Arrecadação, Receita, Drivers comerciais, DRE Mensais, Orçado RF, DRE Histórico, Dados. |
+| v4 | Varredura da pasta: lê todos os arquivos de cada tipo (Comercial, Arrecadação, RF), combina os meses e mostra na aba Dados o que foi encontrado em cada arquivo e uma matriz mês × arquivo. Mês repetido entre arquivos: prevalece o arquivo mais recente (ou soma, à escolha). Arquivo com problema ou sem coluna de mês não derruba os demais; o mês pode ser informado por arquivo. |

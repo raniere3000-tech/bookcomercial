@@ -299,8 +299,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'v3';                                    // número exibido no topo — aumentar a cada alteração (v2, v3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.10.02-j';
+const VERSAO_BOOK = 'v4';                                    // número exibido no topo — aumentar a cada alteração (v2, v3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.10.02-k';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -485,9 +485,10 @@ function parseMonth(v) {
 /* =====================================================================
    DADOS
    ===================================================================== */
-const D = { com: null, arr: null, rf: {}, diag: {}, files: [] };
+const D = { com: null, arr: null, rf: {}, diag: {}, comFiles: [], arrFiles: [], rfFiles: [], ignorados: [], problemas: [], uso: { com: new Map(), arr: new Map() } };
+const RESCACHE = new Map();                       // leituras já feitas (mesmo arquivo + mesmo mês informado) — evita reler ao mudar opções
 const S = {
-  mesManual: '', sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
+  mesManual: '', mesArquivo: {}, repetido: 'recente', sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
   hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['ind_agua_extra']) },
   cache: new Map()
 };
@@ -506,7 +507,8 @@ const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto'
 
 async function ingestComercial(file) {
   const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
-  let col = null, mesCol = null; const map = new Map();
+  let col = null, mesCol = null, semMes = false; const map = new Map();
+  const mesFixo = S.mesArquivo[file.name] || S.mesManual || '';
   const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), cidadesSemSup: new Set(), cidadesVistas: new Set(), linhasMes: new Map(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
   const msg = $('#fonteStatus');
   await readXlsx(file, (r, n) => {
@@ -517,8 +519,8 @@ async function ingestComercial(file) {
       if (falta.length) throw new Error('Comercial: colunas ausentes -> ' + falta.join(', '));
       mesCol = MES_COLS.find(c => c in col) || null;
       if (mesCol) log('  coluna de mês usada: ' + r[col[mesCol]]);
-      else if (S.mesManual) { diag.mesManual = S.mesManual; log('  sem coluna de mês no arquivo — usando o mês informado manualmente: ' + S.mesManual, 'aviso'); }
-      else { const er = new Error('Comercial: o arquivo não tem coluna de mês (Referência / AnoMês). Inclua a coluna no Excel ou informe o mês no campo "Mês do Comercial" no cabeçalho.'); er.codigo = 'SEM_MES'; throw er; }
+      else if (mesFixo) { diag.mesManual = mesFixo; log('  sem coluna de mês no arquivo — usando o mês informado manualmente: ' + mesFixo, 'aviso'); }
+      else { semMes = true; log('  sem coluna de mês (Referência / AnoMês) — arquivo pendente: informe o mês na aba Dados › Varredura', 'aviso'); return false; }
       return true;
     }
     diag.linhas++;
@@ -529,7 +531,7 @@ async function ingestComercial(file) {
     if (truthy(g('isgrandtotalrowtotal'))) { diag.descTotal++; return true; }
     if (dZ.has(cls)) { diag.descClasse0++; return true; }
     const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
-    const ym = mesCol ? parseMonth(g(mesCol)) : S.mesManual; if (!ym) { diag.descMes++; return true; }
+    const ym = mesCol ? parseMonth(g(mesCol)) : mesFixo; if (!ym) { diag.descMes++; return true; }
     diag.usadas++; diag.meses.add(ym); diag.cidadesVistas.add(cid); diag.linhasMes.set(ym, (diag.linhasMes.get(ym) || 0) + 1);
     const sups = supsOf(cid); if (sups[0] === 'SEM SUP') diag.cidadesSemSup.add(cid);
     let cur = String(g('macrocluster_curva_cliente') == null ? '-' : g('macrocluster_curva_cliente')).trim(); if (cur === '0' || cur === '') cur = '-';
@@ -551,18 +553,46 @@ async function ingestComercial(file) {
     return true;
   }, { progress: c => { msg.innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Comercial: arquivo sem dados');
+  const base = { tipo: 'com', name: file.name, size: file.size, modified: file.lastModified };
+  if (semMes) return Object.assign(base, { status: 'sem_mes', diag, entries: [], meses: new Set(), mesesValor: new Set(), byYm: new Map() });
   etapa('Montando índices por mês, cidade, curva e situação');
   const entries = Array.from(map.values());
-  const byYm = new Map(), sups = new Set(), curvas = new Set(), sits = new Set();
+  const byYm = new Map(), mesesValor = new Set();
+  entries.forEach(e => { if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e); if (e.dA || e.dE || e.iA || e.iE || e.liq || e.canc) mesesValor.add(e.ym); });
+  diag.agregados = entries.length; diag.colunaSupIgnorada = col['sup'] !== undefined;
+  return Object.assign(base, { status: 'ok', entries, diag, meses: new Set(diag.meses), mesesValor, byYm });
+}
+
+/* junta todos os arquivos Comercial lidos; mês repetido: usa o arquivo mais recente (padrão) ou soma */
+const maisNovo = (a, b) => (b.modified - a.modified) || b.name.localeCompare(a.name);
+function montarComercial() {
+  D.uso.com = new Map();
+  const oks = D.comFiles.filter(f => f.status === 'ok');
+  if (!oks.length) { D.com = null; delete D.diag.com; return; }
+  const todos = new Set(); oks.forEach(f => f.meses.forEach(m => todos.add(m)));
+  const entries = [];
+  todos.forEach(ym => {
+    const tem = oks.filter(f => f.meses.has(ym)), comValor = tem.filter(f => f.mesesValor.has(ym)), pool = (comValor.length ? comValor : tem).slice();
+    const usar = S.repetido === 'somar' ? pool : [pool.sort(maisNovo)[0]];
+    D.uso.com.set(ym, { usar: new Set(usar.map(f => f.name)), tem: new Set(tem.map(f => f.name)), valor: new Set(comValor.map(f => f.name)) });
+    usar.forEach(f => entries.push(...f.byYm.get(ym)));
+  });
+  const dg = { file: oks.length === 1 ? oks[0].name : oks.length + ' arquivos', linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(),
+    cidadesSemSup: new Set(), cidadesVistas: new Set(), linhasMes: new Map(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, agregados: entries.length, colunaSupIgnorada: false, mesManual: null };
+  oks.forEach(f => { const d = f.diag;
+    dg.linhas += d.linhas; dg.descTotal += d.descTotal; dg.descClasse0 += d.descClasse0; dg.descCidade += d.descCidade; dg.descMes += d.descMes;
+    d.classes.forEach((v, k) => { let c = dg.classes.get(k); if (!c) { c = { n: 0, s: {} }; dg.classes.set(k, c); } c.n += v.n; for (const m in v.s) c.s[m] = (c.s[m] || 0) + v.s[m]; });
+    d.naoMapeadas.forEach(x => dg.naoMapeadas.add(x)); if (d.colunaSupIgnorada) dg.colunaSupIgnorada = true; if (d.mesManual) dg.mesManual = d.mesManual;
+    d.linhasMes.forEach((n, ym) => { if (D.uso.com.get(ym).usar.has(f.name)) { dg.usadas += n; dg.linhasMes.set(ym, (dg.linhasMes.get(ym) || 0) + n); dg.meses.add(ym); } });
+  });
+  const byYm = new Map(), sups = new Set(), curvas = new Set(), sits = new Set(), realMonths = new Set();
   entries.forEach(e => {
     if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e);
-    e.sups.forEach(x => sups.add(x)); curvas.add(e.cur); sits.add(e.sit);
-    diag.somaBruto += e.dA + e.dE + e.iA + e.iE; diag.somaCanc += e.canc; diag.somaLiq += e.liq;
+    e.sups.forEach(x => sups.add(x)); curvas.add(e.cur); sits.add(e.sit); dg.cidadesVistas.add(e.cid); if (e.sups[0] === 'SEM SUP') dg.cidadesSemSup.add(e.cid);
+    dg.somaBruto += e.dA + e.dE + e.iA + e.iE; dg.somaCanc += e.canc; dg.somaLiq += e.liq;
+    if (e.dA || e.dE || e.iA || e.iE || e.liq || e.canc) realMonths.add(e.ym);
   });
-  const realMonths = new Set(); entries.forEach(e => { if (e.dA || e.dE || e.iA || e.iE || e.liq || e.canc) realMonths.add(e.ym); });
-  diag.agregados = entries.length; diag.colunaSupIgnorada = col['sup'] !== undefined;
-  D.com = { entries, byYm, sups, curvas, sits, realMonths };
-  D.diag.com = diag;
+  D.com = { entries, byYm, sups, curvas, sits, realMonths }; D.diag.com = dg;
 }
 
 /* ---------- Arrecadação ---------- */
@@ -591,13 +621,32 @@ async function ingestArrec(file) {
   }, { progress: c => { $('#fonteStatus').innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Arrecadação: arquivo sem dados');
   etapa('Montando índices da Arrecadação');
-  const byCid = new Map(), byYm = new Map();
-  Array.from(map.values()).forEach(e => {
-    if (!byCid.has(e.cid)) byCid.set(e.cid, new Map()); byCid.get(e.cid).set(e.ym, e);
-    if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e);
+  const byYm = new Map(), mesesValor = new Set();
+  Array.from(map.values()).forEach(e => { if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e); if (e.arrec) mesesValor.add(e.ym); });
+  return { tipo: 'arr', status: 'ok', name: file.name, size: file.size, modified: file.lastModified, diag, meses: new Set(diag.meses), mesesValor, byYm };
+}
+
+/* junta todos os arquivos de Arrecadação; mês repetido: usa o mais recente (padrão) ou soma */
+function montarArrec() {
+  D.uso.arr = new Map();
+  const oks = D.arrFiles.filter(f => f.status === 'ok');
+  if (!oks.length) { D.arr = null; delete D.diag.arr; return; }
+  const todos = new Set(); oks.forEach(f => f.meses.forEach(m => todos.add(m)));
+  const acc = new Map();
+  todos.forEach(ym => {
+    const tem = oks.filter(f => f.meses.has(ym)), comValor = tem.filter(f => f.mesesValor.has(ym)), pool = (comValor.length ? comValor : tem).slice();
+    const usar = S.repetido === 'somar' ? pool : [pool.sort(maisNovo)[0]];
+    D.uso.arr.set(ym, { usar: new Set(usar.map(f => f.name)), tem: new Set(tem.map(f => f.name)), valor: new Set(comValor.map(f => f.name)) });
+    usar.forEach(f => f.byYm.get(ym).forEach(r => { const k = r.cid + '|' + ym; let e = acc.get(k); if (!e) { e = { cid: r.cid, ym, arrec: 0, cli: 0, contas: 0 }; acc.set(k, e); } e.arrec += r.arrec; e.cli += r.cli; e.contas += r.contas; }));
   });
-  D.arr = { byCid, byYm };
-  D.diag.arr = diag;
+  const dg = { file: oks.length === 1 ? oks[0].name : oks.length + ' arquivos', linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, linhasMes: new Map(), meses: new Set() };
+  oks.forEach(f => { const d = f.diag; dg.linhas += d.linhas; dg.descTotal += d.descTotal; dg.descCidade += d.descCidade; dg.descMes += d.descMes; d.classif.forEach(x => dg.classif.add(x));
+    d.linhasMes.forEach((n, ym) => { if (D.uso.arr.get(ym).usar.has(f.name)) { dg.usadas += n; dg.linhasMes.set(ym, (dg.linhasMes.get(ym) || 0) + n); dg.meses.add(ym); } }); });
+  const byCid = new Map(), byYm = new Map();
+  acc.forEach(e => { dg.somaArrec += e.arrec;
+    if (!byCid.has(e.cid)) byCid.set(e.cid, new Map()); byCid.get(e.cid).set(e.ym, e);
+    if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e); });
+  D.arr = { byCid, byYm }; D.diag.arr = dg;
 }
 
 /* ---------- Painéis de orçado (RF) ---------- */
@@ -1216,14 +1265,52 @@ function resumoMensalHtml() {
   });
   return h;
 }
+/* varredura da pasta: o que foi encontrado em cada tipo de arquivo e como foram combinados */
+function varreduraHtml() {
+  const mb = n => (n / 1048576).toFixed(1) + ' MB', dt = t => new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  const faixa = set => { const l = Array.from(set).sort(); return l.length ? mlabel(l[0]) + ' → ' + mlabel(l[l.length - 1]) + ' · ' + l.length + ' mês(es)' : '—'; };
+  const nOk = l => l.filter(f => f.status === 'ok' || f.status === 'sem_mes' || f.status === 'erro').length;
+  const nC = D.comFiles.length, nA = D.arrFiles.length, rfAll = D.rfFiles.length;
+  const chip = (nome, n) => `<span class="tag ${n > 1 ? 'warn' : n ? '' : 'bad'}">${nome}: ${n} arquivo${n === 1 ? '' : 's'}${n > 1 ? ' ⚠ mais de um' : ''}</span>`;
+  const situ = (f, k) => {
+    if (f.status === 'erro') return `<span class="tag bad">erro</span> ${esc(f.erro)}`;
+    if (f.status === 'sem_mes') return `<span class="tag warn">sem coluna de mês</span> informe o mês dos dados: <input type="month" data-mesfile="${esc(f.name)}" value="${esc(S.mesArquivo[f.name] || '')}" style="font-size:12px;padding:2px 4px">`;
+    let u = 0, ign = 0; f.meses.forEach(ym => { const x = D.uso[k].get(ym); if (!x) return; if (x.usar.has(f.name)) u++; else if (x.valor.has(f.name)) ign++; });
+    if (ign && !u) return '<span class="tag warn">⊘ todos os meses substituídos</span> por arquivo mais recente';
+    if (ign) return `<span class="tag warn">parcial</span> ${u} mês(es) usado(s) · ${ign} substituído(s) por arquivo mais recente`;
+    return '<span class="tag">✔ usado</span>';
+  };
+  const linhas = [];
+  [['Comercial', D.comFiles, 'com'], ['Arrecadação', D.arrFiles, 'arr']].forEach(([nome, lista, k]) => lista.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(f =>
+    linhas.push(`<tr><td>${nome}</td><td>${esc(f.name)}</td><td>${mb(f.size)}</td><td>${dt(f.modified)}</td><td>${f.diag ? fmtN(f.diag.linhas, 0) : '—'}</td><td>${faixa(f.meses)}</td><td>${situ(f, k)}</td></tr>`)));
+  D.rfFiles.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(f => linhas.push(`<tr><td>Orçado ${esc(f.label)}</td><td>${esc(f.name)}</td><td>${mb(f.size)}</td><td>${dt(f.modified)}</td><td>—</td><td>${faixa(new Set(f.meses))}</td><td>${f.status === 'erro' ? '<span class="tag bad">erro</span> ' + esc(f.erro) : f.status === 'substituido' ? '<span class="tag warn">⊘ substituído</span> por arquivo mais recente do mesmo orçado' : '<span class="tag">✔ usado</span>'}</td></tr>`));
+  D.ignorados.forEach(f => linhas.push(`<tr class="zero"><td>não reconhecido</td><td>${esc(f.name)}</td><td>${mb(f.size)}</td><td>${dt(f.modified)}</td><td>—</td><td>—</td><td>ignorado (nome e colunas não correspondem a Comercial, Arrecadação ou RF)</td></tr>`));
+  const multi = nC > 1 || nA > 1;
+  let h = `<div class="panel" style="margin-bottom:16px"><h2>Varredura da pasta</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas. Todos os arquivos de um mesmo tipo são lidos e combinados.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${chip('Comercial', nC)}${chip('Arrecadação', nA)}${chip('Orçado (RF)', rfAll)}${D.ignorados.length ? `<span class="tag warn">não reconhecidos: ${D.ignorados.length}</span>` : ''}</div>`;
+  if (multi) h += `<div class="filterbar" style="padding-bottom:10px"><span class="lbl">Meses repetidos entre arquivos:</span><select id="selRepetido"><option value="recente" ${S.repetido === 'recente' ? 'selected' : ''}>Usar o arquivo mais recente (recomendado)</option><option value="somar" ${S.repetido === 'somar' ? 'selected' : ''}>Somar os arquivos</option></select><span class="hint" style="margin:0">“Mais recente” = data de modificação do arquivo. Somar só faz sentido se os arquivos tiverem partes diferentes do mesmo mês.</span></div>`;
+  h += `<div class="tablewrap" style="max-height:50vh"><table class="dx dxn"><thead><tr><th>Tipo</th><th>Arquivo</th><th>Tamanho</th><th>Modificado</th><th>Linhas lidas</th><th>Meses</th><th>Situação</th></tr></thead><tbody>${linhas.join('')}</tbody></table></div>`;
+  // matriz mês × arquivo quando há mais de um arquivo do tipo
+  [['Comercial', D.comFiles, 'com'], ['Arrecadação', D.arrFiles, 'arr']].forEach(([nome, lista, k]) => {
+    const ok = lista.filter(f => f.status === 'ok'); if (ok.length < 2) return;
+    ok.sort((a, b) => a.name.localeCompare(b.name));
+    const meses = Array.from(D.uso[k].keys()).sort();
+    const rows = meses.map(ym => { const x = D.uso[k].get(ym), rep = x.valor.size > 1;
+      return `<tr class="${rep ? '' : ''}"><td>${mlabel(ym)}${rep ? ' <span class="tag warn">repetido</span>' : ''}</td>${ok.map(f => !x.tem.has(f.name) ? '<td></td>' : x.usar.has(f.name) ? `<td style="color:#1f8a70;font-weight:700">${x.valor.has(f.name) ? (S.repetido === 'somar' && rep ? '＋ somado' : '✔ usado') : '○ sem valores'}</td>` : `<td style="color:#9a6a0a">${x.valor.has(f.name) ? '⊘ ignorado' : '○ sem valores'}</td>`).join('')}</tr>`; });
+    h += `<h2 style="margin:18px 0 3px;font-size:14px">${nome}: mês × arquivo</h2><div class="hint">✔ usado · ⊘ ignorado (há arquivo mais recente com o mesmo mês) · ＋ somado · ○ mês presente no arquivo, mas sem valores</div><div class="tablewrap" style="max-height:50vh"><table class="dx dxn"><thead><tr><th>Mês</th>${ok.map(f => `<th>${esc(f.name)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  });
+  return h + '</div>';
+}
+function bindVarredura() {
+  const sel = $('#selRepetido'); if (sel) sel.onchange = () => { S.repetido = sel.value; persist(); S.cache.clear(); montarComercial(); montarArrec(); S.ym = null; fullRender(); log('Meses repetidos: ' + (S.repetido === 'somar' ? 'somar os arquivos' : 'usar o arquivo mais recente')); };
+  $$('[data-mesfile]').forEach(i => i.onchange = () => { S.mesArquivo[i.dataset.mesfile] = i.value; persist(); if (LAST_FILES) loadFiles(LAST_FILES); });
+}
 function renderDados() {
   const b = $('#dadosBox'); let h = '';
-  if (!D.files.length) { b.innerHTML = '<div class="panel">' + emptyMsg() + '</div>'; return; }
+  if (!D.comFiles.length && !D.arrFiles.length && !D.rfFiles.length && !D.ignorados.length) { b.innerHTML = '<div class="panel">' + emptyMsg() + '</div>'; return; }
   const dc = D.diag.com, da = D.diag.arr;
   h += '<div class="panel" style="margin-bottom:16px;padding:12px 18px"><button class="filterpill" type="button" onclick="const x=document.getElementById(\'loadInfo\');x.hidden=!x.hidden;if(!x.hidden)window.scrollTo(0,0)">Mostrar / ocultar detalhes da leitura no topo</button></div>';
-  h += '<div class="panel" style="margin-bottom:16px"><h2>Arquivos lidos</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas</div><table class="dx"><thead><tr><th>Arquivo</th><th>Tipo</th><th>Detalhe</th></tr></thead><tbody>';
-  D.files.forEach(f => { h += `<tr><td>${esc(f.name)}</td><td>${esc(f.tipo)}</td><td>${esc(f.detalhe || '')}</td></tr>`; });
-  h += '</tbody></table></div>';
+  h += varreduraHtml();
   h += resumoMensalHtml();
   {
     const cv = new Set(D.com ? D.com.entries.map(e => e.cid) : []), av = D.arr ? new Set(D.arr.byCid.keys()) : new Set();
@@ -1280,7 +1367,7 @@ function renderDados() {
       <tr><td>Rubricas não utilizadas</td><td>${Array.from(dg.naoMapeadas).slice(0, 40).map(x => '<span class="tag">' + esc(x) + '</span>').join(' ') || 'nenhuma'}</td></tr>
       </tbody></table></div>`;
   });
-  b.innerHTML = h;
+  b.innerHTML = h; bindVarredura();
 }
 
 /* =====================================================================
@@ -1289,8 +1376,8 @@ function renderDados() {
 function emptyMsg(t) {
   return `<div class="empty">${t || '<b>Sem dados para o período.</b><br>Conecte a pasta com os arquivos (Comercial, Arrecadação e painéis RF) usando o botão <b>📁 Conectar pasta</b>.'}</div>`;
 }
-function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel), mesManual: S.mesManual })); } catch (e) {} }
-function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); if (o.mesManual) S.mesManual = o.mesManual; } catch (e) {} }
+function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel), mesManual: S.mesManual, mesArquivo: S.mesArquivo, repetido: S.repetido })); } catch (e) {} }
+function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); if (o.mesManual) S.mesManual = o.mesManual; if (o.mesArquivo) S.mesArquivo = o.mesArquivo; if (o.repetido) S.repetido = o.repetido; } catch (e) {} }
 
 function buildHeader() {
   const sups = supList(); if (!sups.includes(S.sup)) S.sup = sups.includes('LAGOS') ? 'LAGOS' : (sups[0] || null);
@@ -1382,6 +1469,8 @@ async function loadFiles(files) {
   try { await loadFilesOnce(files); } finally { LOADING = false; }
   if (RELOAD) { RELOAD = false; await loadFiles(LAST_FILES); }
 }
+const cacheKey = (tipo, f) => tipo + '|' + f.name + '|' + f.size + '|' + f.lastModified + '|' + (S.mesArquivo[f.name] || S.mesManual || '');
+const maisNovoF = (a, b) => (b.lastModified - a.lastModified) || b.name.localeCompare(a.name);
 async function loadFilesOnce(files) {
   if (!files.length) return setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true);
   LAST_FILES = files; $('#loadInfo').hidden = false; LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
@@ -1389,32 +1478,58 @@ async function loadFilesOnce(files) {
   files.forEach(f => log('  • ' + f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)'));
   setProg(0, 'Identificando os arquivos…');
   try {
-    D.com = null; D.arr = null; D.rf = {}; D.diag = {}; D.files = []; S.cache.clear();
-    const grupos = { com: [], arr: [], rf: [] }, ignorados = [];
-    for (const f of files) { setStatus('Identificando <b>' + esc(f.name) + '</b>…'); etapa('Identificando o tipo do arquivo', f.name); await tick(); const t = await classify(f); log('  → ' + (t === 'com' ? 'Comercial' : t === 'arr' ? 'Arrecadação' : t === 'rf' ? 'Orçado (RF)' : 'não reconhecido (ignorado)')); t ? grupos[t].push(f) : ignorados.push(f.name); }
-    const latest = l => l.sort((a, b) => b.lastModified - a.lastModified)[0];
-    const fila = [];                                                   // ordem: painéis RF, Comercial, Arrecadação
-    grupos.rf.forEach(f => fila.push(['rf', f])); if (grupos.com.length) fila.push(['com', latest(grupos.com)]); if (grupos.arr.length) fila.push(['arr', latest(grupos.arr)]);
+    D.com = null; D.arr = null; D.rf = {}; D.diag = {}; D.comFiles = []; D.arrFiles = []; D.rfFiles = []; D.ignorados = []; D.problemas = []; S.cache.clear();
+    const grupos = { com: [], arr: [], rf: [] };
+    for (const f of files) {
+      setStatus('Identificando <b>' + esc(f.name) + '</b>…'); etapa('Identificando o tipo do arquivo', f.name); await tick();
+      const t = await classify(f); log('  → ' + (t === 'com' ? 'Comercial' : t === 'arr' ? 'Arrecadação' : t === 'rf' ? 'Orçado (RF)' : 'não reconhecido (ignorado)'));
+      t ? grupos[t].push(f) : D.ignorados.push({ name: f.name, size: f.size, modified: f.lastModified });
+    }
+    // painéis de orçado: para o mesmo RF, o arquivo mais recente prevalece
+    const porRotulo = new Map(); grupos.rf.forEach(f => { const l = rfLabel(f.name); if (!porRotulo.has(l)) porRotulo.set(l, []); porRotulo.get(l).push(f); });
+    const rfLer = []; porRotulo.forEach((l, lab) => { l.sort(maisNovoF); rfLer.push(l[0]); l.slice(1).forEach(f => D.rfFiles.push({ name: f.name, size: f.size, modified: f.lastModified, label: lab, status: 'substituido', meses: [] })); });
+    log('Varredura: Comercial ' + grupos.com.length + ' • Arrecadação ' + grupos.arr.length + ' • Orçado ' + grupos.rf.length + (D.ignorados.length ? ' • não reconhecidos ' + D.ignorados.length : ''));
+    if (grupos.com.length > 1) log('  atenção: ' + grupos.com.length + ' arquivos Comercial — serão combinados (mês repetido: ' + (S.repetido === 'somar' ? 'soma' : 'prevalece o mais recente') + ')', 'aviso');
+    if (grupos.arr.length > 1) log('  atenção: ' + grupos.arr.length + ' arquivos de Arrecadação — serão combinados (mês repetido: ' + (S.repetido === 'somar' ? 'soma' : 'prevalece o mais recente') + ')', 'aviso');
+    const fila = [];
+    rfLer.forEach(f => fila.push(['rf', f])); grupos.com.sort(maisNovoF).reverse().forEach(f => fila.push(['com', f])); grupos.arr.sort(maisNovoF).reverse().forEach(f => fila.push(['arr', f]));
     PG.total = fila.reduce((t, x) => t + x[1].size, 0) || 1; PG.base = 0;
     for (const [tipo, f] of fila) {
       PG.tam = f.size; CTX.arquivo = f.name; CTX.linha = 0; setStatus('Lendo <b>' + esc(f.name) + '</b>…'); progArquivo(0, 0); await tick();
-      if (tipo === 'rf') { await ingestPainel(f); D.files.push({ name: f.name, tipo: 'Orçado ' + rfLabel(f.name), detalhe: D.rf[rfLabel(f.name)].meses.length + ' meses com valor' }); }
-      else if (tipo === 'com') { await ingestComercial(f); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
-      else { await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
-      PG.base += f.size; log('  ✔ concluído: ' + f.name + (tipo === 'com' ? ' — ' + D.diag.com.usadas.toLocaleString('pt-BR') + ' linhas aproveitadas de ' + D.diag.com.linhas.toLocaleString('pt-BR') : tipo === 'arr' ? ' — ' + D.diag.arr.usadas.toLocaleString('pt-BR') + ' linhas' : ''));
+      try {
+        if (tipo === 'rf') {
+          await ingestPainel(f); const l = rfLabel(f.name); D.rfFiles.push({ name: f.name, size: f.size, modified: f.lastModified, label: l, status: 'usado', meses: D.rf[l].meses });
+          log('  ✔ concluído: ' + f.name + ' — orçado ' + l + ', ' + D.rf[l].meses.length + ' meses com valor');
+        } else {
+          const k = cacheKey(tipo, f); let r = RESCACHE.get(k);
+          if (r) log('  ↺ ' + f.name + ': usando a leitura já feita (arquivo não mudou)');
+          else { r = tipo === 'com' ? await ingestComercial(f) : await ingestArrec(f); if (r.status === 'ok') RESCACHE.set(k, r); }
+          (tipo === 'com' ? D.comFiles : D.arrFiles).push(r);
+          if (r.status === 'sem_mes') D.problemas.push({ name: f.name, msg: 'sem coluna de mês' });
+          else log('  ✔ concluído: ' + f.name + ' — ' + r.diag.usadas.toLocaleString('pt-BR') + ' linhas aproveitadas de ' + r.diag.linhas.toLocaleString('pt-BR') + ' · ' + r.meses.size + ' mês(es)');
+        }
+      } catch (e) {                                                      // um arquivo com problema não derruba os demais
+        console.error(e); logErro(e); D.problemas.push({ name: f.name, msg: e.message });
+        const vazio = { tipo, name: f.name, size: f.size, modified: f.lastModified, status: 'erro', erro: e.message, diag: null, meses: new Set(), mesesValor: new Set(), byYm: new Map() };
+        if (tipo === 'com') D.comFiles.push(vazio); else if (tipo === 'arr') D.arrFiles.push(vazio); else D.rfFiles.push({ name: f.name, size: f.size, modified: f.lastModified, label: rfLabel(f.name), status: 'erro', erro: e.message, meses: [] });
+      }
+      PG.base += f.size;
     }
-    ignorados.forEach(n => D.files.push({ name: n, tipo: 'não reconhecido', detalhe: 'ignorado' }));
+    etapa('Combinando os arquivos de cada tipo'); montarComercial(); montarArrec();
     S.ym = null; S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;   // recalcula o mês padrão (último com realizado)
     CTX.arquivo = ''; CTX.linha = 0; setProg(96, 'Montando as telas…'); etapa('Montando as telas'); await tick();
     fullRender();
-    const partes = [];
-    if (D.com) partes.push('Comercial'); if (D.arr) partes.push('Arrecadação'); const rfs = Object.keys(D.rf); if (rfs.length) partes.push('Orçado ' + rfs.join(', '));
-    setProg(100, 'Concluído', 'ok'); log('Leitura concluída com sucesso.');
-    setTimeout(() => { if (!document.querySelector('#logBox.erro')) $('#loadInfo').hidden = true; }, 1800);   // oculta o detalhamento após carregar
-    setStatus('Carregado: <b>' + (partes.join(' • ') || 'nada reconhecido') + '</b> — ' + new Date().toLocaleTimeString('pt-BR') + '. Veja a aba <b>Dados</b> para conferências.');
+    if (D.comFiles.some(f => f.status === 'sem_mes')) $('#mesManualBox').style.display = '';
+    const nOk = l => l.filter(f => f.status === 'ok').length, partes = [];
+    if (D.com) partes.push('Comercial' + (nOk(D.comFiles) > 1 ? ' (' + nOk(D.comFiles) + ' arquivos)' : ''));
+    if (D.arr) partes.push('Arrecadação' + (nOk(D.arrFiles) > 1 ? ' (' + nOk(D.arrFiles) + ' arquivos)' : ''));
+    const rfs = Object.keys(D.rf); if (rfs.length) partes.push('Orçado ' + rfs.join(', '));
+    const pend = D.problemas.length;
+    setProg(100, pend ? 'Concluído com pendências' : 'Concluído', pend ? undefined : 'ok'); log(pend ? 'Leitura concluída com ' + pend + ' arquivo(s) com pendência.' : 'Leitura concluída com sucesso.', pend ? 'aviso' : undefined);
+    if (!pend) setTimeout(() => { if (!document.querySelector('#logBox.erro')) $('#loadInfo').hidden = true; }, 1800);   // oculta o detalhamento após carregar
+    setStatus('Carregado: <b>' + (partes.join(' • ') || 'nada reconhecido') + '</b> — ' + new Date().toLocaleTimeString('pt-BR') + '. ' + (pend ? '<span class="tag warn">' + pend + ' arquivo(s) com pendência</span> veja a aba <b>Dados › Varredura</b>.' : 'Veja a aba <b>Dados</b> para conferências.'));
   } catch (e) {
     console.error(e); logErro(e); $('#loadInfo').hidden = false;
-    if (e.codigo === 'SEM_MES') $('#mesManualBox').style.display = '';
     try { D.com = null; D.arr = null; fullRender(); } catch (e2) { log('Falha ao limpar as telas: ' + e2.message, 'erro'); }   // não deixa dados da leitura anterior na tela
     setStatus(e.message, true);
   }
