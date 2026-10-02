@@ -174,9 +174,7 @@ table.hist tr.total td.col-total{background:#dcebf4}
   <div class="toprow">
     <div>
       <div class="eyebrow">Águas do Rio • Book Executivo <span class="verBadge" id="verBadge">v1</span></div>
-      <h1 id="titulo">DRE Comercial e Receita</h1>
-      <div class="sub" id="subtitulo">Conecte a pasta com os arquivos para carregar os dados</div>
-      <div class="scopeLine" id="escopo"></div>
+      <h1 id="titulo">DRE - Comercial</h1>
     </div>
     <div class="toolbar">
       <div class="fgroup"><span class="flabel">Superintendência</span><span id="supBtns"></span></div>
@@ -195,18 +193,20 @@ table.hist tr.total td.col-total{background:#dcebf4}
       <input type="file" id="fileFallback" webkitdirectory multiple style="display:none">
     </div>
   </div>
+  <div id="loadInfo">
   <div class="fonteStatus" id="fonteStatus">Nenhuma pasta conectada.</div>
   <div class="progWrap" id="progWrap" hidden><div class="prog"><div class="progBar" id="progBar"></div></div><b id="progPct">0%</b><span id="progLabel"></span></div>
   <details class="logBox" id="logBox"><summary>Detalhes da leitura</summary>
     <div class="logTools"><button id="btnCopyLog" type="button">Copiar detalhes</button></div><pre id="logPre">Nenhuma leitura realizada ainda.</pre></details>
+  </div>
 </header>
 
 <nav class="nav" id="nav">
   <button class="tab active" data-page="dre">DRE</button>
-  <button class="tab" data-page="dremensal">DRE mês a mês</button>
+  <button class="tab" data-page="caixa">Arrecadação</button>
   <button class="tab" data-page="receita">Receita</button>
   <button class="tab" data-page="drivers">Drivers comerciais</button>
-  <button class="tab" data-page="caixa">Caixa</button>
+  <button class="tab" data-page="dremensal">DRE Mensais</button>
   <button class="tab" data-page="historico">DRE Histórico</button>
   <button class="tab" data-page="rf">Orçado RF</button>
   <button class="tab" data-page="dados">Dados</button>
@@ -220,7 +220,7 @@ table.hist tr.total td.col-total{background:#dcebf4}
   </section>
 
   <section class="page" id="dremensal">
-    <div class="panel"><h2>DRE aberta mês a mês</h2>
+    <div class="panel"><h2>DRE Mensais</h2>
       <div class="hint">Selecione um indicador para exibir Orçado, Realizado e desvios de cada mês (inclui os meses futuros do orçado)</div>
       <div id="dreFilters" class="filterstrip"></div>
       <div id="monthlyTitle" class="period"></div><div id="monthlyTable" class="tablewrap"></div></div>
@@ -246,7 +246,7 @@ table.hist tr.total td.col-total{background:#dcebf4}
 
   <section class="page" id="caixa">
     <div class="kpis" id="cashKpis"></div>
-    <div class="panel"><h2>Caixa: mês e acumulado</h2><div class="hint">Arrecadação realizada versus a referência orçada selecionada</div>
+    <div class="panel"><h2>Arrecadação: mês e acumulado</h2><div class="hint">Arrecadação realizada versus a referência orçada selecionada</div>
       <div class="period" id="cashPeriod"></div><div id="cashTable" class="tablewrap"></div></div>
   </section>
 
@@ -299,8 +299,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'v1';                                    // número exibido no topo — aumentar a cada alteração (v2, v3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.10.02-h';
+const VERSAO_BOOK = 'v2';                                    // número exibido no topo — aumentar a cada alteração (v2, v3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.10.02-i';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -891,7 +891,7 @@ function renderDrivers() {
 }
 
 /* =====================================================================
-   ABA: Caixa
+   ABA: Arrecadação (antiga Caixa)
    ===================================================================== */
 function renderCaixa() {
   if (!S.ym) { $('#cashKpis').innerHTML = emptyMsg(); $('#cashTable').innerHTML = ''; return; }
@@ -1220,6 +1220,7 @@ function renderDados() {
   const b = $('#dadosBox'); let h = '';
   if (!D.files.length) { b.innerHTML = '<div class="panel">' + emptyMsg() + '</div>'; return; }
   const dc = D.diag.com, da = D.diag.arr;
+  h += '<div class="panel" style="margin-bottom:16px;padding:12px 18px"><button class="filterpill" type="button" onclick="const x=document.getElementById(\'loadInfo\');x.hidden=!x.hidden;if(!x.hidden)window.scrollTo(0,0)">Mostrar / ocultar detalhes da leitura no topo</button></div>';
   h += '<div class="panel" style="margin-bottom:16px"><h2>Arquivos lidos</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas</div><table class="dx"><thead><tr><th>Arquivo</th><th>Tipo</th><th>Detalhe</th></tr></thead><tbody>';
   D.files.forEach(f => { h += `<tr><td>${esc(f.name)}</td><td>${esc(f.tipo)}</td><td>${esc(f.detalhe || '')}</td></tr>`; });
   h += '</tbody></table></div>';
@@ -1308,9 +1309,6 @@ function buildHeader() {
   $('#listaAud').innerHTML = sits.map(s => `<label><input type="checkbox" data-sit="${esc(s)}" ${S.audSel.has(s) ? 'checked' : ''}> ${esc(s === '-' ? 'Sem situação (-)' : s)}</label>`).join('') || '<label>Sem dados</label>';
   $$('#listaAud [data-sit]').forEach(c => c.onchange = () => { c.checked ? S.audSel.add(c.dataset.sit) : S.audSel.delete(c.dataset.sit); persist(); S.cache.clear(); renderAll(); });
   const y = S.ym ? yearOf(S.ym) : '';
-  $('#titulo').textContent = y ? `DRE Comercial e Receita | Realizado ${y}` : 'DRE Comercial e Receita';
-  $('#subtitulo').textContent = S.rf ? `Comparativo com o orçamento ${S.rf} • visão mensal e acumulada` : 'Sem painel de orçado carregado';
-  $('#escopo').textContent = S.sup ? `Superintendência ${S.sup}${S.rf ? ' | ' + S.rf : ''}${S.aud ? ' | Visão Auditoria: ' + Array.from(S.audSel).join(' + ') : ''}` : '';
 }
 const rfOrd = l => { const m = /RF(\d)T(\d\d)/.exec(l); return m ? (+m[2]) * 10 + (+m[1]) : 0; };
 
@@ -1320,7 +1318,6 @@ function renderAll() {
   if (t === 'dre') renderDRE(); else if (t === 'dremensal') renderMonthly(); else if (t === 'receita') renderReceita();
   else if (t === 'drivers') renderDrivers(); else if (t === 'caixa') renderCaixa(); else if (t === 'historico') renderHistorico();
   else if (t === 'rf') renderRF(); else if (t === 'dados') renderDados();
-  $('#escopo').textContent = S.sup ? `Superintendência ${S.sup}${S.rf ? ' | ' + S.rf : ''}${S.aud ? ' | Visão Auditoria: ' + Array.from(S.audSel).join(' + ') : ''}` : '';
 }
 function fullRender() { buildHeader(); renderAll(); }
 
@@ -1387,7 +1384,7 @@ async function loadFiles(files) {
 }
 async function loadFilesOnce(files) {
   if (!files.length) return setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true);
-  LAST_FILES = files; LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
+  LAST_FILES = files; $('#loadInfo').hidden = false; LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
   log('Versão ' + VERSAO + ' — ' + files.length + ' arquivo(s) .xlsx na pasta');
   files.forEach(f => log('  • ' + f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)'));
   setProg(0, 'Identificando os arquivos…');
@@ -1413,9 +1410,10 @@ async function loadFilesOnce(files) {
     const partes = [];
     if (D.com) partes.push('Comercial'); if (D.arr) partes.push('Arrecadação'); const rfs = Object.keys(D.rf); if (rfs.length) partes.push('Orçado ' + rfs.join(', '));
     setProg(100, 'Concluído', 'ok'); log('Leitura concluída com sucesso.');
+    setTimeout(() => { if (!document.querySelector('#logBox.erro')) $('#loadInfo').hidden = true; }, 1800);   // oculta o detalhamento após carregar
     setStatus('Carregado: <b>' + (partes.join(' • ') || 'nada reconhecido') + '</b> — ' + new Date().toLocaleTimeString('pt-BR') + '. Veja a aba <b>Dados</b> para conferências.');
   } catch (e) {
-    console.error(e); logErro(e);
+    console.error(e); logErro(e); $('#loadInfo').hidden = false;
     if (e.codigo === 'SEM_MES') $('#mesManualBox').style.display = '';
     try { D.com = null; D.arr = null; fullRender(); } catch (e2) { log('Falha ao limpar as telas: ' + e2.message, 'erro'); }   // não deixa dados da leitura anterior na tela
     setStatus(e.message, true);
