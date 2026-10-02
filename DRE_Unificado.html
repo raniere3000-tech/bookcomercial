@@ -159,6 +159,7 @@ table.hist tr.total td.col-total{background:#dcebf4}
 .empty b{color:var(--navy)}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#e7f6f4;color:#14735e;font-weight:700}
 .tag.warn{background:#fff4de;color:#9a6a0a}.tag.bad{background:#fdecec;color:#a63333}
+.dxn td,.dxn th{text-align:right!important;white-space:nowrap!important}.dxn td:first-child,.dxn th:first-child{text-align:left!important}.dxn tr.zero td{color:#9aa8b5}.dxn tr.zero td:first-child{color:#9a6a0a}
 .dx{font-size:12px}.dx td,.dx th{padding:6px 9px}
 .dx td{text-align:left}.dx td:first-child{white-space:normal}.dx tr td:not(:first-child) {white-space:normal}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid,.grid2{grid-template-columns:1fr}.bridgeCards{grid-template-columns:1fr}}
@@ -180,6 +181,7 @@ table.hist tr.total td.col-total{background:#dcebf4}
       <div class="fgroup"><span class="flabel">Superintendência</span><span id="supBtns"></span></div>
       <div class="fgroup"><span class="flabel">Referência</span><span id="rfBtns"></span></div>
       <div class="fgroup"><span class="flabel">Mês</span><select id="monthFilter"></select></div>
+      <div class="fgroup" id="mesManualBox" style="display:none"><span class="flabel">Mês do Comercial</span><input type="month" id="mesManual" style="border:0;background:transparent;color:#fff;padding:7px 8px;font-size:13px;color-scheme:dark"></div>
       <div class="fgroup" id="audBox">
         <span class="flabel">Visão Auditoria</span>
         <label class="switch"><input type="checkbox" id="chkAud"><span class="slider"></span></label>
@@ -288,16 +290,15 @@ const CONFIG = {
                    'ABATIMENTO DE AGUA','ABATIMENTO DE SERVICO DE AGUA','DESCONTOS','CONSERTOS E REPAROS'],
   classeZero: ['0',''],                                    // linhas de total sem abertura: descartadas
   // Relação SUP FINAL × CIDADE. A superintendência vem SÓ daqui (a coluna Sup do arquivo é ignorada).
-  // Uma cidade pode estar em mais de uma superintendência (ex.: ITABORAI e RIO BONITO): nesse caso
-  // ela entra inteira na visão de cada uma, e na visão TODAS é contada uma única vez.
+  // Cidade que não estiver na relação vai para 'SEM SUP' (listada na aba Dados).
   supCidades: {
-    'LAGOS': ['APERIBE', 'CAMBUCI', 'CACHOEIRAS DE MACACU', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS', 'ITABORAI',
-              'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'RIO DE JANEIRO', 'S.SEBASTIAO DO ALTO', 'S.FCO.DO ITABAPOANA'],
-    'LESTE': ['ITABORAI', 'MARICA', 'RIO BONITO', 'RIO DE JANEIRO - A', 'SAO GONCALO', 'SAQUAREMA', 'TANGUA']
+    'LAGOS': ['APERIBE', 'CAMBUCI', 'CACHOEIRAS DE MACACU', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS',
+              'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'S.SEBASTIAO DO ALTO', 'S.FCO.DO ITABAPOANA'],
+    'LESTE': ['ITABORAI', 'MARICA', 'SAO GONCALO', 'SAQUAREMA', 'TANGUA']
   }
 };
 
-const VERSAO = 'v2026.10.02-e (leitura em blocos + progresso)';
+const VERSAO = 'v2026.10.02-g (mês opcional no Comercial)';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -320,6 +321,7 @@ function progArquivo(pctArquivo, linhas) {                       // pctArquivo: 
 function dicaErro(msg) {
   if (/Invalid string length/i.test(msg)) return 'Texto grande demais para o navegador. Veja em qual etapa ocorreu: se for "Lendo textos compartilhados" o sharedStrings é enorme; se for "Descompactando planilha", confira se a versão exibida no topo é a mais recente (leitura em blocos).';
   if (/Array buffer allocation failed|out of memory|Invalid array length/i.test(msg)) return 'Memória do navegador insuficiente. Feche outras abas e tente de novo; em último caso reduza o arquivo.';
+  if (/coluna de mês/i.test(msg)) return 'Falta a coluna com o mês (Referência ou AnoMês). Reinclua a coluna na consulta do Excel ou informe o mês no campo "Mês do Comercial" (aparece no cabeçalho).';
   if (/colunas ausentes/i.test(msg)) return 'O arquivo não tem as colunas esperadas no cabeçalho — confira o nome das colunas.';
   if (/zip|central directory|corrupt/i.test(msg)) return 'O arquivo parece corrompido ou não é um .xlsx válido (ou ainda está sendo sincronizado pelo OneDrive).';
   return '';
@@ -483,7 +485,7 @@ function parseMonth(v) {
    ===================================================================== */
 const D = { com: null, arr: null, rf: {}, diag: {}, files: [] };
 const S = {
-  sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
+  mesManual: '', sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
   hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['ind_agua_extra']) },
   cache: new Map()
 };
@@ -491,7 +493,8 @@ const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM
 const supsOf = cid => CIDADE_SUPS.get(norm(cid)) || ['SEM SUP'];
 
 /* ---------- Comercial ---------- */
-const COM_REQ = ['cidade', 'dsc_classe', 'referencia', 'baseinativacao_situacao_final', 'isgrandtotalrowtotal',
+const MES_COLS = ['referencia', 'anomes', 'ano_mes', 'mes_ano', 'competencia', 'data_referencia', 'mes', 'data'];   // nomes aceitos para a coluna de mês
+const COM_REQ = ['cidade', 'dsc_classe', 'baseinativacao_situacao_final', 'isgrandtotalrowtotal',
   'faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto', 'faturamento_bruto_indireta_agua', 'faturamento_bruto_indireta_esgoto',
   'qtd_eco_fat_agua', 'qtd_eco_fat_esgoto', 'vol_faturado_agua_direto_m', 'vol_faturado_esgoto_direto_m', 'volume_medido_de_agua_m',
   'r_cancelamento_total', 'r_faturamento_total_liquido'];
@@ -501,14 +504,19 @@ const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto'
 
 async function ingestComercial(file) {
   const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
-  let col = null; const map = new Map();
-  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), cidadesSemSup: new Set(), cidadesVistas: new Set(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
+  let col = null, mesCol = null; const map = new Map();
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), cidadesSemSup: new Set(), cidadesVistas: new Set(), linhasMes: new Map(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
   const msg = $('#fonteStatus');
   await readXlsx(file, (r, n) => {
     if (!col) {
       etapa('Validando as colunas do cabeçalho (Comercial)'); col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
+      log('  colunas encontradas: ' + r.filter(h => h != null).join(' | '));
       const falta = COM_REQ.filter(c => !(c in col));
       if (falta.length) throw new Error('Comercial: colunas ausentes -> ' + falta.join(', '));
+      mesCol = MES_COLS.find(c => c in col) || null;
+      if (mesCol) log('  coluna de mês usada: ' + r[col[mesCol]]);
+      else if (S.mesManual) { diag.mesManual = S.mesManual; log('  sem coluna de mês no arquivo — usando o mês informado manualmente: ' + S.mesManual, 'aviso'); }
+      else { const er = new Error('Comercial: o arquivo não tem coluna de mês (Referência / AnoMês). Inclua a coluna no Excel ou informe o mês no campo "Mês do Comercial" no cabeçalho.'); er.codigo = 'SEM_MES'; throw er; }
       return true;
     }
     diag.linhas++;
@@ -519,8 +527,8 @@ async function ingestComercial(file) {
     if (truthy(g('isgrandtotalrowtotal'))) { diag.descTotal++; return true; }
     if (dZ.has(cls)) { diag.descClasse0++; return true; }
     const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
-    const ym = parseMonth(g('referencia')); if (!ym) { diag.descMes++; return true; }
-    diag.usadas++; diag.meses.add(ym); diag.cidadesVistas.add(cid);
+    const ym = mesCol ? parseMonth(g(mesCol)) : S.mesManual; if (!ym) { diag.descMes++; return true; }
+    diag.usadas++; diag.meses.add(ym); diag.cidadesVistas.add(cid); diag.linhasMes.set(ym, (diag.linhasMes.get(ym) || 0) + 1);
     const sups = supsOf(cid); if (sups[0] === 'SEM SUP') diag.cidadesSemSup.add(cid);
     let cur = String(g('macrocluster_curva_cliente') == null ? '-' : g('macrocluster_curva_cliente')).trim(); if (cur === '0' || cur === '') cur = '-';
     let sit = String(g('baseinativacao_situacao_final') == null ? '-' : g('baseinativacao_situacao_final')).trim(); if (sit === '0' || sit === '') sit = '-';
@@ -558,7 +566,7 @@ async function ingestComercial(file) {
 /* ---------- Arrecadação ---------- */
 async function ingestArrec(file) {
   let col = null; const map = new Map();
-  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, meses: new Set() };
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, linhasMes: new Map(), meses: new Set() };
   await readXlsx(file, (r) => {
     if (!col) {
       col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
@@ -576,7 +584,7 @@ async function ingestArrec(file) {
     const key = cid + '|' + ym; let e = map.get(key);
     if (!e) { e = { cid, ym, arrec: 0, cli: 0, contas: 0 }; map.set(key, e); }
     e.arrec += num('arrecadacao_acumulada'); e.cli += num('qtd_clientes_pagantes_acumulado'); e.contas += num('qtd_clientes_pagas_mes_anterior');
-    diag.usadas++; diag.somaArrec += num('arrecadacao_acumulada'); diag.meses.add(ym);
+    diag.usadas++; diag.somaArrec += num('arrecadacao_acumulada'); diag.meses.add(ym); diag.linhasMes.set(ym, (diag.linhasMes.get(ym) || 0) + 1);
     return true;
   }, { progress: c => { $('#fonteStatus').innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Arrecadação: arquivo sem dados');
@@ -1167,6 +1175,45 @@ function renderHistorico() {
 /* =====================================================================
    ABA: Dados (diagnóstico)
    ===================================================================== */
+/* resumo por mês do que foi identificado em cada arquivo (todas as cidades, sem filtros) */
+function resumoMensalHtml() {
+  const money = v => v ? fmtBRL(v) : '—', num = v => v ? fmtN(v, 0) : '—';
+  const wrap = (titulo, hint, head, rows, tot) => `<div class="panel" style="margin-bottom:16px"><h2>${titulo}</h2><div class="hint">${hint}</div><div class="tablewrap" style="max-height:60vh"><table class="dx dxn"><thead><tr>${head.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}${tot ? `<tr class="total"><td>Total</td>${tot.map(x => `<td>${x}</td>`).join('')}</tr>` : ''}</tbody></table></div></div>`;
+  let h = '';
+  if (D.com) {
+    const dc = D.diag.com, por = new Map(), cids = new Map();
+    D.com.entries.forEach(e => {
+      let a = por.get(e.ym); if (!a) { a = { dA: 0, dE: 0, iA: 0, iE: 0, canc: 0, liq: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0 }; por.set(e.ym, a); cids.set(e.ym, new Set()); }
+      for (const f in a) a[f] += e[f]; if (e.dA || e.dE || e.iA || e.iE || e.liq) cids.get(e.ym).add(e.cid);
+    });
+    const meses = Array.from(por.keys()).sort(), T = { dA: 0, dE: 0, iA: 0, iE: 0, canc: 0, liq: 0, linhas: 0 };
+    const rows = meses.map(m => { const a = por.get(m), l = dc.linhasMes.get(m) || 0, bruto = a.dA + a.dE + a.iA + a.iE, vazio = !(bruto || a.liq || a.canc);
+      for (const f in T) if (f !== 'linhas') T[f] += a[f]; T.linhas += l;
+      return `<tr class="${vazio ? 'zero' : ''}"><td>${mlabel(m)}${vazio ? ' <span class="tag warn">sem valores</span>' : ''}</td><td>${fmtN(l, 0)}</td><td>${cids.get(m).size}</td><td>${money(a.dA)}</td><td>${money(a.dE)}</td><td>${money(a.iA)}</td><td>${money(a.iE)}</td><td>${money(bruto)}</td><td>${money(a.canc)}</td><td>${money(a.liq)}</td><td>${num(a.ecoA)}</td><td>${num(a.ecoE)}</td><td>${num(a.volA)}</td><td>${num(a.volE)}</td></tr>`; });
+    const tb = T.dA + T.dE + T.iA + T.iE;
+    h += wrap('Resumo por mês — Comercial', esc(dc.file) + ' · todas as cidades, sem filtros · linhas aproveitadas (totais e DSC_CLASSE = 0 já descartados); meses em cinza estão no arquivo mas sem valores',
+      ['Mês', 'Linhas', 'Cidades c/ valor', 'Direta água', 'Direta esgoto', 'Indireta água', 'Indireta esgoto', 'Fat. bruto', 'Cancelamento', 'Fat. líquido', 'Economias água', 'Economias esgoto', 'Vol. água (m³)', 'Vol. esgoto (m³)'],
+      rows, [fmtN(T.linhas, 0), '', money(T.dA), money(T.dE), money(T.iA), money(T.iE), money(tb), money(T.canc), money(T.liq), '', '', '', '']);
+  }
+  if (D.arr) {
+    const da = D.diag.arr, meses = Array.from(D.arr.byYm.keys()).sort(), T = { arrec: 0, cli: 0, contas: 0, linhas: 0 };
+    const rows = meses.map(m => { let ar = 0, cl = 0, co = 0; const l = D.arr.byYm.get(m); l.forEach(e => { ar += e.arrec; cl += e.cli; co += e.contas; });
+      T.arrec += ar; T.cli += cl; T.contas += co; T.linhas += da.linhasMes.get(m) || 0;
+      return `<tr class="${ar ? '' : 'zero'}"><td>${mlabel(m)}${ar ? '' : ' <span class="tag warn">sem valores</span>'}</td><td>${fmtN(da.linhasMes.get(m) || 0, 0)}</td><td>${l.length}</td><td>${money(ar)}</td><td>${num(cl)}</td><td>${num(co)}</td></tr>`; });
+    h += wrap('Resumo por mês — Arrecadação', esc(da.file) + ' · todas as cidades; “Cidades” = cidades com linha no mês',
+      ['Mês', 'Linhas', 'Cidades', 'Arrecadação', 'Clientes pagantes', 'Contas pagas (mês anterior)'], rows, [fmtN(T.linhas, 0), '', money(T.arrec), num(T.cli), num(T.contas)]);
+  }
+  Object.keys(D.rf).sort().forEach(l => {
+    const r = D.rf[l], cols = [['Fat. bruto', 'bruto'], ['Direto', 'direto'], ['Indireto', 'indireto'], ['Cancel.', 'canc'], ['Fat. líquido', 'liq'], ['Cut-off', 'cutoff'], ['Arrecadação', 'arrec'], ['Econ. água', 'ecoA'], ['Econ. esgoto', 'ecoE'], ['Vol. água', 'volA'], ['Vol. esgoto', 'volE']];
+    const rows = [];
+    r.bySup.forEach((mm, sup) => Array.from(mm.keys()).sort().forEach(m => {
+      const o = mm.get(m), v = Object.assign({}, o); if (has(o.dA) || has(o.dE)) v.direto = (o.dA || 0) + (o.dE || 0); if (has(o.iA) || has(o.iE)) v.indireto = (o.iA || 0) + (o.iE || 0);
+      if (!has(v.bruto) && (has(v.direto) || has(v.indireto))) v.bruto = (v.direto || 0) + (v.indireto || 0);
+      rows.push(`<tr><td>${esc(sup)}</td><td>${mlabel(m)}</td>${cols.map(([, k]) => `<td>${has(v[k]) ? (['ecoA', 'ecoE', 'volA', 'volE'].includes(k) ? fmtN(v[k], 0) : fmtBRL(v[k])) : '—'}</td>`).join('')}</tr>`); }));
+    h += wrap('Resumo por mês — Orçado ' + esc(l), esc(r.file) + ' · valores do painel por superintendência e mês (só meses com valor)', ['Sup', 'Mês'].concat(cols.map(c => c[0])), rows, null);
+  });
+  return h;
+}
 function renderDados() {
   const b = $('#dadosBox'); let h = '';
   if (!D.files.length) { b.innerHTML = '<div class="panel">' + emptyMsg() + '</div>'; return; }
@@ -1174,15 +1221,16 @@ function renderDados() {
   h += '<div class="panel" style="margin-bottom:16px"><h2>Arquivos lidos</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas</div><table class="dx"><thead><tr><th>Arquivo</th><th>Tipo</th><th>Detalhe</th></tr></thead><tbody>';
   D.files.forEach(f => { h += `<tr><td>${esc(f.name)}</td><td>${esc(f.tipo)}</td><td>${esc(f.detalhe || '')}</td></tr>`; });
   h += '</tbody></table></div>';
+  h += resumoMensalHtml();
   {
     const cv = new Set(D.com ? D.com.entries.map(e => e.cid) : []), av = D.arr ? new Set(D.arr.byCid.keys()) : new Set();
-    h += '<div class="panel" style="margin-bottom:16px"><h2>Cidades por superintendência</h2><div class="hint">Relação SUP FINAL × cidade usada nos filtros. Cidades em mais de uma superintendência entram inteiras em cada uma e são contadas uma única vez em TODAS</div><table class="dx"><thead><tr><th>Superintendência</th><th>Cidades (✔ = com dados no Comercial · ◐ = só na Arrecadação · ✖ = sem dados)</th></tr></thead><tbody>';
+    h += '<div class="panel" style="margin-bottom:16px"><h2>Cidades por superintendência</h2><div class="hint">Relação SUP FINAL × cidade usada nos filtros; cada cidade pertence a uma única superintendência</div><table class="dx"><thead><tr><th>Superintendência</th><th>Cidades (✔ = com dados no Comercial · ◐ = só na Arrecadação · ✖ = sem dados)</th></tr></thead><tbody>';
     Object.keys(CONFIG.supCidades).forEach(sup => {
       h += `<tr><td><b>${esc(sup)}</b> (${CONFIG.supCidades[sup].length})</td><td>` + CONFIG.supCidades[sup].map(c => {
         const k = norm(c), ok = cv.has(k), so = !ok && av.has(k), dup = supsOf(c).length > 1;
         return `<span class="tag ${ok ? '' : so ? 'warn' : 'bad'}">${ok ? '✔' : so ? '◐' : '✖'} ${esc(c)}${dup ? ' ⇄' : ''}</span>`; }).join(' ') + '</td></tr>';
     });
-    h += '</tbody></table><div class="hint" style="margin:10px 0 0">⇄ = cidade presente em mais de uma superintendência</div></div>';
+    h += '</tbody></table></div>';
   }
   if (dc) {
     const meses = Array.from(dc.meses).sort(), real = Array.from(D.com.realMonths).sort();
@@ -1193,6 +1241,7 @@ function renderDados() {
       <tr><td>Descartadas — totais (IsGrandTotalRowTotal)</td><td>${dc.descTotal.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Descartadas — DSC_CLASSE = 0</td><td>${dc.descClasse0.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Descartadas — cidade vazia/0 · mês inválido</td><td>${dc.descCidade.toLocaleString('pt-BR')} · ${dc.descMes.toLocaleString('pt-BR')}</td></tr>
+      ${dc.mesManual ? `<tr><td>Mês do arquivo</td><td><span class="tag warn">informado manualmente</span> ${mlabel(dc.mesManual)} — o arquivo não tem coluna de mês</td></tr>` : ''}
       <tr><td>Meses na base · meses com faturamento</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) : '—'} · ${real.length ? real.length + ' (' + mlabel(real[0]) + ' a ' + mlabel(real[real.length - 1]) + ')' : '<span class="tag bad">nenhum mês com valores</span>'}</td></tr>
       <tr><td>Superintendências · cidades no arquivo</td><td>${Array.from(D.com.sups).join(', ')} · ${dc.cidadesVistas.size}</td></tr>
       <tr><td>Coluna Sup do arquivo</td><td>${dc.colunaSupIgnorada ? 'presente — <b>ignorada</b>' : 'ausente'}; a superintendência vem da relação cidade × SUP FINAL (<code>CONFIG.supCidades</code>)</td></tr>
@@ -1237,8 +1286,8 @@ function renderDados() {
 function emptyMsg(t) {
   return `<div class="empty">${t || '<b>Sem dados para o período.</b><br>Conecte a pasta com os arquivos (Comercial, Arrecadação e painéis RF) usando o botão <b>📁 Conectar pasta</b>.'}</div>`;
 }
-function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel) })); } catch (e) {} }
-function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); } catch (e) {} }
+function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel), mesManual: S.mesManual })); } catch (e) {} }
+function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); if (o.mesManual) S.mesManual = o.mesManual; } catch (e) {} }
 
 function buildHeader() {
   const sups = supList(); if (!sups.includes(S.sup)) S.sup = sups.includes('LAGOS') ? 'LAGOS' : (sups[0] || null);
@@ -1314,6 +1363,7 @@ async function reloadFolder() {
   } catch (e) { setStatus('Erro ao atualizar: ' + e.message, true); }
 }
 function setStatus(t, err) { $('#fonteStatus').innerHTML = err ? '<span class="tag bad">Erro</span> ' + esc(t) + ' <span style="opacity:.7">[' + VERSAO + ']</span>' : t; }
+$('#mesManual').onchange = e => { S.mesManual = e.target.value; persist(); if (LAST_FILES) loadFiles(LAST_FILES); };
 $('#btnCopyLog').onclick = async () => { try { await navigator.clipboard.writeText(LOG.join('\n')); $('#btnCopyLog').textContent = 'Copiado ✔'; } catch (e) { const r = document.createRange(); r.selectNodeContents($('#logPre')); getSelection().removeAllRanges(); getSelection().addRange(r); $('#btnCopyLog').textContent = 'Selecionado — use Ctrl+C'; } setTimeout(() => $('#btnCopyLog').textContent = 'Copiar detalhes', 2500); };
 $('#btnPasta').onclick = pickFolder;
 $('#btnReload').onclick = reloadFolder;
@@ -1326,9 +1376,16 @@ async function classify(file) {
   if (hdr) { if (hdr.includes('dsc_classe')) return 'com'; if (hdr.includes('arrecadacao_acumulada')) return 'arr'; if (hdr.includes('rubrica')) return 'rf'; }
   return null;
 }
+let LAST_FILES = null, LOADING = false, RELOAD = false;
 async function loadFiles(files) {
+  if (LOADING) { RELOAD = true; log('Leitura já em andamento — nova leitura agendada para depois.', 'aviso'); return; }   // nunca lê em paralelo
+  LOADING = true;
+  try { await loadFilesOnce(files); } finally { LOADING = false; }
+  if (RELOAD) { RELOAD = false; await loadFiles(LAST_FILES); }
+}
+async function loadFilesOnce(files) {
   if (!files.length) return setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true);
-  LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
+  LAST_FILES = files; LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
   log('Versão ' + VERSAO + ' — ' + files.length + ' arquivo(s) .xlsx na pasta');
   files.forEach(f => log('  • ' + f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)'));
   setProg(0, 'Identificando os arquivos…');
@@ -1348,7 +1405,7 @@ async function loadFiles(files) {
       PG.base += f.size; log('  ✔ concluído: ' + f.name + (tipo === 'com' ? ' — ' + D.diag.com.usadas.toLocaleString('pt-BR') + ' linhas aproveitadas de ' + D.diag.com.linhas.toLocaleString('pt-BR') : tipo === 'arr' ? ' — ' + D.diag.arr.usadas.toLocaleString('pt-BR') + ' linhas' : ''));
     }
     ignorados.forEach(n => D.files.push({ name: n, tipo: 'não reconhecido', detalhe: 'ignorado' }));
-    S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;
+    S.ym = null; S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;   // recalcula o mês padrão (último com realizado)
     CTX.arquivo = ''; CTX.linha = 0; setProg(96, 'Montando as telas…'); etapa('Montando as telas'); await tick();
     fullRender();
     const partes = [];
@@ -1357,6 +1414,7 @@ async function loadFiles(files) {
     setStatus('Carregado: <b>' + (partes.join(' • ') || 'nada reconhecido') + '</b> — ' + new Date().toLocaleTimeString('pt-BR') + '. Veja a aba <b>Dados</b> para conferências.');
   } catch (e) {
     console.error(e); logErro(e);
+    if (e.codigo === 'SEM_MES') $('#mesManualBox').style.display = '';
     try { D.com = null; D.arr = null; fullRender(); } catch (e2) { log('Falha ao limpar as telas: ' + e2.message, 'erro'); }   // não deixa dados da leitura anterior na tela
     setStatus(e.message, true);
   }
@@ -1365,6 +1423,7 @@ async function loadFiles(files) {
 /* ---------- inicialização ---------- */
 (async function init() {
   restore(); fullRender();
+  $('#mesManual').value = S.mesManual || ''; if (S.mesManual) $('#mesManualBox').style.display = '';
   $('#fonteStatus').innerHTML = 'Nenhuma pasta conectada. <span style="opacity:.7">[' + VERSAO + ']</span>';
   if (window.showDirectoryPicker) {
     const h = await idb.get('dir');

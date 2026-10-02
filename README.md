@@ -16,7 +16,7 @@ Identificados pelo nome ou, se o nome não ajudar, pelas colunas do cabeçalho. 
 | `RF*T*_painel.xlsx` | nome `RFnTyy` ou coluna `Rubrica` | Orçado por superintendência e mês (ex.: `RF3T25`, `RF01T26` → `RF1T26`) |
 
 ## Regras de leitura (editáveis em `CONFIG`, no topo do script de `DRE_Unificado.html`)
-- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`); a coluna `Sup` do Comercial é ignorada. Cidades em mais de uma superintendência (ITABORAI e RIO BONITO) entram inteiras em LAGOS e em LESTE, e são contadas uma única vez em TODAS. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
+- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`): 12 cidades em LAGOS e 5 em LESTE; a coluna `Sup` do Comercial é ignorada. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
 - Nos painéis de orçado, `Sup` = `Interior` é exibido como **LAGOS**.
 - Mês vem da coluna `Referência`.
 - Descartados: linhas com `IsGrandTotalRowTotal` marcado e `DSC_CLASSE = 0`.
@@ -28,4 +28,4 @@ Identificados pelo nome ou, se o nome não ajudar, pelas colunas do cabeçalho. 
 
 A aba **Orçado RF** mostra o orçado de todos os meses da referência (inclusive os próximos), com seletor de indicador, cartões-resumo e gráfico de realizado × orçado.
 
-A aba **Dados** mostra o que foi lido, o que foi descartado, a soma por `DSC_CLASSE` e conferências (ex.: líquido da coluna vs. bruto + cancelamento) para validar a leitura.
+A aba **Dados** mostra o que foi lido, um resumo por mês dos valores identificados em cada arquivo, o que foi descartado, a soma por `DSC_CLASSE` e conferências (ex.: líquido da coluna vs. bruto + cancelamento) para validar a leitura.
