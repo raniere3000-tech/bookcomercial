@@ -36,6 +36,20 @@ input:checked+.slider{background:var(--cyan)}
 input:checked+.slider:before{transform:translateX(20px)}
 .fonteStatus{margin-top:10px;font-size:11.5px;color:#bfe0eb}
 .fonteStatus b{color:#fff}
+.progWrap{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:12px;color:#d5e7ef}
+.progWrap[hidden]{display:none}
+.prog{flex:0 1 380px;width:380px;max-width:60vw;height:12px;background:rgba(255,255,255,.18);border-radius:8px;overflow:hidden}
+.progBar{height:100%;width:0;background:linear-gradient(90deg,#16a5b8,#7ee0bc);border-radius:8px;transition:width .25s ease}
+.progWrap.erro .progBar{background:#e06a6a}
+.progWrap.ok .progBar{background:#7ee0bc}
+#progPct{color:#fff;min-width:42px}
+.logBox{margin-top:8px;font-size:12px}
+.logBox summary{cursor:pointer;color:#bfe0eb;font-weight:700;user-select:none;padding:2px 0}
+.logBox summary:hover{color:#fff}
+.logBox.erro summary{color:#ffb3b3}
+.logTools{margin:6px 0}
+.logTools button{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer}
+#logPre{margin:0;background:rgba(0,0,0,.28);color:#e6f2f8;border-radius:8px;padding:10px 12px;max-height:280px;overflow:auto;font:11.5px/1.5 Consolas,"Courier New",monospace;white-space:pre-wrap;word-break:break-word}
 
 /* Dropdown */
 .dropdown{position:relative;display:inline-block}
@@ -140,24 +154,15 @@ table.hist td.col-total{background:#f2f7fb}
 table.hist tr.total td.col-total{background:#dcebf4}
 .negativo{color:var(--red)}
 #resumo{margin-top:12px;font-size:11.5px;color:var(--muted)}
-#gridGraf{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-.gcard{padding:16px 16px 12px}
-.gcard h3{margin:0 0 10px;font-size:14px;color:var(--navy);font-weight:750}
-.gcard canvas{max-height:280px}
-.nota-grafico{margin-top:8px;font-size:11px;color:#664d18;background:#fff7e7;border:1px solid #f1d49b;border-left:4px solid var(--amber);border-radius:6px;padding:7px 10px}
 .note{background:#fff7e7;border:1px solid #f1d49b;padding:13px;border-radius:9px;color:#664d18}
 .empty{padding:34px;text-align:center;color:var(--muted);border:1px dashed #b8c5cf;border-radius:10px;background:#fafcfd}
 .empty b{color:var(--navy)}
-.cashToggle{display:flex;gap:6px}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#e7f6f4;color:#14735e;font-weight:700}
 .tag.warn{background:#fff4de;color:#9a6a0a}.tag.bad{background:#fdecec;color:#a63333}
 .dx{font-size:12px}.dx td,.dx th{padding:6px 9px}
 .dx td{text-align:left}.dx td:first-child{white-space:normal}.dx tr td:not(:first-child) {white-space:normal}
-iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#eef3f7}
-.embedShell{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.arrecHead{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid,.grid2{grid-template-columns:1fr}.bridgeCards{grid-template-columns:1fr}}
-@media(max-width:900px){#gridGraf{grid-template-columns:1fr}.top,.nav,main{padding-left:16px;padding-right:16px}}
+@media(max-width:900px){.top,.nav,main{padding-left:16px;padding-right:16px}}
 @media print{.toolbar,.nav,.filterbar{display:none}body{background:#fff}main{padding:12px}.page{display:block;break-before:page}.page:first-child{break-before:auto}}
 </style>
 </head>
@@ -188,6 +193,9 @@ iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#ee
     </div>
   </div>
   <div class="fonteStatus" id="fonteStatus">Nenhuma pasta conectada.</div>
+  <div class="progWrap" id="progWrap" hidden><div class="prog"><div class="progBar" id="progBar"></div></div><b id="progPct">0%</b><span id="progLabel"></span></div>
+  <details class="logBox" id="logBox"><summary>Detalhes da leitura</summary>
+    <div class="logTools"><button id="btnCopyLog" type="button">Copiar detalhes</button></div><pre id="logPre">Nenhuma leitura realizada ainda.</pre></details>
 </header>
 
 <nav class="nav" id="nav">
@@ -196,9 +204,7 @@ iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#ee
   <button class="tab" data-page="receita">Receita</button>
   <button class="tab" data-page="drivers">Drivers comerciais</button>
   <button class="tab" data-page="caixa">Caixa</button>
-  <button class="tab" data-page="arrecadacao">Arrecadação</button>
   <button class="tab" data-page="historico">DRE Histórico</button>
-  <button class="tab" data-page="graficos">Gráficos</button>
   <button class="tab" data-page="rf">Orçado RF</button>
   <button class="tab" data-page="dados">Dados</button>
 </nav>
@@ -241,11 +247,6 @@ iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#ee
       <div class="period" id="cashPeriod"></div><div id="cashTable" class="tablewrap"></div></div>
   </section>
 
-  <section class="page" id="arrecadacao">
-    <div class="embedShell"><div class="arrecHead"><b>SLE · Acompanhamento de Arrecadação</b><span class="hint" style="margin:0">Painel preservado sem alterações</span></div>
-      <iframe id="arrecFrame" title="Dashboard de acompanhamento de arrecadação" data-src="painel_arrecadacao.html"></iframe></div>
-  </section>
-
   <section class="page" id="historico">
     <div class="panel"><h2>DRE Histórico por município</h2>
       <div class="hint">Realizado por cidade, mês ou ano. Economias nos totais e anos aparecem como média mensal; tarifa e volume médio são calculados sobre as somas.</div>
@@ -254,16 +255,13 @@ iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#ee
       <div id="resumo"></div></div>
   </section>
 
-  <section class="page" id="graficos">
-    <div class="panel" style="margin-bottom:16px"><div class="filterbar" id="grafFilters" style="margin:0;border:0;padding:0"></div></div>
-    <div id="gridGraf"></div>
-  </section>
-
   <section class="page" id="rf">
     <div class="panel"><h2 id="rfTitle">Orçado RF</h2>
       <div class="hint">Orçado de todos os meses disponíveis na referência, inclusive os próximos meses; meses sem realizado aparecem destacados</div>
-      <div id="rfYears" class="filterstrip"></div>
-      <div class="chartbox small" style="margin-bottom:14px"><canvas id="rfChart"></canvas></div>
+      <div id="rfInds" class="filterstrip" style="padding-bottom:10px;margin-bottom:12px"></div>
+      <div id="rfYears" class="filterstrip" style="padding-top:0"></div>
+      <div class="kpis" id="rfKpis"></div>
+      <div class="chartbox" style="height:380px;margin-bottom:16px"><canvas id="rfChart"></canvas></div>
       <div id="rfTable" class="tablewrap"></div></div>
   </section>
 
@@ -288,8 +286,58 @@ const CONFIG = {
   classeIgnorar:  ['ARRECADACAO','IMPOSTOS','JUROS POR IMPONTUALIDADE','MULTA POR IMPONTUALIDADE','ACRESCIMO JUDICIAL',
                    'FINANCIAMENTOS','TAXA DE REPASSE','RECEITA/DESPESA FINANCEIRA','ATUALIZACAO MONETARIA',
                    'ABATIMENTO DE AGUA','ABATIMENTO DE SERVICO DE AGUA','DESCONTOS','CONSERTOS E REPAROS'],
-  classeZero: ['0','']                                     // linhas de total sem abertura: descartadas
+  classeZero: ['0',''],                                    // linhas de total sem abertura: descartadas
+  // Relação SUP FINAL × CIDADE. A superintendência vem SÓ daqui (a coluna Sup do arquivo é ignorada).
+  // Uma cidade pode estar em mais de uma superintendência (ex.: ITABORAI e RIO BONITO): nesse caso
+  // ela entra inteira na visão de cada uma, e na visão TODAS é contada uma única vez.
+  supCidades: {
+    'LAGOS': ['APERIBE', 'CAMBUCI', 'CACHOEIRAS DE MACACU', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS', 'ITABORAI',
+              'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'RIO DE JANEIRO', 'S.SEBASTIAO DO ALTO', 'S.FCO.DO ITABAPOANA'],
+    'LESTE': ['ITABORAI', 'MARICA', 'RIO BONITO', 'RIO DE JANEIRO - A', 'SAO GONCALO', 'SAQUAREMA', 'TANGUA']
+  }
 };
+
+const VERSAO = 'v2026.10.02-e (leitura em blocos + progresso)';
+/* ---------- progresso e detalhes (log) ---------- */
+const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
+function log(msg, nivel) {
+  const t = new Date().toLocaleTimeString('pt-BR');
+  LOG.push('[' + t + '] ' + (nivel === 'erro' ? 'ERRO  ' : nivel === 'aviso' ? 'AVISO ' : '') + msg); if (LOG.length > 800) LOG.shift();
+  const pre = document.getElementById('logPre'); if (pre) { pre.textContent = LOG.join('\n'); pre.scrollTop = pre.scrollHeight; }
+}
+function etapa(txt, arquivo) { CTX.etapa = txt; if (arquivo !== undefined) CTX.arquivo = arquivo; log((CTX.arquivo ? CTX.arquivo + ' › ' : '') + txt); }
+const PG = { total: 0, base: 0, tam: 0 };
+function setProg(pct, label, estado) {
+  const w = document.getElementById('progWrap'); if (!w) return; w.hidden = false;
+  pct = Math.max(0, Math.min(100, pct)); w.classList.toggle('erro', estado === 'erro'); w.classList.toggle('ok', estado === 'ok');
+  document.getElementById('progBar').style.width = pct + '%'; document.getElementById('progPct').textContent = Math.round(pct) + '%';
+  if (label !== undefined) document.getElementById('progLabel').textContent = label;
+}
+function progArquivo(pctArquivo, linhas) {                       // pctArquivo: 0–100 do arquivo atual (bytes compactados lidos)
+  if (!PG.total) return; const feito = PG.base + PG.tam * (Math.min(100, pctArquivo || 0) / 100);
+  setProg(feito / PG.total * 94, (CTX.arquivo ? CTX.arquivo : '') + (linhas ? ' — ' + linhas.toLocaleString('pt-BR') + ' linhas' : ''));
+}
+function dicaErro(msg) {
+  if (/Invalid string length/i.test(msg)) return 'Texto grande demais para o navegador. Veja em qual etapa ocorreu: se for "Lendo textos compartilhados" o sharedStrings é enorme; se for "Descompactando planilha", confira se a versão exibida no topo é a mais recente (leitura em blocos).';
+  if (/Array buffer allocation failed|out of memory|Invalid array length/i.test(msg)) return 'Memória do navegador insuficiente. Feche outras abas e tente de novo; em último caso reduza o arquivo.';
+  if (/colunas ausentes/i.test(msg)) return 'O arquivo não tem as colunas esperadas no cabeçalho — confira o nome das colunas.';
+  if (/zip|central directory|corrupt/i.test(msg)) return 'O arquivo parece corrompido ou não é um .xlsx válido (ou ainda está sendo sincronizado pelo OneDrive).';
+  return '';
+}
+function logErro(e) {
+  const msg = (e && e.message) || String(e);
+  log('────────── DETALHE DO ERRO ──────────', 'erro');
+  log('Etapa: ' + (CTX.etapa || '—'), 'erro'); log('Arquivo: ' + (CTX.arquivo || '—'), 'erro');
+  if (CTX.linha) log('Última linha da planilha processada: ' + CTX.linha.toLocaleString('pt-BR'), 'erro');
+  log('Tipo: ' + ((e && e.name) || 'Error') + ' | Mensagem: ' + msg, 'erro');
+  const dica = dicaErro(msg); if (dica) log('Dica: ' + dica, 'aviso');
+  if (e && e.stack) { log('Pilha (onde no código):', 'erro'); String(e.stack).split('\n').slice(0, 9).forEach(l => log('   ' + l.trim().replace(/file:\/\/\S*\//, ''), 'erro')); }
+  log('Versão: ' + VERSAO, 'erro');
+  const box = document.getElementById('logBox'); if (box) { box.open = true; box.classList.add('erro'); }
+  setProg(parseFloat(document.getElementById('progBar').style.width) || 0, 'Erro em: ' + (CTX.etapa || '—'), 'erro');
+}
+window.addEventListener('error', ev => { log('Erro não tratado: ' + ev.message + (ev.filename ? ' (' + ev.filename.split('/').pop() + ':' + ev.lineno + ')' : ''), 'erro'); });
+window.addEventListener('unhandledrejection', ev => { log('Promessa rejeitada: ' + ((ev.reason && ev.reason.message) || ev.reason), 'erro'); });
 
 const MN = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const $ = s => document.querySelector(s);
@@ -308,6 +356,10 @@ const mlabel = ym => MN[+ym.slice(5) - 1] + '/' + ym.slice(0, 4);
 const yearOf = ym => ym.slice(0, 4);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const dev = (a, b) => (has(a) && has(b) && b !== 0) ? a / b - 1 : NaN;
+const CIDADE_SUPS = new Map();
+Object.keys(CONFIG.supCidades).forEach(sup => CONFIG.supCidades[sup].forEach(c => {
+  const k = norm(c); if (!CIDADE_SUPS.has(k)) CIDADE_SUPS.set(k, []); if (!CIDADE_SUPS.get(k).includes(sup)) CIDADE_SUPS.get(k).push(sup);
+}));
 
 /* =====================================================================
    LEITOR DE XLSX (streaming, leve em memória) — usa JSZip
@@ -322,10 +374,12 @@ function decodeEnt(s) {
 function colIdx(letters) { let n = 0; for (let i = 0; i < letters.length; i++) n = n * 26 + letters.charCodeAt(i) - 64; return n - 1; }
 
 async function readXlsx(file, onRow, opts = {}) {
+  etapa('Abrindo o arquivo compactado (zip) — ' + (file.size / 1048576).toFixed(1) + ' MB', file.name); CTX.linha = 0;
   const zip = await JSZip.loadAsync(file);
   let shared = [];
   const sst = zip.file('xl/sharedStrings.xml');
   if (sst) {
+    etapa('Lendo textos compartilhados (sharedStrings)');
     const x = await sst.async('string');
     const re = /<si>([\s\S]*?)<\/si>|<si\/>/g; let m;
     while ((m = re.exec(x))) {
@@ -344,17 +398,13 @@ async function readXlsx(file, onRow, opts = {}) {
     if (!names.length) throw new Error('Planilha não encontrada em ' + file.name);
     sheetName = names[0];
   }
-  const xml = await zip.file(sheetName).async('string');
+  etapa('Descompactando a planilha em blocos e lendo as linhas');
+  // A planilha é descompactada e processada em blocos: o XML completo nunca fica em memória
+  // (arquivos grandes passam do limite de texto do navegador — "Invalid string length").
   const cellRe = /<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
-  let pos = 0, rowNo = 0, count = 0;
-  while (true) {
-    const a = xml.indexOf('<row ', pos); if (a < 0) break;
-    const b = xml.indexOf('>', a);
-    if (xml.charCodeAt(b - 1) === 47) { pos = b + 1; continue; }            // <row .../> vazio
-    const c = xml.indexOf('</row>', b); if (c < 0) break;
-    pos = c + 6;
-    const body = xml.substring(b + 1, c);
-    if (body.indexOf('<v>') < 0 && body.indexOf('<is>') < 0) continue;     // linha só com formatação
+  let count = 0, stopped = false, lastPct = 0;
+  const parseRow = body => {
+    if (body.indexOf('<v>') < 0 && body.indexOf('<is>') < 0) return true;     // linha só com formatação
     const row = []; cellRe.lastIndex = 0; let m;
     while ((m = cellRe.exec(body))) {
       const inner = m[3]; if (!inner) continue;
@@ -365,10 +415,43 @@ async function readXlsx(file, onRow, opts = {}) {
         else if (t === 'b') v = raw === '1'; else { v = Number(raw); if (Number.isNaN(v)) v = raw; } }
       row[colIdx(m[1])] = v;
     }
-    count++;
-    if (onRow(row, count) === false) break;
-    if (count % 15000 === 0) { if (opts.progress) opts.progress(count); await tick(); }
-  }
+    count++; CTX.linha = count;
+    if (onRow(row, count) === false) { stopped = true; return false; }
+    if (count % 15000 === 0) { progArquivo(lastPct, count); if (opts.progress) opts.progress(count); }
+    return true;
+  };
+  // consome as linhas completas de buf; devolve o resto (linha ainda incompleta)
+  const drain = buf => {
+    let pos = 0;
+    while (!stopped) {
+      const a = buf.indexOf('<row ', pos); if (a < 0) { pos = Math.max(pos, buf.length - 5); break; }
+      const b = buf.indexOf('>', a); if (b < 0) { pos = a; break; }
+      if (buf.charCodeAt(b - 1) === 47) { pos = b + 1; continue; }              // <row .../> vazio
+      const c = buf.indexOf('</row>', b); if (c < 0) { pos = a; break; }
+      pos = c + 6;
+      if (parseRow(buf.substring(b + 1, c)) === false) break;
+    }
+    return buf.slice(pos);
+  };
+  await new Promise((resolve, reject) => {
+    const dec = new TextDecoder('utf-8'), parts = []; let size = 0, rest = '';
+    const helper = zip.file(sheetName).internalStream('uint8array');
+    const flush = last => {
+      if (!parts.length && !last) return;
+      let txt = rest + parts.map(u => dec.decode(u, { stream: true })).join(''); parts.length = 0; size = 0;
+      if (last) txt += dec.decode();
+      rest = drain(txt);
+    };
+    helper.on('data', (chunk, meta) => {
+      if (stopped) return; if (meta && typeof meta.percent === 'number') lastPct = meta.percent;
+      parts.push(chunk); size += chunk.length;
+      if (size >= (1 << 22)) { try { flush(false); } catch (e) { stopped = true; helper.pause(); reject(e); } }
+      if (stopped) { helper.pause(); resolve(); }
+    });
+    helper.on('error', reject);
+    helper.on('end', () => { try { if (!stopped) flush(true); progArquivo(100, count); resolve(); } catch (e) { reject(e); } });
+    helper.resume();
+  });
   return count;
 }
 
@@ -400,11 +483,12 @@ function parseMonth(v) {
    ===================================================================== */
 const D = { com: null, arr: null, rf: {}, diag: {}, files: [] };
 const S = {
-  sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null,
+  sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
   hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['ind_agua_extra']) },
   cache: new Map()
 };
-const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM SUP'; };
+const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM SUP'; };    // usado só nos painéis de orçado
+const supsOf = cid => CIDADE_SUPS.get(norm(cid)) || ['SEM SUP'];
 
 /* ---------- Comercial ---------- */
 const COM_REQ = ['cidade', 'dsc_classe', 'referencia', 'baseinativacao_situacao_final', 'isgrandtotalrowtotal',
@@ -418,11 +502,11 @@ const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto'
 async function ingestComercial(file) {
   const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
   let col = null; const map = new Map();
-  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), cidadesSemSup: new Set(), cidadesVistas: new Set(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
   const msg = $('#fonteStatus');
   await readXlsx(file, (r, n) => {
     if (!col) {
-      col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
+      etapa('Validando as colunas do cabeçalho (Comercial)'); col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
       const falta = COM_REQ.filter(c => !(c in col));
       if (falta.length) throw new Error('Comercial: colunas ausentes -> ' + falta.join(', '));
       return true;
@@ -436,13 +520,13 @@ async function ingestComercial(file) {
     if (dZ.has(cls)) { diag.descClasse0++; return true; }
     const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
     const ym = parseMonth(g('referencia')); if (!ym) { diag.descMes++; return true; }
-    diag.usadas++; diag.meses.add(ym);
-    const sup = col['sup'] === undefined ? 'TOTAL' : normSup(g('sup'));
+    diag.usadas++; diag.meses.add(ym); diag.cidadesVistas.add(cid);
+    const sups = supsOf(cid); if (sups[0] === 'SEM SUP') diag.cidadesSemSup.add(cid);
     let cur = String(g('macrocluster_curva_cliente') == null ? '-' : g('macrocluster_curva_cliente')).trim(); if (cur === '0' || cur === '') cur = '-';
     let sit = String(g('baseinativacao_situacao_final') == null ? '-' : g('baseinativacao_situacao_final')).trim(); if (sit === '0' || sit === '') sit = '-';
-    const key = sup + '|' + cid + '|' + cur + '|' + sit + '|' + ym;
+    const key = cid + '|' + cur + '|' + sit + '|' + ym;
     let e = map.get(key);
-    if (!e) { e = { sup, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {} }; map.set(key, e); }
+    if (!e) { e = { sups, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {} }; map.set(key, e); }
     const num = k => { const v = g(k); return typeof v === 'number' ? v : 0; };
     if (dClsD.has(cls)) {
       e.dA += num('faturamento_bruto_direta_agua'); e.dE += num('faturamento_bruto_direta_esgoto');
@@ -457,17 +541,17 @@ async function ingestComercial(file) {
     return true;
   }, { progress: c => { msg.innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Comercial: arquivo sem dados');
+  etapa('Montando índices por mês, cidade, curva e situação');
   const entries = Array.from(map.values());
-  const byYm = new Map(), sups = new Set(), cidBySup = new Map(), curvas = new Set(), sits = new Set(), cidSup = new Map();
+  const byYm = new Map(), sups = new Set(), curvas = new Set(), sits = new Set();
   entries.forEach(e => {
     if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e);
-    sups.add(e.sup); curvas.add(e.cur); sits.add(e.sit);
-    if (!cidBySup.has(e.sup)) cidBySup.set(e.sup, new Set()); cidBySup.get(e.sup).add(e.cid); cidSup.set(e.cid, e.sup);
+    e.sups.forEach(x => sups.add(x)); curvas.add(e.cur); sits.add(e.sit);
     diag.somaBruto += e.dA + e.dE + e.iA + e.iE; diag.somaCanc += e.canc; diag.somaLiq += e.liq;
   });
   const realMonths = new Set(); entries.forEach(e => { if (e.dA || e.dE || e.iA || e.iE || e.liq || e.canc) realMonths.add(e.ym); });
-  diag.agregados = entries.length;
-  D.com = { entries, byYm, sups, cidBySup, cidSup, curvas, sits, realMonths };
+  diag.agregados = entries.length; diag.colunaSupIgnorada = col['sup'] !== undefined;
+  D.com = { entries, byYm, sups, curvas, sits, realMonths };
   D.diag.com = diag;
 }
 
@@ -496,6 +580,7 @@ async function ingestArrec(file) {
     return true;
   }, { progress: c => { $('#fonteStatus').innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Arrecadação: arquivo sem dados');
+  etapa('Montando índices da Arrecadação');
   const byCid = new Map(), byYm = new Map();
   Array.from(map.values()).forEach(e => {
     if (!byCid.has(e.cid)) byCid.set(e.cid, new Map()); byCid.get(e.cid).set(e.ym, e);
@@ -560,7 +645,7 @@ function supList() {
   Object.values(D.rf).forEach(r => r.bySup.forEach((_, k) => s.add(k)));
   const l = Array.from(s).sort(); if (l.length > 1) l.push('TODAS'); return l;
 }
-const supOk = (e, sup) => sup === 'TODAS' || e.sup === sup;
+const supOk = (e, sup) => sup === 'TODAS' || e.sups.includes(sup);
 
 function actualBase(ym) {
   if (!D.com) return null;
@@ -620,7 +705,7 @@ function arrecMonth(ym) {
   if (!D.arr) return null;
   const list = D.arr.byYm.get(ym); if (!list) return null;
   let v = 0, any = false;
-  list.forEach(e => { const sup = D.com ? D.com.cidSup.get(e.cid) : null; if (S.sup === 'TODAS' || sup === S.sup) { v += e.arrec; any = true; } });
+  list.forEach(e => { if (S.sup === 'TODAS' || supsOf(e.cid).includes(S.sup)) { v += e.arrec; any = true; } });
   return any && v ? v : null;
 }
 
@@ -834,30 +919,82 @@ const RF_INDS = [['Faturamento Bruto', 'bruto', 0], ['Faturamento Direto', 'dire
   ['Faturamento Indireto', 'indireto', 0], ['Indiretas Água', 'iA', 0], ['Indiretas Esgoto', 'iE', 0], ['Cancelamentos', 'canc', 0],
   ['Faturamento Líquido', 'liq', 0], ['Cut-Off', 'cutoff', 0], ['Arrecadação', 'arrec', 0], ['Economias Água', 'ecoA', 0], ['Economias Esgoto', 'ecoE', 0],
   ['Volume Água (m³)', 'volA', 0], ['Volume Esgoto (m³)', 'volE', 0], ['Tarifa Média Água', 'tarA', 2], ['Tarifa Média Esgoto', 'tarE', 2]];
+const RF_UNIT = { tarA: 2, tarE: 2, ecoA: 0, ecoE: 0, volA: 0, volE: 0 };
+const fmtAxis = (v, max) => max >= 1e6 ? 'R$ ' + (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi' : max >= 1e3 ? 'R$ ' + (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil' : 'R$ ' + v;
+function rfPair(k, m) { return k === 'arrec' ? { a: arrecMonth(m), b: (budgetBase(m) || {}).arrec, get d() { return dev(this.a, this.b); } } : pair(k, [m]); }
+const futureShade = {                    // faixa destacada nos meses sem realizado (só orçado)
+  id: 'futureShade',
+  beforeDatasetsDraw(chart, args, o) {
+    const first = o.first; if (first == null || first < 0) return;
+    const { ctx, chartArea: ca, scales: { x } } = chart; const n = chart.data.labels.length; if (first >= n) return;
+    const step = (ca.right - ca.left) / n, x0 = ca.left + step * first;
+    ctx.save(); ctx.fillStyle = 'rgba(215,155,41,.10)'; ctx.fillRect(x0, ca.top, ca.right - x0, ca.bottom - ca.top);
+    ctx.strokeStyle = 'rgba(215,155,41,.55)'; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(x0, ca.top); ctx.lineTo(x0, ca.bottom); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#9a6a0a'; ctx.font = '600 11px "Segoe UI",Arial'; ctx.textAlign = 'left'; ctx.fillText('Próximos meses — somente orçado', x0 + 8, ca.top + 14); ctx.restore();
+  }
+};
 function renderRF() {
   const rf = D.rf[S.rf];
   $('#rfTitle').textContent = 'Orçado ' + (S.rf || 'RF') + (S.sup ? ' | ' + S.sup : '');
-  if (!rf) { $('#rfTable').innerHTML = emptyMsg('Nenhum painel de orçado (RF) foi encontrado na pasta.'); $('#rfYears').innerHTML = ''; return; }
+  if (!rf) { $('#rfTable').innerHTML = emptyMsg('Nenhum painel de orçado (RF) foi encontrado na pasta.'); $('#rfYears').innerHTML = ''; $('#rfInds').innerHTML = ''; $('#rfKpis').innerHTML = ''; if (charts.rfChart) { charts.rfChart.destroy(); delete charts.rfChart; } return; }
   $('#rfYears').innerHTML = yearPills('rfYear').replace('<span style="width:14px"></span>', '');
   bindYearPills('rfYear', renderRF);
   const meses = monthsForYear('rfYear').filter(m => rf.meses.includes(m) || has(pair('bruto', [m]).a));
   if (!meses.length) { $('#rfTable').innerHTML = emptyMsg(); return; }
-  const gl = meses.map(m => { const p = pair('liq', [m]); return p; });
-  const gb = meses.map(m => pair('bruto', [m]));
-  mkChart('rfChart', { type: 'bar', data: { labels: meses.map(mlabel), datasets: [
-    { label: 'Orçado — fat. líquido', data: gl.map(p => has(p.b) ? p.b / 1e6 : null), backgroundColor: '#b8c8d4' },
-    { label: 'Realizado — fat. líquido', data: gl.map(p => has(p.a) ? p.a / 1e6 : null), backgroundColor: '#176b9c' },
-    { type: 'line', label: 'Orçado — fat. bruto', data: gb.map(p => has(p.b) ? p.b / 1e6 : null), borderColor: '#d79b29', backgroundColor: '#d79b29', pointRadius: 2, spanGaps: true } ] },
-    options: { interaction: { mode: 'index', intersect: false }, scales: { y: { ticks: { callback: v => 'R$ ' + v + ' mi' }, grid: { color: '#e7eef4' } } }, plugins: { legend: { position: 'bottom' } } } });
+  // indicadores com algum valor no período
+  const disp = RF_INDS.filter(([, k]) => meses.some(m => { const p = rfPair(k, m); return has(p.a) || has(p.b); }));
+  if (!disp.some(x => x[1] === S.rfInd)) S.rfInd = (disp.find(x => x[1] === 'liq') || disp[0] || [0, 'liq'])[1];
+  $('#rfInds').innerHTML = disp.map(([n, k]) => `<button class="filterpill ${k === S.rfInd ? 'active' : ''}" data-rfind="${k}">${n}</button>`).join('');
+  $$('#rfInds [data-rfind]').forEach(b => b.onclick = () => { S.rfInd = b.dataset.rfind; renderRF(); });
+  const [indNome, k, dec] = RF_INDS.find(x => x[1] === S.rfInd) || RF_INDS[0];
+  const unit = RF_UNIT[k] !== undefined ? RF_UNIT[k] : null, money = unit === null || k === 'tarA' || k === 'tarE';
+  const ps = meses.map(m => rfPair(k, m));
+  const first = ps.findIndex(p => !has(p.a));                          // primeiro mês sem realizado
+  const fut = first >= 0 && ps.slice(first).every(p => !has(p.a)) ? first : -1;
+  // cartões-resumo
+  const sum = l => { let t = 0, any = false; l.forEach(v => { if (has(v)) { t += v; any = true; } }); return any ? t : null; };
+  const comReal = ps.filter(p => has(p.a)), futuros = ps.filter(p => !has(p.a));
+  const agg = k === 'ecoA' || k === 'ecoE' || k === 'tarA' || k === 'tarE';                // indicadores que não se somam
+  const f = v => !has(v) ? '—' : agg ? fmtN(v, dec) : (unit === null ? fmtM(v) : fmtN(v, 0));
+  const oPer = agg ? null : sum(ps.map(p => p.b)), oReal = agg ? null : sum(comReal.map(p => p.b)), rReal = agg ? null : sum(comReal.map(p => p.a)), oFut = agg ? null : sum(futuros.map(p => p.b));
+  const card = (l, v, sub, tone) => `<div class="card kpi ${tone || ''}"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${sub}</div></div>`;
+  $('#rfKpis').className = 'kpis';
+  $('#rfKpis').innerHTML = agg
+    ? card('Orçado — último mês', f(ps.filter(p => has(p.b)).pop() && ps.filter(p => has(p.b)).pop().b), indNome) + card('Realizado — último mês', f(comReal.length ? comReal[comReal.length - 1].a : null), comReal.length ? mlabel(meses[ps.lastIndexOf(comReal[comReal.length - 1])]) : 'sem realizado')
+      + card('Meses com realizado', String(comReal.length), 'de ' + meses.length + ' no período') + card('Meses só com orçado', String(futuros.filter(p => has(p.b)).length), 'próximos meses')
+    : card('Orçado no período', f(oPer), indNome + ' — ' + meses.length + ' meses')
+      + card('Realizado', f(rReal), comReal.length + ' meses com realizado')
+      + card('Atingimento', pct(oReal && has(rReal) ? rReal / oReal : NaN), 'sobre o orçado dos mesmos meses', has(rReal) && oReal && rReal >= oReal ? 'good' : has(rReal) && oReal ? 'bad' : '')
+      + card('Orçado dos próximos meses', f(oFut), futuros.filter(p => has(p.b)).length + ' meses sem realizado');
+  // gráfico
+  const scale = (money && unit === null) ? 1 : 1, vals = ps.flatMap(p => [p.a, p.b]).filter(has), vmax = Math.max(...vals.map(Math.abs), 1);
+  const fmtTick = v => unit === null ? fmtAxis(v, vmax) : fmtN(v, dec);
+  const fmtTip = v => !has(v) ? '—' : unit === null ? fmtBRL(v) : fmtN(v, dec);
+  const many = meses.length > 18;
+  mkChart('rfChart', {
+    data: { labels: meses.map(m => many ? MN[+m.slice(5) - 1] + '/' + m.slice(2, 4) : MN[+m.slice(5) - 1] + '/' + m.slice(0, 4)), datasets: [
+      { type: 'bar', label: 'Realizado', data: ps.map(p => has(p.a) ? p.a * scale : null), backgroundColor: '#176b9c', borderRadius: 4, maxBarThickness: 38, order: 2 },
+      { type: 'line', label: 'Orçado ' + (S.rf || ''), data: ps.map(p => has(p.b) ? p.b * scale : null), borderColor: '#d79b29', backgroundColor: '#fff', borderWidth: 2.5,
+        pointRadius: many ? 2 : 4, pointHoverRadius: 6, pointBorderWidth: 2, pointBorderColor: '#d79b29', tension: .25, spanGaps: true, order: 1 } ] },
+    plugins: [futureShade],
+    options: { interaction: { mode: 'index', intersect: false },
+      scales: { y: { beginAtZero: k !== 'tarA' && k !== 'tarE', grid: { color: '#e7eef4' }, ticks: { callback: fmtTick } },
+                x: { grid: { display: false }, ticks: { maxRotation: many ? 60 : 0, autoSkip: true, maxTicksLimit: many ? 24 : 12 } } },
+      plugins: { futureShade: { first: fut }, legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
+        title: { display: true, text: indNome + (S.sup ? ' — ' + S.sup : ''), align: 'start', color: '#102840', font: { size: 14, weight: '700' } },
+        tooltip: { backgroundColor: '#102840', padding: 10, callbacks: { label: c => c.dataset.label + ': ' + fmtTip(c.parsed.y),
+          footer: items => { const i = items[0].dataIndex, p = ps[i]; return has(p.a) && has(p.b) && p.b ? ['Desvio: ' + pct(p.a / p.b - 1) + '  ·  Atingimento: ' + pct(p.a / p.b)] : (has(p.a) ? [] : ['Mês sem realizado — somente orçado']); } } } } }
+  });
+  // tabela
   let h = '<table><thead><tr><th>Indicador</th><th></th>' + meses.map(m => `<th class="${has(pair('bruto', [m]).a) ? '' : 'fut'}">${mlabel(m)}</th>`).join('') + '</tr></thead><tbody>';
-  RF_INDS.forEach(([lab, k, d]) => {
-    const ps = meses.map(m => k === 'arrec' ? { a: arrecMonth(m), b: (budgetBase(m) || {}).arrec, get d() { return dev(this.a, this.b); } } : pair(k, [m]));
-    if (ps.every(p => !has(p.a) && !has(p.b))) return;
+  RF_INDS.forEach(([lab, kk, d]) => {
+    const pp = meses.map(m => rfPair(kk, m));
+    if (pp.every(p => !has(p.a) && !has(p.b))) return;
     h += `<tr class="sectionrow"><td colspan="${meses.length + 2}">${lab}</td></tr>`;
-    h += `<tr><td>Orçado</td><td></td>${ps.map((p, i) => `<td class="${has(p.a) ? '' : 'future'}">${d ? fmtN(p.b, d) : fmtBRL(p.b)}</td>`).join('')}</tr>`;
-    if (ps.some(p => has(p.a))) {
-      h += `<tr><td>Realizado</td><td></td>${ps.map(p => `<td>${has(p.a) ? (d ? fmtN(p.a, d) : fmtBRL(p.a)) : ''}</td>`).join('')}</tr>`;
-      h += `<tr><td>Desvio %</td><td></td>${ps.map(p => `<td>${has(p.a) && has(p.b) ? pillHtml(dev(p.a, p.b)) : ''}</td>`).join('')}</tr>`;
+    h += `<tr><td>Orçado</td><td></td>${pp.map(p => `<td class="${has(p.a) ? '' : 'future'}">${d ? fmtN(p.b, d) : fmtBRL(p.b)}</td>`).join('')}</tr>`;
+    if (pp.some(p => has(p.a))) {
+      h += `<tr><td>Realizado</td><td></td>${pp.map(p => `<td>${has(p.a) ? (d ? fmtN(p.a, d) : fmtBRL(p.a)) : ''}</td>`).join('')}</tr>`;
+      h += `<tr><td>Desvio %</td><td></td>${pp.map(p => `<td>${has(p.a) && has(p.b) ? pillHtml(dev(p.a, p.b)) : ''}</td>`).join('')}</tr>`;
     }
   });
   $('#rfTable').innerHTML = h + '</tbody></table>';
@@ -901,20 +1038,6 @@ const HLINES = [
 ];
 const GRUPOS_TOGGLE = { diretas: 'DIRETAS TOTAIS', ind_agua: 'INDIRETA ÁGUA', ind_esgoto: 'INDIRETA ESGOTO' };
 const GRUPO_COMBO = { 'INDIRETAS TOTAIS': ['ind_agua', 'ind_esgoto', 'indiretas_sub'], 'FATURAMENTO BRUTO': ['bruto'] };
-const GRAFICOS = [
-  ['DIRETAS TOTAIS', [['Diretas Água', 'dA'], ['Diretas Esgoto', 'dE']], 'moeda'],
-  ['INDIRETA ÁGUA', [['Corte de Água', 'F_Corte de Água'], ['Religações', 'F_Religações'], ['Ligações de Água', 'F_Ligações de Água'], ['Sanções', 'F_Sanções'], ['Outros Água', 'F_Outros Água']], 'moeda'],
-  ['INDIRETA ESGOTO', [['Ligações de Esgoto', 'E_Ligações de Esgoto'], ['Outros Esgoto', 'E_Outros Esgoto']], 'moeda'],
-  ['FAT. ECONOMIAS ÁGUA E ESGOTO', [['Fat. Economias Água', 'ecoA'], ['Fat. Economias Esgoto', 'ecoE']], 'num'],
-  ['VOL. FAT. ÁGUA E ESGOTO', [['Vol. Fat. Água', 'volA'], ['Vol. Fat. Esgoto', 'volE']], 'num'],
-  ['VOLUME MEDIDO DE ÁGUA', [['Volume Medido de Água', 'volM']], 'num'],
-  ['TARIFA MÉDIA DE ÁGUA E ESGOTO', [['Tarifa Média de Água', 'tarA'], ['Tarifa Média de Esgoto', 'tarE']], 'moeda4'],
-  ['CANCELAMENTO', [['Cancelamento', 'canc']], 'moeda'],
-  ['FATURAMENTO LÍQUIDO C/ REAJUSTE', [['Faturamento Líquido c/ Reajuste', 'liq']], 'moeda'],
-  ['ARRECADAÇÃO REAL', [['Arrecadação Real (R$)', 'arrecReal']], 'moeda'],
-  ['CLIENTES PAGANTES E CONTAS PAGAS', [['Clientes Pagantes', 'cli'], ['Contas Pagas', 'contas']], 'num'],
-  ['TICKET MÉDIO (R$/cliente)', [['Ticket Médio', 'ticket']], 'moeda2']
-];
 function fmtH(v, tipo) {
   if (v === undefined || v === null || Number.isNaN(v)) return '-';
   if (tipo === 'moeda' || tipo === 'moeda2') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1016,7 +1139,7 @@ function grupoVisivel(g) { if (g === null) return true; return !g.split('|').som
 const comboOculto = l => l.every(g => S.hist.ocultos.has(g));
 function renderHistorico() {
   histInit();
-  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, () => { renderHistorico(); if (S.tab === 'graficos') renderGraficos(); });
+  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, renderHistorico);
   const head = $('#headerRow'), corpo = $('#corpoTabela');
   if (!D.com) { head.innerHTML = '<th>Item</th>'; corpo.innerHTML = `<tr><td colspan="2">${emptyMsg()}</td></tr>`; $('#resumo').textContent = ''; return; }
   const { cols, all } = histCols();
@@ -1041,29 +1164,6 @@ function renderHistorico() {
   const nC = (S.hist.cidades || histCidades()).length;
   $('#resumo').textContent = `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'} | Colunas: ${cols.length} | Visão Auditoria: ${S.aud ? 'Ativada (' + Array.from(S.audSel).join(' / ') + ')' : 'Desativada'}`;
 }
-const CORES = ['#176b9c', '#16a5b8', '#1f8a70', '#d79b29', '#6f7f8e'];
-function renderGraficos() {
-  histInit();
-  const fh = $('#grafFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, () => { renderGraficos(); renderHistorico(); });
-  const grid = $('#gridGraf'); Object.keys(charts).filter(k => k.startsWith('g_')).forEach(k => { charts[k].destroy(); delete charts[k]; });
-  grid.innerHTML = ''; if (!D.com) { grid.innerHTML = emptyMsg(); return; }
-  const { cols } = histCols(); const accs = cols.map(c => histAcc(c.months));
-  GRAFICOS.forEach(([titulo, series, tipo], idx) => {
-    const card = document.createElement('div'); card.className = 'card gcard';
-    card.innerHTML = `<h3>${titulo}</h3><canvas id="g_${idx}"></canvas>`; grid.appendChild(card);
-    const ds = [];
-    series.forEach(([n, k], i) => {
-      const vals = accs.map(a => histVal(a, k)); const cor = n.toLowerCase().includes('esgoto') ? '#d79b29' : CORES[i % CORES.length];
-      ds.push({ label: n, data: vals, borderColor: cor, backgroundColor: cor, tension: .25, pointRadius: 2 });
-      const med = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 0;
-      ds.push({ label: 'Média ' + n, data: vals.map(() => med), borderColor: '#9fb0bf', borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0 });
-    });
-    mkChart('g_' + idx, { type: 'line', data: { labels: cols.map(c => c.label), datasets: ds },
-      options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtH(c.parsed.y, tipo) } } },
-        scales: { x: { ticks: { font: { size: 10 } }, grid: { display: false } }, y: { ticks: { display: false }, grid: { display: false } } } } });
-  });
-}
-
 /* =====================================================================
    ABA: Dados (diagnóstico)
    ===================================================================== */
@@ -1074,6 +1174,16 @@ function renderDados() {
   h += '<div class="panel" style="margin-bottom:16px"><h2>Arquivos lidos</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas</div><table class="dx"><thead><tr><th>Arquivo</th><th>Tipo</th><th>Detalhe</th></tr></thead><tbody>';
   D.files.forEach(f => { h += `<tr><td>${esc(f.name)}</td><td>${esc(f.tipo)}</td><td>${esc(f.detalhe || '')}</td></tr>`; });
   h += '</tbody></table></div>';
+  {
+    const cv = new Set(D.com ? D.com.entries.map(e => e.cid) : []), av = D.arr ? new Set(D.arr.byCid.keys()) : new Set();
+    h += '<div class="panel" style="margin-bottom:16px"><h2>Cidades por superintendência</h2><div class="hint">Relação SUP FINAL × cidade usada nos filtros. Cidades em mais de uma superintendência entram inteiras em cada uma e são contadas uma única vez em TODAS</div><table class="dx"><thead><tr><th>Superintendência</th><th>Cidades (✔ = com dados no Comercial · ◐ = só na Arrecadação · ✖ = sem dados)</th></tr></thead><tbody>';
+    Object.keys(CONFIG.supCidades).forEach(sup => {
+      h += `<tr><td><b>${esc(sup)}</b> (${CONFIG.supCidades[sup].length})</td><td>` + CONFIG.supCidades[sup].map(c => {
+        const k = norm(c), ok = cv.has(k), so = !ok && av.has(k), dup = supsOf(c).length > 1;
+        return `<span class="tag ${ok ? '' : so ? 'warn' : 'bad'}">${ok ? '✔' : so ? '◐' : '✖'} ${esc(c)}${dup ? ' ⇄' : ''}</span>`; }).join(' ') + '</td></tr>';
+    });
+    h += '</tbody></table><div class="hint" style="margin:10px 0 0">⇄ = cidade presente em mais de uma superintendência</div></div>';
+  }
   if (dc) {
     const meses = Array.from(dc.meses).sort(), real = Array.from(D.com.realMonths).sort();
     const calcLiq = dc.somaBruto + dc.somaCanc, difLiq = dc.somaLiq - calcLiq;
@@ -1084,7 +1194,9 @@ function renderDados() {
       <tr><td>Descartadas — DSC_CLASSE = 0</td><td>${dc.descClasse0.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Descartadas — cidade vazia/0 · mês inválido</td><td>${dc.descCidade.toLocaleString('pt-BR')} · ${dc.descMes.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Meses na base · meses com faturamento</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) : '—'} · ${real.length ? real.length + ' (' + mlabel(real[0]) + ' a ' + mlabel(real[real.length - 1]) + ')' : '<span class="tag bad">nenhum mês com valores</span>'}</td></tr>
-      <tr><td>Superintendências · cidades</td><td>${Array.from(D.com.sups).join(', ')} · ${D.com.cidSup.size}</td></tr>
+      <tr><td>Superintendências · cidades no arquivo</td><td>${Array.from(D.com.sups).join(', ')} · ${dc.cidadesVistas.size}</td></tr>
+      <tr><td>Coluna Sup do arquivo</td><td>${dc.colunaSupIgnorada ? 'presente — <b>ignorada</b>' : 'ausente'}; a superintendência vem da relação cidade × SUP FINAL (<code>CONFIG.supCidades</code>)</td></tr>
+      <tr><td>Cidades do arquivo fora da relação</td><td>${dc.cidadesSemSup.size ? Array.from(dc.cidadesSemSup).map(x => '<span class="tag bad">' + esc(x) + '</span>').join(' ') + ' — aparecem só em TODAS / SEM SUP; inclua em <code>CONFIG.supCidades</code>' : 'nenhuma'}</td></tr>
       <tr><td>Classes não mapeadas (ignoradas)</td><td>${dc.naoMapeadas.size ? Array.from(dc.naoMapeadas).map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
       <tr><td>Líquido da coluna vs. bruto + cancelamento</td><td>${fmtBRL(dc.somaLiq)} vs. ${fmtBRL(calcLiq)} — diferença ${fmtBRL(difLiq)} ${Math.abs(difLiq) < 1 ? '<span class="tag">ok</span>' : '<span class="tag warn">verificar sinal de cancelamento / classes</span>'}</td></tr>
       </tbody></table></div>`;
@@ -1097,14 +1209,14 @@ function renderDados() {
   }
   if (da) {
     const meses = Array.from(da.meses).sort();
-    const semSup = D.arr && D.com ? Array.from(D.arr.byCid.keys()).filter(c => !D.com.cidSup.has(c)) : [];
+    const semSup = D.arr ? Array.from(D.arr.byCid.keys()).filter(c => supsOf(c)[0] === 'SEM SUP') : [];
     h += `<div class="panel" style="margin-bottom:16px"><h2>Arrecadação — conferências</h2><div class="hint">${esc(da.file)}</div><table class="dx"><tbody>
       <tr><td>Linhas lidas · aproveitadas</td><td>${da.linhas.toLocaleString('pt-BR')} · ${da.usadas.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Descartadas — totais · cidade vazia · mês inválido</td><td>${da.descTotal} · ${da.descCidade} · ${da.descMes}</td></tr>
       <tr><td>Meses</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) + ' (' + meses.length + ')' : '—'}</td></tr>
       <tr><td>Soma de Arrecadacao_Acumulada</td><td>${fmtBRL(da.somaArrec)}</td></tr>
       <tr><td>Valores da coluna Classificação</td><td>${Array.from(da.classif).slice(0, 12).map(x => '<span class="tag">' + esc(x) + '</span>').join(' ') || '—'}</td></tr>
-      <tr><td>Cidades sem superintendência no Comercial</td><td>${semSup.length ? semSup.map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
+      <tr><td>Cidades fora da relação cidade × SUP FINAL</td><td>${semSup.length ? semSup.map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
       </tbody></table></div>`;
   }
   Object.keys(D.rf).forEach(l => {
@@ -1153,15 +1265,13 @@ const rfOrd = l => { const m = /RF(\d)T(\d\d)/.exec(l); return m ? (+m[2]) * 10 
 
 function renderAll() {
   S.cache.clear();
-  const t = S.tab;
+  const t = S.tab; CTX.etapa = 'Renderizando a aba "' + t + '"';
   if (t === 'dre') renderDRE(); else if (t === 'dremensal') renderMonthly(); else if (t === 'receita') renderReceita();
   else if (t === 'drivers') renderDrivers(); else if (t === 'caixa') renderCaixa(); else if (t === 'historico') renderHistorico();
-  else if (t === 'graficos') renderGraficos(); else if (t === 'rf') renderRF(); else if (t === 'dados') renderDados();
-  else if (t === 'arrecadacao') loadArrecFrame();
+  else if (t === 'rf') renderRF(); else if (t === 'dados') renderDados();
   $('#escopo').textContent = S.sup ? `Superintendência ${S.sup}${S.rf ? ' | ' + S.rf : ''}${S.aud ? ' | Visão Auditoria: ' + Array.from(S.audSel).join(' + ') : ''}` : '';
 }
 function fullRender() { buildHeader(); renderAll(); }
-function loadArrecFrame() { const f = $('#arrecFrame'); if (!f.getAttribute('src')) f.setAttribute('src', f.dataset.src); }
 
 $$('.tab').forEach(b => b.onclick = () => {
   $$('.tab,.page').forEach(x => x.classList.remove('active')); b.classList.add('active');
@@ -1203,7 +1313,8 @@ async function reloadFolder() {
     await loadFiles(await collect(dirHandle));
   } catch (e) { setStatus('Erro ao atualizar: ' + e.message, true); }
 }
-function setStatus(t, err) { $('#fonteStatus').innerHTML = err ? '<span class="tag bad">Erro</span> ' + esc(t) : t; }
+function setStatus(t, err) { $('#fonteStatus').innerHTML = err ? '<span class="tag bad">Erro</span> ' + esc(t) + ' <span style="opacity:.7">[' + VERSAO + ']</span>' : t; }
+$('#btnCopyLog').onclick = async () => { try { await navigator.clipboard.writeText(LOG.join('\n')); $('#btnCopyLog').textContent = 'Copiado ✔'; } catch (e) { const r = document.createRange(); r.selectNodeContents($('#logPre')); getSelection().removeAllRanges(); getSelection().addRange(r); $('#btnCopyLog').textContent = 'Selecionado — use Ctrl+C'; } setTimeout(() => $('#btnCopyLog').textContent = 'Copiar detalhes', 2500); };
 $('#btnPasta').onclick = pickFolder;
 $('#btnReload').onclick = reloadFolder;
 $('#fileFallback').onchange = async e => { const fs = Array.from(e.target.files).filter(f => /\.xlsx$/i.test(f.name) && !f.name.startsWith('~$')); await loadFiles(fs); e.target.value = ''; };
@@ -1217,26 +1328,44 @@ async function classify(file) {
 }
 async function loadFiles(files) {
   if (!files.length) return setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true);
+  LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
+  log('Versão ' + VERSAO + ' — ' + files.length + ' arquivo(s) .xlsx na pasta');
+  files.forEach(f => log('  • ' + f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)'));
+  setProg(0, 'Identificando os arquivos…');
   try {
     D.com = null; D.arr = null; D.rf = {}; D.diag = {}; D.files = []; S.cache.clear();
     const grupos = { com: [], arr: [], rf: [] }, ignorados = [];
-    for (const f of files) { setStatus('Identificando <b>' + esc(f.name) + '</b>…'); await tick(); const t = await classify(f); t ? grupos[t].push(f) : ignorados.push(f.name); }
+    for (const f of files) { setStatus('Identificando <b>' + esc(f.name) + '</b>…'); etapa('Identificando o tipo do arquivo', f.name); await tick(); const t = await classify(f); log('  → ' + (t === 'com' ? 'Comercial' : t === 'arr' ? 'Arrecadação' : t === 'rf' ? 'Orçado (RF)' : 'não reconhecido (ignorado)')); t ? grupos[t].push(f) : ignorados.push(f.name); }
     const latest = l => l.sort((a, b) => b.lastModified - a.lastModified)[0];
-    if (grupos.com.length) { const f = latest(grupos.com); await ingestComercial(f); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
-    if (grupos.arr.length) { const f = latest(grupos.arr); await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
-    for (const f of grupos.rf) { setStatus('Lendo <b>' + esc(f.name) + '</b>…'); await tick(); await ingestPainel(f); D.files.push({ name: f.name, tipo: 'Orçado ' + rfLabel(f.name), detalhe: D.rf[rfLabel(f.name)].meses.length + ' meses com valor' }); }
+    const fila = [];                                                   // ordem: painéis RF, Comercial, Arrecadação
+    grupos.rf.forEach(f => fila.push(['rf', f])); if (grupos.com.length) fila.push(['com', latest(grupos.com)]); if (grupos.arr.length) fila.push(['arr', latest(grupos.arr)]);
+    PG.total = fila.reduce((t, x) => t + x[1].size, 0) || 1; PG.base = 0;
+    for (const [tipo, f] of fila) {
+      PG.tam = f.size; CTX.arquivo = f.name; CTX.linha = 0; setStatus('Lendo <b>' + esc(f.name) + '</b>…'); progArquivo(0, 0); await tick();
+      if (tipo === 'rf') { await ingestPainel(f); D.files.push({ name: f.name, tipo: 'Orçado ' + rfLabel(f.name), detalhe: D.rf[rfLabel(f.name)].meses.length + ' meses com valor' }); }
+      else if (tipo === 'com') { await ingestComercial(f); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
+      else { await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
+      PG.base += f.size; log('  ✔ concluído: ' + f.name + (tipo === 'com' ? ' — ' + D.diag.com.usadas.toLocaleString('pt-BR') + ' linhas aproveitadas de ' + D.diag.com.linhas.toLocaleString('pt-BR') : tipo === 'arr' ? ' — ' + D.diag.arr.usadas.toLocaleString('pt-BR') + ' linhas' : ''));
+    }
     ignorados.forEach(n => D.files.push({ name: n, tipo: 'não reconhecido', detalhe: 'ignorado' }));
     S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;
+    CTX.arquivo = ''; CTX.linha = 0; setProg(96, 'Montando as telas…'); etapa('Montando as telas'); await tick();
     fullRender();
     const partes = [];
     if (D.com) partes.push('Comercial'); if (D.arr) partes.push('Arrecadação'); const rfs = Object.keys(D.rf); if (rfs.length) partes.push('Orçado ' + rfs.join(', '));
+    setProg(100, 'Concluído', 'ok'); log('Leitura concluída com sucesso.');
     setStatus('Carregado: <b>' + (partes.join(' • ') || 'nada reconhecido') + '</b> — ' + new Date().toLocaleTimeString('pt-BR') + '. Veja a aba <b>Dados</b> para conferências.');
-  } catch (e) { console.error(e); setStatus(e.message, true); }
+  } catch (e) {
+    console.error(e); logErro(e);
+    try { D.com = null; D.arr = null; fullRender(); } catch (e2) { log('Falha ao limpar as telas: ' + e2.message, 'erro'); }   // não deixa dados da leitura anterior na tela
+    setStatus(e.message, true);
+  }
 }
 
 /* ---------- inicialização ---------- */
 (async function init() {
   restore(); fullRender();
+  $('#fonteStatus').innerHTML = 'Nenhuma pasta conectada. <span style="opacity:.7">[' + VERSAO + ']</span>';
   if (window.showDirectoryPicker) {
     const h = await idb.get('dir');
     if (h) {
