@@ -159,6 +159,7 @@ table.hist tr.total td.col-total{background:#dcebf4}
 .empty b{color:var(--navy)}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#e7f6f4;color:#14735e;font-weight:700}
 .tag.warn{background:#fff4de;color:#9a6a0a}.tag.bad{background:#fdecec;color:#a63333}
+.dxn td,.dxn th{text-align:right!important;white-space:nowrap!important}.dxn td:first-child,.dxn th:first-child{text-align:left!important}.dxn tr.zero td{color:#9aa8b5}.dxn tr.zero td:first-child{color:#9a6a0a}
 .dx{font-size:12px}.dx td,.dx th{padding:6px 9px}
 .dx td{text-align:left}.dx td:first-child{white-space:normal}.dx tr td:not(:first-child) {white-space:normal}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid,.grid2{grid-template-columns:1fr}.bridgeCards{grid-template-columns:1fr}}
@@ -288,16 +289,15 @@ const CONFIG = {
                    'ABATIMENTO DE AGUA','ABATIMENTO DE SERVICO DE AGUA','DESCONTOS','CONSERTOS E REPAROS'],
   classeZero: ['0',''],                                    // linhas de total sem abertura: descartadas
   // Relação SUP FINAL × CIDADE. A superintendência vem SÓ daqui (a coluna Sup do arquivo é ignorada).
-  // Uma cidade pode estar em mais de uma superintendência (ex.: ITABORAI e RIO BONITO): nesse caso
-  // ela entra inteira na visão de cada uma, e na visão TODAS é contada uma única vez.
+  // Cidade que não estiver na relação vai para 'SEM SUP' (listada na aba Dados).
   supCidades: {
-    'LAGOS': ['APERIBE', 'CAMBUCI', 'CACHOEIRAS DE MACACU', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS', 'ITABORAI',
-              'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'RIO DE JANEIRO', 'S.SEBASTIAO DO ALTO', 'S.FCO.DO ITABAPOANA'],
-    'LESTE': ['ITABORAI', 'MARICA', 'RIO BONITO', 'RIO DE JANEIRO - A', 'SAO GONCALO', 'SAQUAREMA', 'TANGUA']
+    'LAGOS': ['APERIBE', 'CAMBUCI', 'CACHOEIRAS DE MACACU', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS',
+              'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'S.SEBASTIAO DO ALTO', 'S.FCO.DO ITABAPOANA'],
+    'LESTE': ['ITABORAI', 'MARICA', 'SAO GONCALO', 'SAQUAREMA', 'TANGUA']
   }
 };
 
-const VERSAO = 'v2026.10.02-e (leitura em blocos + progresso)';
+const VERSAO = 'v2026.10.02-f (resumo por mês na aba Dados)';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -502,7 +502,7 @@ const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto'
 async function ingestComercial(file) {
   const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
   let col = null; const map = new Map();
-  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), cidadesSemSup: new Set(), cidadesVistas: new Set(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), cidadesSemSup: new Set(), cidadesVistas: new Set(), linhasMes: new Map(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
   const msg = $('#fonteStatus');
   await readXlsx(file, (r, n) => {
     if (!col) {
@@ -520,7 +520,7 @@ async function ingestComercial(file) {
     if (dZ.has(cls)) { diag.descClasse0++; return true; }
     const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
     const ym = parseMonth(g('referencia')); if (!ym) { diag.descMes++; return true; }
-    diag.usadas++; diag.meses.add(ym); diag.cidadesVistas.add(cid);
+    diag.usadas++; diag.meses.add(ym); diag.cidadesVistas.add(cid); diag.linhasMes.set(ym, (diag.linhasMes.get(ym) || 0) + 1);
     const sups = supsOf(cid); if (sups[0] === 'SEM SUP') diag.cidadesSemSup.add(cid);
     let cur = String(g('macrocluster_curva_cliente') == null ? '-' : g('macrocluster_curva_cliente')).trim(); if (cur === '0' || cur === '') cur = '-';
     let sit = String(g('baseinativacao_situacao_final') == null ? '-' : g('baseinativacao_situacao_final')).trim(); if (sit === '0' || sit === '') sit = '-';
@@ -558,7 +558,7 @@ async function ingestComercial(file) {
 /* ---------- Arrecadação ---------- */
 async function ingestArrec(file) {
   let col = null; const map = new Map();
-  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, meses: new Set() };
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, linhasMes: new Map(), meses: new Set() };
   await readXlsx(file, (r) => {
     if (!col) {
       col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
@@ -576,7 +576,7 @@ async function ingestArrec(file) {
     const key = cid + '|' + ym; let e = map.get(key);
     if (!e) { e = { cid, ym, arrec: 0, cli: 0, contas: 0 }; map.set(key, e); }
     e.arrec += num('arrecadacao_acumulada'); e.cli += num('qtd_clientes_pagantes_acumulado'); e.contas += num('qtd_clientes_pagas_mes_anterior');
-    diag.usadas++; diag.somaArrec += num('arrecadacao_acumulada'); diag.meses.add(ym);
+    diag.usadas++; diag.somaArrec += num('arrecadacao_acumulada'); diag.meses.add(ym); diag.linhasMes.set(ym, (diag.linhasMes.get(ym) || 0) + 1);
     return true;
   }, { progress: c => { $('#fonteStatus').innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Arrecadação: arquivo sem dados');
@@ -1167,6 +1167,45 @@ function renderHistorico() {
 /* =====================================================================
    ABA: Dados (diagnóstico)
    ===================================================================== */
+/* resumo por mês do que foi identificado em cada arquivo (todas as cidades, sem filtros) */
+function resumoMensalHtml() {
+  const money = v => v ? fmtBRL(v) : '—', num = v => v ? fmtN(v, 0) : '—';
+  const wrap = (titulo, hint, head, rows, tot) => `<div class="panel" style="margin-bottom:16px"><h2>${titulo}</h2><div class="hint">${hint}</div><div class="tablewrap" style="max-height:60vh"><table class="dx dxn"><thead><tr>${head.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}${tot ? `<tr class="total"><td>Total</td>${tot.map(x => `<td>${x}</td>`).join('')}</tr>` : ''}</tbody></table></div></div>`;
+  let h = '';
+  if (D.com) {
+    const dc = D.diag.com, por = new Map(), cids = new Map();
+    D.com.entries.forEach(e => {
+      let a = por.get(e.ym); if (!a) { a = { dA: 0, dE: 0, iA: 0, iE: 0, canc: 0, liq: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0 }; por.set(e.ym, a); cids.set(e.ym, new Set()); }
+      for (const f in a) a[f] += e[f]; if (e.dA || e.dE || e.iA || e.iE || e.liq) cids.get(e.ym).add(e.cid);
+    });
+    const meses = Array.from(por.keys()).sort(), T = { dA: 0, dE: 0, iA: 0, iE: 0, canc: 0, liq: 0, linhas: 0 };
+    const rows = meses.map(m => { const a = por.get(m), l = dc.linhasMes.get(m) || 0, bruto = a.dA + a.dE + a.iA + a.iE, vazio = !(bruto || a.liq || a.canc);
+      for (const f in T) if (f !== 'linhas') T[f] += a[f]; T.linhas += l;
+      return `<tr class="${vazio ? 'zero' : ''}"><td>${mlabel(m)}${vazio ? ' <span class="tag warn">sem valores</span>' : ''}</td><td>${fmtN(l, 0)}</td><td>${cids.get(m).size}</td><td>${money(a.dA)}</td><td>${money(a.dE)}</td><td>${money(a.iA)}</td><td>${money(a.iE)}</td><td>${money(bruto)}</td><td>${money(a.canc)}</td><td>${money(a.liq)}</td><td>${num(a.ecoA)}</td><td>${num(a.ecoE)}</td><td>${num(a.volA)}</td><td>${num(a.volE)}</td></tr>`; });
+    const tb = T.dA + T.dE + T.iA + T.iE;
+    h += wrap('Resumo por mês — Comercial', esc(dc.file) + ' · todas as cidades, sem filtros · linhas aproveitadas (totais e DSC_CLASSE = 0 já descartados); meses em cinza estão no arquivo mas sem valores',
+      ['Mês', 'Linhas', 'Cidades c/ valor', 'Direta água', 'Direta esgoto', 'Indireta água', 'Indireta esgoto', 'Fat. bruto', 'Cancelamento', 'Fat. líquido', 'Economias água', 'Economias esgoto', 'Vol. água (m³)', 'Vol. esgoto (m³)'],
+      rows, [fmtN(T.linhas, 0), '', money(T.dA), money(T.dE), money(T.iA), money(T.iE), money(tb), money(T.canc), money(T.liq), '', '', '', '']);
+  }
+  if (D.arr) {
+    const da = D.diag.arr, meses = Array.from(D.arr.byYm.keys()).sort(), T = { arrec: 0, cli: 0, contas: 0, linhas: 0 };
+    const rows = meses.map(m => { let ar = 0, cl = 0, co = 0; const l = D.arr.byYm.get(m); l.forEach(e => { ar += e.arrec; cl += e.cli; co += e.contas; });
+      T.arrec += ar; T.cli += cl; T.contas += co; T.linhas += da.linhasMes.get(m) || 0;
+      return `<tr class="${ar ? '' : 'zero'}"><td>${mlabel(m)}${ar ? '' : ' <span class="tag warn">sem valores</span>'}</td><td>${fmtN(da.linhasMes.get(m) || 0, 0)}</td><td>${l.length}</td><td>${money(ar)}</td><td>${num(cl)}</td><td>${num(co)}</td></tr>`; });
+    h += wrap('Resumo por mês — Arrecadação', esc(da.file) + ' · todas as cidades; “Cidades” = cidades com linha no mês',
+      ['Mês', 'Linhas', 'Cidades', 'Arrecadação', 'Clientes pagantes', 'Contas pagas (mês anterior)'], rows, [fmtN(T.linhas, 0), '', money(T.arrec), num(T.cli), num(T.contas)]);
+  }
+  Object.keys(D.rf).sort().forEach(l => {
+    const r = D.rf[l], cols = [['Fat. bruto', 'bruto'], ['Direto', 'direto'], ['Indireto', 'indireto'], ['Cancel.', 'canc'], ['Fat. líquido', 'liq'], ['Cut-off', 'cutoff'], ['Arrecadação', 'arrec'], ['Econ. água', 'ecoA'], ['Econ. esgoto', 'ecoE'], ['Vol. água', 'volA'], ['Vol. esgoto', 'volE']];
+    const rows = [];
+    r.bySup.forEach((mm, sup) => Array.from(mm.keys()).sort().forEach(m => {
+      const o = mm.get(m), v = Object.assign({}, o); if (has(o.dA) || has(o.dE)) v.direto = (o.dA || 0) + (o.dE || 0); if (has(o.iA) || has(o.iE)) v.indireto = (o.iA || 0) + (o.iE || 0);
+      if (!has(v.bruto) && (has(v.direto) || has(v.indireto))) v.bruto = (v.direto || 0) + (v.indireto || 0);
+      rows.push(`<tr><td>${esc(sup)}</td><td>${mlabel(m)}</td>${cols.map(([, k]) => `<td>${has(v[k]) ? (['ecoA', 'ecoE', 'volA', 'volE'].includes(k) ? fmtN(v[k], 0) : fmtBRL(v[k])) : '—'}</td>`).join('')}</tr>`); }));
+    h += wrap('Resumo por mês — Orçado ' + esc(l), esc(r.file) + ' · valores do painel por superintendência e mês (só meses com valor)', ['Sup', 'Mês'].concat(cols.map(c => c[0])), rows, null);
+  });
+  return h;
+}
 function renderDados() {
   const b = $('#dadosBox'); let h = '';
   if (!D.files.length) { b.innerHTML = '<div class="panel">' + emptyMsg() + '</div>'; return; }
@@ -1174,15 +1213,16 @@ function renderDados() {
   h += '<div class="panel" style="margin-bottom:16px"><h2>Arquivos lidos</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas</div><table class="dx"><thead><tr><th>Arquivo</th><th>Tipo</th><th>Detalhe</th></tr></thead><tbody>';
   D.files.forEach(f => { h += `<tr><td>${esc(f.name)}</td><td>${esc(f.tipo)}</td><td>${esc(f.detalhe || '')}</td></tr>`; });
   h += '</tbody></table></div>';
+  h += resumoMensalHtml();
   {
     const cv = new Set(D.com ? D.com.entries.map(e => e.cid) : []), av = D.arr ? new Set(D.arr.byCid.keys()) : new Set();
-    h += '<div class="panel" style="margin-bottom:16px"><h2>Cidades por superintendência</h2><div class="hint">Relação SUP FINAL × cidade usada nos filtros. Cidades em mais de uma superintendência entram inteiras em cada uma e são contadas uma única vez em TODAS</div><table class="dx"><thead><tr><th>Superintendência</th><th>Cidades (✔ = com dados no Comercial · ◐ = só na Arrecadação · ✖ = sem dados)</th></tr></thead><tbody>';
+    h += '<div class="panel" style="margin-bottom:16px"><h2>Cidades por superintendência</h2><div class="hint">Relação SUP FINAL × cidade usada nos filtros; cada cidade pertence a uma única superintendência</div><table class="dx"><thead><tr><th>Superintendência</th><th>Cidades (✔ = com dados no Comercial · ◐ = só na Arrecadação · ✖ = sem dados)</th></tr></thead><tbody>';
     Object.keys(CONFIG.supCidades).forEach(sup => {
       h += `<tr><td><b>${esc(sup)}</b> (${CONFIG.supCidades[sup].length})</td><td>` + CONFIG.supCidades[sup].map(c => {
         const k = norm(c), ok = cv.has(k), so = !ok && av.has(k), dup = supsOf(c).length > 1;
         return `<span class="tag ${ok ? '' : so ? 'warn' : 'bad'}">${ok ? '✔' : so ? '◐' : '✖'} ${esc(c)}${dup ? ' ⇄' : ''}</span>`; }).join(' ') + '</td></tr>';
     });
-    h += '</tbody></table><div class="hint" style="margin:10px 0 0">⇄ = cidade presente em mais de uma superintendência</div></div>';
+    h += '</tbody></table></div>';
   }
   if (dc) {
     const meses = Array.from(dc.meses).sort(), real = Array.from(D.com.realMonths).sort();
