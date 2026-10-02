@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book Executivo DRE | Águas do Rio</title>
+<script src="lib/jszip.min.js"></script>
+<script src="lib/chart.umd.js"></script>
+<style>
+:root{--navy:#102840;--blue:#176b9c;--cyan:#16a5b8;--green:#1f8a70;--red:#c94b4b;--amber:#d79b29;--ink:#1f2d3d;--muted:#64748b;--line:#dbe4ec;--paper:#fff;--bg:#f3f6f9}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",Arial,sans-serif}
+
+/* Cabeçalho */
+.top{background:linear-gradient(120deg,var(--navy),#174f70);color:#fff;padding:22px 34px 18px}
+.toprow{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.eyebrow{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:#9fe1e7;font-weight:700}
+.top h1{margin:5px 0 3px;font-size:26px;color:#fff}
+.sub{color:#d5e7ef}
+.scopeLine{font-size:11px;font-weight:700;color:#bfe0eb;margin-top:5px}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.toolbar select,.toolbar .btn{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;text-decoration:none;display:inline-block}
+.toolbar select option{color:#111}
+.toolbar .btn:hover{background:rgba(255,255,255,.2)}
+.fgroup{display:flex;align-items:center;border:1px solid rgba(255,255,255,.38);border-radius:9px;background:rgba(255,255,255,.07);position:relative}
+.fgroup .flabel{padding:8px 10px;color:#d5e7ef;font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.45px}
+.fbtn{border:0;border-left:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer}
+.fbtn:last-child{border-radius:0 8px 8px 0}
+.fbtn.active{background:#fff;color:#0d5f98}
+.fgroup select{border:0;background:transparent;border-left:1px solid rgba(255,255,255,.25);border-radius:0 8px 8px 0}
+.switch{position:relative;display:inline-block;width:42px;height:22px;margin:0 8px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,.28);transition:.3s;border-radius:22px}
+.slider:before{position:absolute;content:"";height:16px;width:16px;left:3px;bottom:3px;background:#fff;transition:.3s;border-radius:50%}
+input:checked+.slider{background:var(--cyan)}
+input:checked+.slider:before{transform:translateX(20px)}
+.fonteStatus{margin-top:10px;font-size:11.5px;color:#bfe0eb}
+.fonteStatus b{color:#fff}
+
+/* Dropdown */
+.dropdown{position:relative;display:inline-block}
+.dropdown-content{display:none;position:absolute;background:#fff;color:var(--ink);min-width:240px;border:1px solid var(--line);box-shadow:0 8px 22px rgba(17,42,66,.18);border-radius:10px;z-index:30;padding:8px 0;max-height:300px;overflow-y:auto;margin-top:6px;left:0}
+.dropdown-content label,.dropdown-content div.opcao{display:block;padding:7px 14px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.dropdown-content label:hover,.dropdown-content div.opcao:hover{background:#f2f8fc}
+.dropdown-content hr{margin:6px 0;border:none;border-top:1px solid var(--line)}
+.dropdown.aberto .dropdown-content{display:block}
+.fgroup .dropdown>button{border:0;border-left:1px solid rgba(255,255,255,.25);border-radius:0 8px 8px 0;background:transparent;color:#fff;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer}
+.bar .dropdown>button,.dropbtn{border:1px solid #cfdbe5;background:#fff;color:#486174;border-radius:8px;padding:8px 12px;font-size:12.5px;cursor:pointer}
+
+/* Abas */
+.nav{padding:0 34px;background:#fff;border-bottom:1px solid var(--line);display:flex;gap:2px;overflow:auto}
+.tab{border:0;background:none;padding:14px 18px;color:var(--muted);font-weight:650;font-size:14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tab.active{color:var(--blue);border-bottom-color:var(--cyan)}
+main{padding:22px 34px 38px;max-width:1800px;margin:auto}
+.page{display:none}
+.page.active{display:block}
+
+/* Cards e painéis */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(190px,1fr));gap:14px;margin-bottom:16px}
+.kpis.k3{grid-template-columns:repeat(3,minmax(190px,1fr))}
+.card,.panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 3px 12px rgba(17,42,66,.045)}
+.kpi{padding:16px 16px 15px 18px;position:relative;overflow:hidden;border-left:5px solid #2f80ed;box-shadow:0 5px 14px rgba(18,63,99,.12)}
+.kpi:after{content:'';position:absolute;right:-20px;top:-26px;width:88px;height:88px;border-radius:50%;background:rgba(47,128,237,.07)}
+.kpi:nth-child(2){border-left-color:#2878c8}.kpi:nth-child(3){border-left-color:#155d96}.kpi:nth-child(4){border-left-color:#49a1dc}
+.kpi.good{border-left-color:var(--green)}.kpi.bad{border-left-color:var(--red)}
+.kpi .label{color:var(--muted);font-size:12px;font-weight:650;position:relative;z-index:1}
+.kpi .value{font-size:24px;font-weight:780;margin:5px 0;color:var(--blue);position:relative;z-index:1}
+.kpi .delta{font-weight:700;position:relative;z-index:1}
+.kpi .hint{position:relative;z-index:1;margin:0}
+.pos{color:var(--green)}.neg{color:var(--red)}.neutral{color:var(--muted)}
+.grid{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.panel{padding:18px}
+.panel h2{font-size:16px;margin:0 0 3px;color:var(--navy)}
+.hint{color:var(--muted);font-size:12px;margin-bottom:12px}
+.period{font-size:18px;font-weight:750;margin:8px 0 14px}
+.chartbox{position:relative;height:300px}
+.chartbox.small{height:260px}
+.insights{display:grid;gap:10px}
+.insight{border-left:4px solid var(--blue);background:#f7fafc;padding:11px 13px;border-radius:5px}
+.insight.warn{border-color:var(--amber)}.insight.bad{border-color:var(--red)}.insight.good{border-color:var(--green)}
+.insight b{display:block;margin-bottom:2px}
+.bridgeCards{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}
+.bridgeCard{border:1px solid var(--line);border-radius:11px;padding:15px 16px;background:#fff;box-shadow:0 3px 10px rgba(17,42,66,.05);position:relative;overflow:hidden}
+.bridgeCard:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:#256f9f}
+.bridgeCard.total:before{background:var(--red)}
+.bcLabel{font-size:11px;text-transform:uppercase;letter-spacing:.55px;color:var(--muted);font-weight:750}
+.bcValue{font-size:23px;font-weight:800;color:#173d5e;margin:5px 0 2px}
+.bridgeCard.total .bcValue{color:var(--red)}
+.bcSub{font-size:12px;color:var(--muted)}
+.bcShare{margin-top:10px;padding-top:9px;border-top:1px solid #edf1f5;font-size:12px;color:#486174}
+.bcShare b{color:var(--blue)}
+
+/* Cards duplos (drivers) */
+.dualCard{padding:14px 15px 12px 18px;position:relative;overflow:hidden;border-left:5px solid #2f80ed;min-height:142px}
+.dualTitle{font-size:11px;color:#4d6375;font-weight:750;margin-bottom:10px}
+.dualGrid{display:grid;grid-template-columns:1fr 1px 1fr;gap:12px;align-items:stretch}
+.dualDiv{background:#c9d7e2;width:1px}
+.dPeriod{font-size:9px;text-transform:uppercase;letter-spacing:.55px;color:#73879a;font-weight:800;white-space:nowrap}
+.dMain{font-size:20px;color:var(--blue);font-weight:800;line-height:1.15;margin:4px 0;white-space:nowrap}
+.dBud{font-size:10px;color:#75889a;white-space:nowrap}
+.dVar{font-size:11px;font-weight:800;margin-top:4px}
+
+/* Tabelas */
+.tablewrap{overflow:auto;max-height:74vh}
+table{border-collapse:collapse;width:100%;min-width:850px;font-size:12px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);text-align:right;padding:10px;border-bottom:2px solid var(--line);background:#fff;position:sticky;top:0;z-index:2;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;z-index:1}
+th:first-child{z-index:3}
+td{padding:8px 10px;border-bottom:1px solid #edf1f5;text-align:right;white-space:nowrap;background:#fff}
+td:first-child{white-space:pre}
+tr.total td{font-weight:750;background:#eef5f8;border-top:2px solid #9fb6c5}
+tr.driver td{color:#276b98;background:#f6fbfe}
+tr.driver td:first-child{font-weight:600}
+tr.future td{background:#fffaf0}
+tr.sectionrow td{background:var(--navy);color:#fff;text-align:left;font-weight:700;padding:5px 9px}
+th.gm{text-align:center;background:#123665;color:#fff;font-size:13px;position:sticky;top:0}
+th.ga{text-align:center;background:#0b2950;color:#fff;font-size:13px;border-left:2px dashed #89a5bb}
+th.fut{background:#fff4de;color:#9a6a0a}
+#dre th.sub1,#caixa th.sub1{top:36px}
+.pill{display:inline-block;border-radius:99px;padding:3px 8px;font-size:11px;font-weight:700;background:#e7f6f4;color:#14735e}
+.pill.red{background:#fdecec;color:#a63333}
+.pill.na{background:#eef2f6;color:var(--muted)}
+.accStart{border-left:2px dashed #9bb3c7}
+.barMini{height:8px;background:#e9eff4;border-radius:6px;overflow:hidden;width:90px;display:inline-block}
+.barMini i{display:block;height:100%;background:var(--cyan)}
+.filterstrip{display:flex;gap:7px;flex-wrap:wrap;padding:11px 0 15px;border-bottom:1px solid var(--line);margin-bottom:14px;align-items:center}
+.filterpill{border:1px solid #cfdbe5;border-radius:99px;background:#fff;color:#486174;padding:7px 12px;font-size:12px;cursor:pointer}
+.filterpill:hover{border-color:#4b8db5;background:#f2f8fc}
+.filterpill.active{background:#0d5f98;color:#fff;border-color:#0d5f98;box-shadow:0 2px 6px rgba(13,95,152,.24)}
+.filterbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:0 0 14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.filterbar .lbl{font-size:12.5px;color:var(--blue);font-weight:650}
+.filterbar select{font-size:12.5px;padding:6px 8px;border-radius:8px;border:1px solid #cfdbe5;background:#fff}
+.toggle-btn{cursor:pointer;color:var(--blue);font-weight:800;margin-right:6px;display:inline-block;width:16px;text-align:center}
+table.hist th{background:var(--navy);color:#fff}
+table.hist tr.subtotal td{font-weight:700;font-style:italic;background:#f2f7fb;color:#33485a}
+table.hist tr.nivel1 td:first-child{padding-left:28px;color:#4d6375;font-weight:normal}
+table.hist td.col-total,table.hist th.col-total{font-weight:750;border-left:2px dashed #89a5bb}
+table.hist td.col-total{background:#f2f7fb}
+table.hist tr.total td.col-total{background:#dcebf4}
+.negativo{color:var(--red)}
+#resumo{margin-top:12px;font-size:11.5px;color:var(--muted)}
+#gridGraf{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.gcard{padding:16px 16px 12px}
+.gcard h3{margin:0 0 10px;font-size:14px;color:var(--navy);font-weight:750}
+.gcard canvas{max-height:280px}
+.nota-grafico{margin-top:8px;font-size:11px;color:#664d18;background:#fff7e7;border:1px solid #f1d49b;border-left:4px solid var(--amber);border-radius:6px;padding:7px 10px}
+.note{background:#fff7e7;border:1px solid #f1d49b;padding:13px;border-radius:9px;color:#664d18}
+.empty{padding:34px;text-align:center;color:var(--muted);border:1px dashed #b8c5cf;border-radius:10px;background:#fafcfd}
+.empty b{color:var(--navy)}
+.cashToggle{display:flex;gap:6px}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#e7f6f4;color:#14735e;font-weight:700}
+.tag.warn{background:#fff4de;color:#9a6a0a}.tag.bad{background:#fdecec;color:#a63333}
+.dx{font-size:12px}.dx td,.dx th{padding:6px 9px}
+.dx td{text-align:left}.dx td:first-child{white-space:normal}.dx tr td:not(:first-child) {white-space:normal}
+iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#eef3f7}
+.embedShell{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.arrecHead{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid,.grid2{grid-template-columns:1fr}.bridgeCards{grid-template-columns:1fr}}
+@media(max-width:900px){#gridGraf{grid-template-columns:1fr}.top,.nav,main{padding-left:16px;padding-right:16px}}
+@media print{.toolbar,.nav,.filterbar{display:none}body{background:#fff}main{padding:12px}.page{display:block;break-before:page}.page:first-child{break-before:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="toprow">
+    <div>
+      <div class="eyebrow">Águas do Rio • Book Executivo</div>
+      <h1 id="titulo">DRE Comercial e Receita</h1>
+      <div class="sub" id="subtitulo">Conecte a pasta com os arquivos para carregar os dados</div>
+      <div class="scopeLine" id="escopo"></div>
+    </div>
+    <div class="toolbar">
+      <div class="fgroup"><span class="flabel">Superintendência</span><span id="supBtns"></span></div>
+      <div class="fgroup"><span class="flabel">Referência</span><span id="rfBtns"></span></div>
+      <div class="fgroup"><span class="flabel">Mês</span><select id="monthFilter"></select></div>
+      <div class="fgroup" id="audBox">
+        <span class="flabel">Visão Auditoria</span>
+        <label class="switch"><input type="checkbox" id="chkAud"><span class="slider"></span></label>
+        <div class="dropdown"><button id="btnDropAud" type="button">Situações ▾</button>
+          <div class="dropdown-content" id="listaAud" style="right:0;left:auto"></div></div>
+      </div>
+      <button class="btn" id="btnPasta" type="button">📁 Conectar pasta</button>
+      <button class="btn" id="btnReload" type="button" style="display:none">↻ Atualizar</button>
+      <a class="btn" href="index.html">🏠 Menu</a>
+      <input type="file" id="fileFallback" webkitdirectory multiple style="display:none">
+    </div>
+  </div>
+  <div class="fonteStatus" id="fonteStatus">Nenhuma pasta conectada.</div>
+</header>
+
+<nav class="nav" id="nav">
+  <button class="tab active" data-page="dre">DRE</button>
+  <button class="tab" data-page="dremensal">DRE mês a mês</button>
+  <button class="tab" data-page="receita">Receita</button>
+  <button class="tab" data-page="drivers">Drivers comerciais</button>
+  <button class="tab" data-page="caixa">Caixa</button>
+  <button class="tab" data-page="arrecadacao">Arrecadação</button>
+  <button class="tab" data-page="historico">DRE Histórico</button>
+  <button class="tab" data-page="graficos">Gráficos</button>
+  <button class="tab" data-page="rf">Orçado RF</button>
+  <button class="tab" data-page="dados">Dados</button>
+</nav>
+
+<main>
+  <section class="page active" id="dre">
+    <div class="panel"><h2>DRE: mês e acumulado</h2>
+      <div class="hint">O mês selecionado aparece à esquerda e o acumulado do ano até o período, à direita</div>
+      <div class="period" id="drePeriod"></div><div id="dreTable" class="tablewrap"></div></div>
+  </section>
+
+  <section class="page" id="dremensal">
+    <div class="panel"><h2>DRE aberta mês a mês</h2>
+      <div class="hint">Selecione um indicador para exibir Orçado, Realizado e desvios de cada mês (inclui os meses futuros do orçado)</div>
+      <div id="dreFilters" class="filterstrip"></div>
+      <div id="monthlyTitle" class="period"></div><div id="monthlyTable" class="tablewrap"></div></div>
+  </section>
+
+  <section class="page" id="receita">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid">
+      <div class="panel"><h2>Receita líquida mensal</h2><div class="hint" id="revHint"></div><div class="chartbox"><canvas id="revChart"></canvas></div></div>
+      <div class="panel"><h2>Leitura executiva</h2><div class="hint">Principais movimentos do período</div><div id="insights" class="insights"></div></div>
+    </div>
+    <div class="panel"><h2>Composição do desvio de receita</h2><div class="hint">Leitura objetiva dos blocos que explicam a variação do faturamento bruto</div><div id="bridge"></div></div>
+  </section>
+
+  <section class="page" id="drivers">
+    <div class="kpis" id="driverKpis"></div>
+    <div class="grid2">
+      <div class="panel"><h2>Água: economias, volume e tarifa</h2><div class="hint">Índice mensal, orçamento = 100</div><div class="chartbox small"><canvas id="waterChart"></canvas></div></div>
+      <div class="panel"><h2>Esgoto: economias, volume e tarifa</h2><div class="hint">Índice mensal, orçamento = 100</div><div class="chartbox small"><canvas id="sewerChart"></canvas></div></div>
+    </div>
+    <div class="panel"><h2>Drivers mês a mês</h2><div class="hint">Realizado do ano do mês selecionado e desvio acumulado versus orçado</div><div id="driversTable" class="tablewrap"></div></div>
+  </section>
+
+  <section class="page" id="caixa">
+    <div class="kpis" id="cashKpis"></div>
+    <div class="panel"><h2>Caixa: mês e acumulado</h2><div class="hint">Arrecadação realizada versus a referência orçada selecionada</div>
+      <div class="period" id="cashPeriod"></div><div id="cashTable" class="tablewrap"></div></div>
+  </section>
+
+  <section class="page" id="arrecadacao">
+    <div class="embedShell"><div class="arrecHead"><b>SLE · Acompanhamento de Arrecadação</b><span class="hint" style="margin:0">Painel preservado sem alterações</span></div>
+      <iframe id="arrecFrame" title="Dashboard de acompanhamento de arrecadação" data-src="painel_arrecadacao.html"></iframe></div>
+  </section>
+
+  <section class="page" id="historico">
+    <div class="panel"><h2>DRE Histórico por município</h2>
+      <div class="hint">Realizado por cidade, mês ou ano. Economias nos totais e anos aparecem como média mensal; tarifa e volume médio são calculados sobre as somas.</div>
+      <div class="filterbar" id="histFilters"></div>
+      <div class="tablewrap"><table class="hist" id="tabelaDRE"><thead><tr id="headerRow"></tr></thead><tbody id="corpoTabela"></tbody></table></div>
+      <div id="resumo"></div></div>
+  </section>
+
+  <section class="page" id="graficos">
+    <div class="panel" style="margin-bottom:16px"><div class="filterbar" id="grafFilters" style="margin:0;border:0;padding:0"></div></div>
+    <div id="gridGraf"></div>
+  </section>
+
+  <section class="page" id="rf">
+    <div class="panel"><h2 id="rfTitle">Orçado RF</h2>
+      <div class="hint">Orçado de todos os meses disponíveis na referência, inclusive os próximos meses; meses sem realizado aparecem destacados</div>
+      <div id="rfYears" class="filterstrip"></div>
+      <div class="chartbox small" style="margin-bottom:14px"><canvas id="rfChart"></canvas></div>
+      <div id="rfTable" class="tablewrap"></div></div>
+  </section>
+
+  <section class="page" id="dados">
+    <div id="dadosBox"></div>
+  </section>
+</main>
+
+<script>
+'use strict';
+/* =====================================================================
+   CONFIGURAÇÃO — regras de leitura dos arquivos (ajuste aqui se necessário)
+   ===================================================================== */
+const CONFIG = {
+  supAlias: { 'INTERIOR': 'LAGOS' },                      // Sup do arquivo -> Sup exibida
+  auditoriaPadrao: ['Ativa Faturando', 'Cortada'],         // situações marcadas ao ligar a Visão Auditoria
+  // DSC_CLASSE (sem acento / maiúsculas)
+  classeDireta:   ['CONTAS DE AGUA', 'CONTAS DE ESGOTO'],
+  classeIndAgua:  { 'CORTE DE AGUA': 'Corte de Água', 'RELIGACOES': 'Religações', 'LIGACOES DE AGUA': 'Ligações de Água',
+                    'SANCOES': 'Sanções', 'OUTROS AGUA': 'Outros Água', 'VENDA E ANALISE DE AGUA': 'Venda e Análise de Água' },
+  classeIndEsgoto:{ 'LIGACOES DE ESGOTO': 'Ligações de Esgoto', 'OUTROS ESGOTO': 'Outros Esgoto' },
+  classeIgnorar:  ['ARRECADACAO','IMPOSTOS','JUROS POR IMPONTUALIDADE','MULTA POR IMPONTUALIDADE','ACRESCIMO JUDICIAL',
+                   'FINANCIAMENTOS','TAXA DE REPASSE','RECEITA/DESPESA FINANCEIRA','ATUALIZACAO MONETARIA',
+                   'ABATIMENTO DE AGUA','ABATIMENTO DE SERVICO DE AGUA','DESCONTOS','CONSERTOS E REPAROS'],
+  classeZero: ['0','']                                     // linhas de total sem abertura: descartadas
+};
+
+const MN = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const tick = () => new Promise(r => setTimeout(r, 0));
+const norm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
+const hnorm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+const truthy = v => v === true || v === 1 || /^(true|verdadeiro|sim|1)$/i.test(String(v == null ? '' : v).trim());
+const has = v => v !== undefined && v !== null && !Number.isNaN(v);
+const fmtBRL = v => has(v) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v) : '—';
+const fmtM = v => has(v) ? 'R$ ' + (v / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mi' : '—';
+const fmtM2 = v => has(v) ? 'R$ ' + (v / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' mi' : '—';
+const fmtN = (v, d = 0) => has(v) ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—';
+const pct = v => Number.isFinite(v) ? (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : 'n/d';
+const mlabel = ym => MN[+ym.slice(5) - 1] + '/' + ym.slice(0, 4);
+const yearOf = ym => ym.slice(0, 4);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const dev = (a, b) => (has(a) && has(b) && b !== 0) ? a / b - 1 : NaN;
+
+/* =====================================================================
+   LEITOR DE XLSX (streaming, leve em memória) — usa JSZip
+   ===================================================================== */
+function decodeEnt(s) {
+  return s.indexOf('&') < 0 ? s : s.replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g, (m, e) => {
+    if (e === 'amp') return '&'; if (e === 'lt') return '<'; if (e === 'gt') return '>';
+    if (e === 'quot') return '"'; if (e === 'apos') return "'";
+    return String.fromCodePoint(e[1] === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+  });
+}
+function colIdx(letters) { let n = 0; for (let i = 0; i < letters.length; i++) n = n * 26 + letters.charCodeAt(i) - 64; return n - 1; }
+
+async function readXlsx(file, onRow, opts = {}) {
+  const zip = await JSZip.loadAsync(file);
+  let shared = [];
+  const sst = zip.file('xl/sharedStrings.xml');
+  if (sst) {
+    const x = await sst.async('string');
+    const re = /<si>([\s\S]*?)<\/si>|<si\/>/g; let m;
+    while ((m = re.exec(x))) {
+      let t = '';
+      if (m[1]) {
+        const body = m[1].replace(/<rPh[\s\S]*?<\/rPh>/g, '');
+        const tr = /<t[^>]*>([\s\S]*?)<\/t>/g; let k;
+        while ((k = tr.exec(body))) t += k[1];
+      }
+      shared.push(decodeEnt(t));
+    }
+  }
+  let sheetName = 'xl/worksheets/sheet1.xml';
+  if (!zip.file(sheetName)) {
+    const names = Object.keys(zip.files).filter(n => /^xl\/worksheets\/[^/]+\.xml$/.test(n)).sort();
+    if (!names.length) throw new Error('Planilha não encontrada em ' + file.name);
+    sheetName = names[0];
+  }
+  const xml = await zip.file(sheetName).async('string');
+  const cellRe = /<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  let pos = 0, rowNo = 0, count = 0;
+  while (true) {
+    const a = xml.indexOf('<row ', pos); if (a < 0) break;
+    const b = xml.indexOf('>', a);
+    if (xml.charCodeAt(b - 1) === 47) { pos = b + 1; continue; }            // <row .../> vazio
+    const c = xml.indexOf('</row>', b); if (c < 0) break;
+    pos = c + 6;
+    const body = xml.substring(b + 1, c);
+    if (body.indexOf('<v>') < 0 && body.indexOf('<is>') < 0) continue;     // linha só com formatação
+    const row = []; cellRe.lastIndex = 0; let m;
+    while ((m = cellRe.exec(body))) {
+      const inner = m[3]; if (!inner) continue;
+      let v = null; const tm = /t="(\w+)"/.exec(m[2]); const t = tm ? tm[1] : 'n';
+      if (t === 'inlineStr') { const im = /<t[^>]*>([\s\S]*?)<\/t>/.exec(inner); v = im ? decodeEnt(im[1]) : null; }
+      else { const vm = /<v>([\s\S]*?)<\/v>/.exec(inner); if (!vm) continue; const raw = vm[1];
+        if (t === 's') v = shared[+raw]; else if (t === 'str' || t === 'e') v = decodeEnt(raw);
+        else if (t === 'b') v = raw === '1'; else { v = Number(raw); if (Number.isNaN(v)) v = raw; } }
+      row[colIdx(m[1])] = v;
+    }
+    count++;
+    if (onRow(row, count) === false) break;
+    if (count % 15000 === 0) { if (opts.progress) opts.progress(count); await tick(); }
+  }
+  return count;
+}
+
+/* ---------- datas ---------- */
+function serialToYm(n) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0'); }
+const MESES_TXT = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12, feb: 2, apr: 4, may: 5, aug: 8, sep: 9, oct: 10, dec: 12 };
+function parseMonth(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') {
+    if (v >= 190001 && v <= 209912 && Number.isInteger(v)) return String(v).slice(0, 4) + '-' + String(v).slice(4);   // 202603
+    if (v > 20000 && v < 80000) return serialToYm(v);
+    return null;
+  }
+  const s = String(v).trim().toLowerCase();
+  let m;
+  if ((m = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s))) return m[3] + '-' + m[2].padStart(2, '0');          // dd/mm/aaaa
+  if ((m = /^(\d{4})-(\d{2})/.exec(s))) return m[1] + '-' + m[2];                                         // aaaa-mm[-dd]
+  if ((m = /^(\d{1,2})\/(\d{4})$/.exec(s))) return m[2] + '-' + m[1].padStart(2, '0');                    // mm/aaaa
+  if ((m = /^([a-zç]{3})[a-z]*[\/\-. ](\d{2,4})$/.exec(s)) && MESES_TXT[m[1]]) {                         // jan/26, jan/2026
+    const y = m[2].length === 2 ? '20' + m[2] : m[2]; return y + '-' + String(MESES_TXT[m[1]]).padStart(2, '0');
+  }
+  if (/^\d{6}$/.test(s)) return s.slice(0, 4) + '-' + s.slice(4);
+  if (/^\d{5}$/.test(s)) return serialToYm(+s);
+  return null;
+}
+
+/* =====================================================================
+   DADOS
+   ===================================================================== */
+const D = { com: null, arr: null, rf: {}, diag: {}, files: [] };
+const S = {
+  sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null,
+  hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['ind_agua_extra']) },
+  cache: new Map()
+};
+const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM SUP'; };
+
+/* ---------- Comercial ---------- */
+const COM_REQ = ['cidade', 'dsc_classe', 'referencia', 'baseinativacao_situacao_final', 'isgrandtotalrowtotal',
+  'faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto', 'faturamento_bruto_indireta_agua', 'faturamento_bruto_indireta_esgoto',
+  'qtd_eco_fat_agua', 'qtd_eco_fat_esgoto', 'vol_faturado_agua_direto_m', 'vol_faturado_esgoto_direto_m', 'volume_medido_de_agua_m',
+  'r_cancelamento_total', 'r_faturamento_total_liquido'];
+const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto', 'faturamento_bruto_indireta_agua', 'faturamento_bruto_indireta_esgoto',
+  'faturamento_bruto_indiretas_total', 'qtd_eco_fat_agua', 'qtd_eco_fat_esgoto', 'vol_faturado_agua_direto_m', 'vol_faturado_esgoto_direto_m',
+  'volume_medido_de_agua_m', 'r_cancelamento_total', 'r_faturamento_total_liquido', 'qtd_ligacoes'];
+
+async function ingestComercial(file) {
+  const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
+  let col = null; const map = new Map();
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
+  const msg = $('#fonteStatus');
+  await readXlsx(file, (r, n) => {
+    if (!col) {
+      col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
+      const falta = COM_REQ.filter(c => !(c in col));
+      if (falta.length) throw new Error('Comercial: colunas ausentes -> ' + falta.join(', '));
+      return true;
+    }
+    diag.linhas++;
+    const g = k => col[k] === undefined ? undefined : r[col[k]];
+    const cls = norm(g('dsc_classe'));
+    let cd = diag.classes.get(cls); if (!cd) { cd = { n: 0, s: {} }; diag.classes.set(cls, cd); }
+    cd.n++; MEAS.forEach(k => { const v = g(k); if (typeof v === 'number') cd.s[k] = (cd.s[k] || 0) + v; });
+    if (truthy(g('isgrandtotalrowtotal'))) { diag.descTotal++; return true; }
+    if (dZ.has(cls)) { diag.descClasse0++; return true; }
+    const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
+    const ym = parseMonth(g('referencia')); if (!ym) { diag.descMes++; return true; }
+    diag.usadas++; diag.meses.add(ym);
+    const sup = col['sup'] === undefined ? 'TOTAL' : normSup(g('sup'));
+    let cur = String(g('macrocluster_curva_cliente') == null ? '-' : g('macrocluster_curva_cliente')).trim(); if (cur === '0' || cur === '') cur = '-';
+    let sit = String(g('baseinativacao_situacao_final') == null ? '-' : g('baseinativacao_situacao_final')).trim(); if (sit === '0' || sit === '') sit = '-';
+    const key = sup + '|' + cid + '|' + cur + '|' + sit + '|' + ym;
+    let e = map.get(key);
+    if (!e) { e = { sup, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {} }; map.set(key, e); }
+    const num = k => { const v = g(k); return typeof v === 'number' ? v : 0; };
+    if (dClsD.has(cls)) {
+      e.dA += num('faturamento_bruto_direta_agua'); e.dE += num('faturamento_bruto_direta_esgoto');
+      e.ecoA += num('qtd_eco_fat_agua'); e.ecoE += num('qtd_eco_fat_esgoto');
+      e.volA += num('vol_faturado_agua_direto_m'); e.volE += num('vol_faturado_esgoto_direto_m'); e.volM += num('volume_medido_de_agua_m');
+    } else if (dIA[cls]) {
+      const v = num('faturamento_bruto_indireta_agua'); e.iA += v; e.fr['F_' + dIA[cls]] = (e.fr['F_' + dIA[cls]] || 0) + v;
+    } else if (dIE[cls]) {
+      const v = num('faturamento_bruto_indireta_esgoto'); e.iE += v; e.fr['E_' + dIE[cls]] = (e.fr['E_' + dIE[cls]] || 0) + v;
+    } else if (!dIg.has(cls)) diag.naoMapeadas.add(cls);
+    e.canc += num('r_cancelamento_total'); e.liq += num('r_faturamento_total_liquido');
+    return true;
+  }, { progress: c => { msg.innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
+  if (!col) throw new Error('Comercial: arquivo sem dados');
+  const entries = Array.from(map.values());
+  const byYm = new Map(), sups = new Set(), cidBySup = new Map(), curvas = new Set(), sits = new Set(), cidSup = new Map();
+  entries.forEach(e => {
+    if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e);
+    sups.add(e.sup); curvas.add(e.cur); sits.add(e.sit);
+    if (!cidBySup.has(e.sup)) cidBySup.set(e.sup, new Set()); cidBySup.get(e.sup).add(e.cid); cidSup.set(e.cid, e.sup);
+    diag.somaBruto += e.dA + e.dE + e.iA + e.iE; diag.somaCanc += e.canc; diag.somaLiq += e.liq;
+  });
+  const realMonths = new Set(); entries.forEach(e => { if (e.dA || e.dE || e.iA || e.iE || e.liq || e.canc) realMonths.add(e.ym); });
+  diag.agregados = entries.length;
+  D.com = { entries, byYm, sups, cidBySup, cidSup, curvas, sits, realMonths };
+  D.diag.com = diag;
+}
+
+/* ---------- Arrecadação ---------- */
+async function ingestArrec(file) {
+  let col = null; const map = new Map();
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, meses: new Set() };
+  await readXlsx(file, (r) => {
+    if (!col) {
+      col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
+      const falta = ['cidade', 'mes_ano', 'arrecadacao_acumulada'].filter(c => !(c in col));
+      if (falta.length) throw new Error('Arrecadação: colunas ausentes -> ' + falta.join(', '));
+      return true;
+    }
+    diag.linhas++;
+    const g = k => col[k] === undefined ? undefined : r[col[k]];
+    if (truthy(g('isgrandtotalrowtotal'))) { diag.descTotal++; return true; }
+    const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
+    const ym = parseMonth(g('mes_ano')); if (!ym) { diag.descMes++; return true; }
+    if (g('classificacao') != null) diag.classif.add(String(g('classificacao')));
+    const num = k => { const v = g(k); return typeof v === 'number' ? v : 0; };
+    const key = cid + '|' + ym; let e = map.get(key);
+    if (!e) { e = { cid, ym, arrec: 0, cli: 0, contas: 0 }; map.set(key, e); }
+    e.arrec += num('arrecadacao_acumulada'); e.cli += num('qtd_clientes_pagantes_acumulado'); e.contas += num('qtd_clientes_pagas_mes_anterior');
+    diag.usadas++; diag.somaArrec += num('arrecadacao_acumulada'); diag.meses.add(ym);
+    return true;
+  }, { progress: c => { $('#fonteStatus').innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
+  if (!col) throw new Error('Arrecadação: arquivo sem dados');
+  const byCid = new Map(), byYm = new Map();
+  Array.from(map.values()).forEach(e => {
+    if (!byCid.has(e.cid)) byCid.set(e.cid, new Map()); byCid.get(e.cid).set(e.ym, e);
+    if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e);
+  });
+  D.arr = { byCid, byYm };
+  D.diag.arr = diag;
+}
+
+/* ---------- Painéis de orçado (RF) ---------- */
+const RUBRICAS = {                       // nome normalizado (sem código/prefixo) -> campo
+  'FAT. BRUTO DE AGUA - DIRETO': 'dA', 'FAT. BRUTO DE ESGOTO - DIRETO': 'dE',
+  'FAT. BRUTO DE AGUA - INDIRETO': 'iA', 'FAT. BRUTO DE ESGOTO - INDIRETO': 'iE',
+  'CANCELAMENTO': 'canc', 'CANCELAMENTOS': 'canc', 'FATURAMENTO BRUTO': 'bruto', 'FATURAMENTO LIQUIDO': 'liq',
+  'FATURAMENTO CUT-OFF': 'cutoff', 'CUT-OFF': 'cutoff', 'ARRECADACAO': 'arrec',
+  'ECONOMIAS DE AGUA FATURADAS': 'ecoA', 'ECONOMIAS DE AGUA - FATURADAS': 'ecoA',
+  'ECONOMIAS DE ESGOTO FATURADAS': 'ecoE', 'ECONOMIAS DE ESGOTO - FATURADAS': 'ecoE',
+  'VOLUME DE AGUA FATURADO': 'volA', 'VOL. TOTAL FATURADO - AGUA': 'volA',
+  'VOLUME DE ESGOTO FATURADO': 'volE', 'VOL. TOTAL FATURADO - ESGOTO': 'volE'
+};
+const rubKey = s => norm(s).replace(/^\d+(\.\d+)*\.?\s*/, '').replace(/^\((?:[-+=])\)\s*/, '').trim();
+
+function rfLabel(name) {
+  const m = /RF\s*0?(\d)\s*T\s*(\d{2})/i.exec(name);
+  return m ? 'RF' + m[1] + 'T' + m[2] : name.replace(/\.xlsx$/i, '');
+}
+async function ingestPainel(file) {
+  const label = rfLabel(file.name);
+  let hdr = null; const bySup = new Map();
+  const diag = { file: file.name, label, mapeadas: [], naoMapeadas: new Set(), meses: new Set(), linhas: 0 };
+  await readXlsx(file, r => {
+    if (!hdr) {
+      hdr = []; r.forEach((h, i) => { if (i >= 2) { const ym = parseMonth(h); if (ym) hdr[i] = ym; } });
+      if (!hdr.some(Boolean)) throw new Error('Painel ' + file.name + ': nenhuma coluna de mês reconhecida');
+      return true;
+    }
+    diag.linhas++;
+    const sup = normSup(r[0]); const rub = rubKey(r[1]); const campo = RUBRICAS[rub];
+    if (!campo) { diag.naoMapeadas.add(String(r[1])); return true; }
+    let mm = bySup.get(sup); if (!mm) { mm = new Map(); bySup.set(sup, mm); }
+    let any = false;
+    hdr.forEach((ym, i) => {
+      if (!ym) return; const v = r[i]; if (typeof v !== 'number') return;
+      let o = mm.get(ym); if (!o) { o = {}; mm.set(ym, o); }
+      if (o[campo] === undefined) { o[campo] = v; any = true; }         // primeira ocorrência prevalece
+      diag.meses.add(ym);
+    });
+    if (any) diag.mapeadas.push(sup + ' · ' + r[1] + ' → ' + campo);
+    return true;
+  });
+  const meses = new Set(); bySup.forEach(mm => mm.forEach((o, ym) => meses.add(ym)));
+  D.rf[label] = { label, bySup, meses: Array.from(meses).sort(), file: file.name };
+  D.diag['rf_' + label] = diag;
+}
+
+/* =====================================================================
+   FILTROS E CÁLCULO
+   ===================================================================== */
+function audSig() { return S.aud ? Array.from(S.audSel).sort().join(',') : '*'; }
+function supList() {
+  const s = new Set(); if (D.com) D.com.sups.forEach(x => s.add(x));
+  Object.values(D.rf).forEach(r => r.bySup.forEach((_, k) => s.add(k)));
+  const l = Array.from(s).sort(); if (l.length > 1) l.push('TODAS'); return l;
+}
+const supOk = (e, sup) => sup === 'TODAS' || e.sup === sup;
+
+function actualBase(ym) {
+  if (!D.com) return null;
+  const k = 'A|' + S.sup + '|' + audSig() + '|' + ym; if (S.cache.has(k)) return S.cache.get(k);
+  const acc = { dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, canc: 0, liq: 0 }; let any = false;
+  (D.com.byYm.get(ym) || []).forEach(e => {
+    if (!supOk(e, S.sup)) return; if (S.aud && !S.audSel.has(e.sit)) return;
+    for (const f in acc) acc[f] += e[f]; any = true;
+  });
+  const r = any && (acc.dA || acc.dE || acc.iA || acc.iE || acc.liq || acc.canc) ? acc : null;
+  S.cache.set(k, r); return r;
+}
+function budgetBase(ym, label) {
+  const rf = D.rf[label || S.rf]; if (!rf) return null;
+  const lst = []; rf.bySup.forEach((mm, sup) => { if (S.sup === 'TODAS' || sup === S.sup) { const o = mm.get(ym); if (o) lst.push(o); } });
+  if (!lst.length) return null;
+  const out = {}; lst.forEach(o => { for (const f in o) out[f] = (out[f] || 0) + o[f]; }); return out;
+}
+function sumBases(list) {
+  list = list.filter(Boolean); if (!list.length) return null;
+  const out = { n: list.length, nEcoA: 0, nEcoE: 0 };
+  list.forEach(b => { for (const f in b) { if (has(b[f])) out[f] = (out[f] || 0) + b[f]; } if (b.ecoA) out.nEcoA++; if (b.ecoE) out.nEcoE++; });
+  return out;
+}
+function derive(b) {
+  if (!b) return null;
+  const o = Object.assign({}, b);
+  if (has(b.dA) || has(b.dE)) o.direto = (b.dA || 0) + (b.dE || 0);
+  if (has(b.iA) || has(b.iE)) o.indireto = (b.iA || 0) + (b.iE || 0);
+  if (!has(b.bruto)) { if (has(o.direto) || has(o.indireto)) o.bruto = (o.direto || 0) + (o.indireto || 0); }
+  if (!b.liq) { if (has(o.bruto)) o.liq = o.bruto + (b.canc || 0); }
+  o.ecoA_sum = b.ecoA; o.ecoE_sum = b.ecoE;
+  if (has(b.ecoA)) o.ecoA = b.ecoA / (b.nEcoA || 1);
+  if (has(b.ecoE)) o.ecoE = b.ecoE / (b.nEcoE || 1);
+  o.tarA = b.volA ? b.dA / b.volA : undefined; o.tarE = b.volE ? b.dE / b.volE : undefined;
+  o.volMA = b.ecoA ? b.volA / b.ecoA : undefined; o.volME = b.ecoE ? b.volE / b.ecoE : undefined;
+  return o;
+}
+function monthsOfYearUpTo(ym) { const y = yearOf(ym), m = +ym.slice(5), l = []; for (let i = 1; i <= m; i++) l.push(y + '-' + String(i).padStart(2, '0')); return l; }
+function monthsOfYear(y) { const l = []; for (let i = 1; i <= 12; i++) l.push(y + '-' + String(i).padStart(2, '0')); return l; }
+function pair(key, months) {
+  const A = derive(sumBases(months.map(actualBase))), B = derive(sumBases(months.map(m => budgetBase(m))));
+  const a = A && has(A[key]) ? A[key] : null, b = B && has(B[key]) ? B[key] : null;
+  return { a, b, d: dev(a, b) };
+}
+function allMonths() {
+  const s = new Set(); if (D.com) D.com.realMonths.forEach(m => s.add(m));
+  const rf = D.rf[S.rf]; if (rf) rf.meses.forEach(m => s.add(m));
+  if (D.arr) D.arr.byYm.forEach((_, m) => s.add(m));
+  return Array.from(s).sort();
+}
+function lastRealMonth() { const l = D.com ? Array.from(D.com.realMonths).sort() : []; return l.length ? l[l.length - 1] : null; }
+const rfLbl = () => S.rf || 'orçado';
+
+/* arrecadação por superintendência */
+function arrecMonth(ym) {
+  if (!D.arr) return null;
+  const list = D.arr.byYm.get(ym); if (!list) return null;
+  let v = 0, any = false;
+  list.forEach(e => { const sup = D.com ? D.com.cidSup.get(e.cid) : null; if (S.sup === 'TODAS' || sup === S.sup) { v += e.arrec; any = true; } });
+  return any && v ? v : null;
+}
+
+/* =====================================================================
+   GRÁFICOS (Chart.js)
+   ===================================================================== */
+const charts = {};
+function mkChart(id, cfg) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  const el = document.getElementById(id); if (!el) return;
+  cfg.options = Object.assign({ responsive: true, maintainAspectRatio: false }, cfg.options || {});
+  charts[id] = new Chart(el, cfg);
+}
+Chart.defaults.font.family = '"Segoe UI",Arial,sans-serif'; Chart.defaults.color = '#64748b';
+
+/* =====================================================================
+   ABA: DRE (mês + acumulado)
+   ===================================================================== */
+const DRE_LINES = [
+  ['RECEITA BRUTA'], ['Faturamento Bruto', 'bruto', 'fin', 1],
+  ['FATURAMENTO DIRETO'], ['Faturamento Direto', 'direto', 'fin', 1],
+  ['  Diretas Água', 'dA', 'fin'],
+  ['    Volume - Água', 'volA', 'drv', 0, 0], ['    Economias - Água', 'ecoA', 'drv', 0, 0],
+  ['    Volume Médio - Água', 'volMA', 'drv', 0, 1], ['    Tarifa Média - Água', 'tarA', 'drv', 0, 2],
+  ['  Diretas - Esgoto', 'dE', 'fin'],
+  ['    Volume - Esgoto', 'volE', 'drv', 0, 0], ['    Economias - Esgoto', 'ecoE', 'drv', 0, 0],
+  ['    Volume Médio - Esgoto', 'volME', 'drv', 0, 1], ['    Tarifa Média - Esgoto', 'tarE', 'drv', 0, 2],
+  ['FATURAMENTO INDIRETO'], ['Faturamento Indireto', 'indireto', 'fin', 1],
+  ['  Indiretas Água', 'iA', 'fin'], ['  Indiretas Esgoto', 'iE', 'fin'],
+  ['DEDUÇÕES'], ['Cancelamentos', 'canc', 'fin'],
+  ['RECEITA LÍQUIDA'], ['Faturamento Líquido', 'liq', 'fin', 1],
+  ['CONTROLE'], ['Cut-Off', 'cutoff', 'fin']
+];
+const fmtVal = (v, dec) => dec === undefined ? fmtBRL(v) : fmtN(v, dec === 2 ? 2 : dec === 1 ? 1 : 0);
+const pillHtml = d => `<span class="pill ${Number.isFinite(d) ? (d < 0 ? 'red' : '') : 'na'}">${pct(d)}</span>`;
+function cellsPair(p, dec) {
+  const diff = has(p.a) && has(p.b) ? p.a - p.b : null;
+  return `<td>${fmtVal(p.b, dec)}</td><td>${fmtVal(p.a, dec)}</td><td class="${diff == null ? '' : diff >= 0 ? 'pos' : 'neg'}">${diff == null ? '—' : fmtVal(diff, dec)}</td><td>${pillHtml(p.d)}</td>`;
+}
+function renderDRE() {
+  if (!S.ym) { $('#dreTable').innerHTML = emptyMsg(); $('#drePeriod').textContent = ''; return; }
+  const m = S.ym, mn = mlabel(m), ytd = monthsOfYearUpTo(m);
+  $('#drePeriod').textContent = `${mn}  |  Acumulado Jan–${MN[+m.slice(5) - 1]}/${yearOf(m)}`;
+  let h = `<table><thead><tr><th rowspan="2" style="text-align:left">Descrição</th><th colspan="4" class="gm">${mn}</th><th colspan="4" class="ga">Acumulado até ${mn}</th></tr>
+    <tr><th class="sub1">Orçado</th><th class="sub1">Realizado</th><th class="sub1">(-) Absoluto</th><th class="sub1">(%) Relativo</th><th class="sub1 accStart">Orçado</th><th class="sub1">Realizado</th><th class="sub1">(-) Absoluto</th><th class="sub1">(%) Relativo</th></tr></thead><tbody>`;
+  DRE_LINES.forEach(([lab, key, type, tot, dec]) => {
+    if (!key) { h += `<tr class="sectionrow"><td colspan="9">${lab}</td></tr>`; return; }
+    const pm = pair(key, [m]), pa = pair(key, ytd);
+    h += `<tr class="${tot ? 'total ' : ''}${type === 'drv' ? 'driver' : ''}"><td>${lab}</td>${cellsPair(pm, dec)}${cellsPair(pa, dec).replace('<td>', '<td class="accStart">')}</tr>`;
+  });
+  $('#dreTable').innerHTML = h + '</tbody></table>';
+}
+
+/* =====================================================================
+   ABA: DRE mês a mês
+   ===================================================================== */
+const MONTHLY_INDS = [['Faturamento Bruto', 'bruto'], ['Faturamento Direto', 'direto'], ['Diretas Água', 'dA'], ['Diretas Esgoto', 'dE'],
+  ['Faturamento Indireto', 'indireto'], ['Indiretas Água', 'iA'], ['Indiretas Esgoto', 'iE'], ['Cancelamentos', 'canc'], ['Faturamento Líquido', 'liq'], ['Cut-Off', 'cutoff']];
+function renderMonthly() {
+  $('#dreFilters').innerHTML = MONTHLY_INDS.map(([n, k]) => `<button class="filterpill ${k === S.indicador ? 'active' : ''}" data-ind="${k}">${n}</button>`).join('') + yearPills('mensalYear');
+  $$('#dreFilters [data-ind]').forEach(b => b.onclick = () => { S.indicador = b.dataset.ind; renderMonthly(); });
+  bindYearPills('mensalYear', renderMonthly);
+  const nome = (MONTHLY_INDS.find(x => x[1] === S.indicador) || [''])[0];
+  $('#monthlyTitle').textContent = nome;
+  const meses = monthsForYear('mensalYear');
+  if (!meses.length) { $('#monthlyTable').innerHTML = emptyMsg(); return; }
+  let h = `<table><thead><tr><th>Mês</th><th>Orçado ${esc(rfLbl())}</th><th>Realizado</th><th>Desvio</th><th>Desvio %</th><th>Atingimento</th></tr></thead><tbody>`;
+  let sb = 0, sa = 0, nb = 0, na = 0;
+  meses.forEach(m => {
+    const p = pair(S.indicador, [m]); const fut = !has(p.a);
+    if (has(p.b)) { sb += p.b; nb++; } if (has(p.a)) { sa += p.a; na++; }
+    const at = has(p.a) && has(p.b) && p.b ? p.a / p.b : NaN;
+    h += `<tr class="${fut ? 'future' : ''}"><td>${mlabel(m)}${fut ? ' <span class="tag warn">orçado</span>' : ''}</td><td>${fmtBRL(p.b)}</td><td>${fmtBRL(p.a)}</td>
+      <td class="${has(p.a) && has(p.b) ? (p.a - p.b >= 0 ? 'pos' : 'neg') : ''}">${has(p.a) && has(p.b) ? fmtBRL(p.a - p.b) : '—'}</td><td>${pillHtml(p.d)}</td>
+      <td><span class="barMini"><i style="width:${Number.isFinite(at) ? Math.max(0, Math.min(100, at * 100)) : 0}%;background:${at >= 1 ? 'var(--green)' : 'var(--cyan)'}"></i></span> ${pct(at)}</td></tr>`;
+  });
+  // acumulado: orçado somente dos meses com realizado
+  let ab = 0, aa = 0, any = false;
+  meses.forEach(m => { const p = pair(S.indicador, [m]); if (has(p.a)) { aa += p.a; any = true; if (has(p.b)) ab += p.b; } });
+  h += `<tr class="total"><td>Acumulado (meses com realizado)</td><td>${any ? fmtBRL(ab) : '—'}</td><td>${any ? fmtBRL(aa) : '—'}</td><td>${any ? fmtBRL(aa - ab) : '—'}</td><td>${any ? pct(dev(aa, ab)) : '—'}</td><td>${any ? pct(ab ? aa / ab : NaN) : '—'}</td></tr></tbody></table>`;
+  $('#monthlyTable').innerHTML = h;
+}
+const yearSel = {};
+function yearsAvail() { return Array.from(new Set(allMonths().map(yearOf))).sort(); }
+function yearPills(id) {
+  const ys = yearsAvail(); if (!ys.length) return '';
+  const cur = yearSel[id] === undefined ? (S.ym ? yearOf(S.ym) : ys[ys.length - 1]) : yearSel[id];
+  return '<span style="width:14px"></span>' + ['todos'].concat(ys).map(y => `<button class="filterpill ${String(cur) === y ? 'active' : ''}" data-year="${y}" data-yid="${id}">${y === 'todos' ? 'Todos os anos' : y}</button>`).join('');
+}
+function bindYearPills(id, fn) { $$(`[data-yid="${id}"]`).forEach(b => b.onclick = () => { yearSel[id] = b.dataset.year; fn(); }); }
+function monthsForYear(id) {
+  const ys = yearsAvail(); if (!ys.length) return [];
+  const cur = yearSel[id] === undefined ? (S.ym ? yearOf(S.ym) : ys[ys.length - 1]) : yearSel[id];
+  const all = allMonths(); return cur === 'todos' ? all : all.filter(m => yearOf(m) === String(cur));
+}
+
+/* =====================================================================
+   ABA: Receita
+   ===================================================================== */
+const devClass = (v, good = true) => (v * (good ? 1 : -1)) >= 0 ? 'pos' : 'neg';
+function kpiCard(label, p, money = true) {
+  const val = money ? fmtM(p.a) : fmtN(p.a), bud = money ? fmtM(p.b) : fmtN(p.b);
+  return `<div class="card kpi"><div class="label">${label}</div><div class="value">${val}</div><div class="delta ${devClass(p.d)}">${pct(p.d)} vs. ${esc(rfLbl())}</div><div class="hint">Orçado: ${bud}</div></div>`;
+}
+function renderReceita() {
+  if (!S.ym) { $('#kpis').innerHTML = ''; $('#insights').innerHTML = emptyMsg(); $('#bridge').innerHTML = ''; return; }
+  const ytd = monthsOfYearUpTo(S.ym), y = yearOf(S.ym);
+  const P = k => pair(k, ytd);
+  $('#kpis').innerHTML = kpiCard(`Faturamento bruto YTD ${y}`, P('bruto')) + kpiCard(`Faturamento líquido YTD ${y}`, P('liq')) + kpiCard(`Faturamento direto YTD ${y}`, P('direto')) + kpiCard(`Faturamento indireto YTD ${y}`, P('indireto'));
+  $('#revHint').textContent = `Realizado versus ${rfLbl()}, em R$ milhões — ${y}`;
+  const meses = monthsOfYear(y);
+  const real = meses.map(m => { const p = pair('liq', [m]); return has(p.a) ? p.a / 1e6 : null; });
+  const orc = meses.map(m => { const p = pair('liq', [m]); return has(p.b) ? p.b / 1e6 : null; });
+  const dv = meses.map((m, i) => has(real[i]) && has(orc[i]) && orc[i] ? (real[i] / orc[i] - 1) * 100 : null);
+  mkChart('revChart', {
+    data: { labels: meses.map(m => MN[+m.slice(5) - 1]), datasets: [
+      { type: 'bar', label: 'Orçado', data: orc, backgroundColor: '#b8c8d4', yAxisID: 'y' },
+      { type: 'bar', label: 'Realizado', data: real, backgroundColor: '#176b9c', yAxisID: 'y' },
+      { type: 'line', label: 'Desvio %', data: dv, borderColor: '#c94b4b', borderDash: [6, 4], pointRadius: 3, backgroundColor: '#c94b4b', yAxisID: 'y2', spanGaps: true } ] },
+    options: { interaction: { mode: 'index', intersect: false }, scales: {
+      y: { ticks: { callback: v => 'R$ ' + v + ' mi' }, grid: { color: '#e7eef4' } },
+      y2: { position: 'right', grid: { display: false }, ticks: { callback: v => v + '%', color: '#c94b4b' } } },
+      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.type === 'line' ? c.dataset.label + ': ' + (c.parsed.y == null ? '—' : c.parsed.y.toFixed(1) + '%') : c.dataset.label + ': R$ ' + (c.parsed.y == null ? '—' : c.parsed.y.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi') } } } }
+  });
+  // insights
+  const net = P('liq'), wa = P('dA'), se = P('dE'), wi = P('indireto'), we = P('ecoA'), wv = P('volA'), wt = P('tarA'), sev = P('volE'), see = P('ecoE'), set_ = P('tarE');
+  const L = [];
+  L.push(`<div class="insight ${net.d < 0 ? 'bad' : 'good'}"><b>Receita líquida acumulada</b>${fmtM(net.a)}, desvio de ${pct(net.d)} (${fmtM(has(net.a) && has(net.b) ? net.a - net.b : null)}) frente ao ${esc(rfLbl())}.</div>`);
+  L.push(`<div class="insight ${wa.d < 0 ? 'bad' : 'good'}"><b>Água na receita direta</b>Receita direta de água em ${pct(wa.d)}, com economias em ${pct(we.d)}, volume em ${pct(wv.d)} e tarifa média em ${pct(wt.d)}.</div>`);
+  L.push(`<div class="insight ${se.d >= 0 ? 'good' : 'warn'}"><b>Esgoto</b>Receita direta em ${pct(se.d)}; economias em ${pct(see.d)} e volume em ${pct(sev.d)}, com tarifa média em ${pct(set_.d)}.</div>`);
+  L.push(`<div class="insight ${wi.d < 0 ? 'bad' : 'warn'}"><b>Faturamento indireto</b>Acumulado em ${pct(wi.d)}, equivalente a ${fmtM(has(wi.a) && has(wi.b) ? wi.a - wi.b : null)} versus orçamento.</div>`);
+  let worst = null; ytd.forEach(m => { const p = pair('liq', [m]); if (Number.isFinite(p.d) && (!worst || p.d < worst.d)) worst = { m, d: p.d, a: p.a }; });
+  if (worst) L.push(`<div class="insight warn"><b>Mês de maior desvio na receita líquida</b>${mlabel(worst.m)}: ${pct(worst.d)}, com realizado de ${fmtM(worst.a)}.</div>`);
+  $('#insights').innerHTML = L.join('');
+  // bridge
+  const dir = P('direto'), ind = P('indireto'), gr = P('bruto');
+  const df = p => has(p.a) && has(p.b) ? p.a - p.b : null;
+  const base = Math.abs(df(gr) || 0) || 1;
+  const bc = (label, v, sub, total) => `<div class="bridgeCard ${total ? 'total' : ''}"><div class="bcLabel">${label}</div><div class="bcValue">${fmtM(v)}</div><div class="bcSub">${sub}</div><div class="bcShare">Participação no desvio bruto: <b>${v == null ? '—' : (Math.abs(v) / base * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'}</b></div></div>`;
+  $('#bridge').innerHTML = `<div class="bridgeCards">${bc('Faturamento direto', df(dir), 'Realizado menos ' + esc(rfLbl()), false)}${bc('Faturamento indireto', df(ind), 'Realizado menos ' + esc(rfLbl()), false)}${bc('Desvio bruto consolidado', df(gr), 'Faturamento bruto realizado menos orçamento', true)}</div>`;
+}
+
+/* =====================================================================
+   ABA: Drivers
+   ===================================================================== */
+const DRV = [['Economias faturadas · Água', 'ecoA', 0], ['Volume faturado · Água', 'volA', 0], ['Tarifa média · Água', 'tarA', 2],
+  ['Economias faturadas · Esgoto', 'ecoE', 0], ['Volume faturado · Esgoto', 'volE', 0], ['Tarifa média · Esgoto', 'tarE', 2]];
+function renderDrivers() {
+  if (!S.ym) { $('#driverKpis').innerHTML = emptyMsg(); $('#driversTable').innerHTML = ''; return; }
+  const m = S.ym, ytd = monthsOfYearUpTo(m), mn = MN[+m.slice(5) - 1] + '/' + yearOf(m);
+  $('#driverKpis').innerHTML = DRV.map(([lab, k, d]) => {
+    const pm = pair(k, [m]), pa = pair(k, ytd);
+    const blk = (per, p) => `<div><div class="dPeriod">${per}</div><div class="dMain">${fmtN(p.a, d)}</div><div class="dBud">Orçado: ${fmtN(p.b, d)}</div><div class="dVar ${devClass(p.d)}">${pct(p.d)} vs. ${esc(rfLbl())}</div></div>`;
+    return `<div class="card dualCard"><div class="dualTitle">${lab}</div><div class="dualGrid">${blk(mn, pm)}<div class="dualDiv"></div>${blk('Acumulado YTD', pa)}</div></div>`;
+  }).join('');
+  $('#driverKpis').className = 'kpis k3';
+  const idx = (keys, id) => {
+    const meses = monthsOfYear(yearOf(m)).filter(x => x <= m);
+    const cols = ['#176b9c', '#16a5b8', '#d79b29'];
+    mkChart(id, { type: 'line', data: { labels: meses.map(x => MN[+x.slice(5) - 1]), datasets: keys.map(([n, k], i) => ({
+      label: n, borderColor: cols[i], backgroundColor: cols[i], tension: .25, pointRadius: 3, spanGaps: true,
+      data: meses.map(x => { const p = pair(k, [x]); return has(p.a) && has(p.b) && p.b ? p.a / p.b * 100 : null; }) })) },
+      options: { interaction: { mode: 'index', intersect: false }, scales: { y: { suggestedMin: 60, suggestedMax: 140, grid: { color: '#e7eef4' } } }, plugins: { legend: { position: 'bottom' } } } });
+  };
+  idx([['Economias', 'ecoA'], ['Volume', 'volA'], ['Tarifa média', 'tarA']], 'waterChart');
+  idx([['Economias', 'ecoE'], ['Volume', 'volE'], ['Tarifa média', 'tarE']], 'sewerChart');
+  const meses = monthsOfYear(yearOf(m)).filter(x => x <= m);
+  let h = '<table><thead><tr><th>Indicador</th>' + meses.map(x => `<th>${MN[+x.slice(5) - 1]} Real.</th>`).join('') + '<th>YTD vs Orç.</th></tr></thead><tbody>';
+  DRV.concat([['Volume médio · Água', 'volMA', 1], ['Volume médio · Esgoto', 'volME', 1]]).forEach(([lab, k, d]) => {
+    h += `<tr><td>${lab}</td>${meses.map(x => `<td>${fmtN(pair(k, [x]).a, d)}</td>`).join('')}<td class="${devClass(pair(k, ytd).d)}">${pct(pair(k, ytd).d)}</td></tr>`;
+  });
+  $('#driversTable').innerHTML = h + '</tbody></table>';
+}
+
+/* =====================================================================
+   ABA: Caixa
+   ===================================================================== */
+function renderCaixa() {
+  if (!S.ym) { $('#cashKpis').innerHTML = emptyMsg(); $('#cashTable').innerHTML = ''; return; }
+  const y = yearOf(S.ym), meses = monthsOfYear(y);
+  const real = m => arrecMonth(m), orc = m => { const b = budgetBase(m); return b && has(b.arrec) ? b.arrec : null; };
+  const lastReal = meses.filter(m => has(real(m))).pop() || (S.ym);
+  const upto = meses.filter(m => m <= lastReal);
+  const sum = (f, l) => { let s = 0, any = false; l.forEach(m => { const v = f(m); if (has(v)) { s += v; any = true; } }); return any ? s : null; };
+  const rM = real(lastReal), bM = orc(lastReal), rA = sum(real, upto), bA = sum(orc, upto);
+  const att = rM != null && bM ? rM / bM : NaN, attA = rA != null && bA ? rA / bA : NaN;
+  const card = (l, v, s, tone) => `<div class="card kpi ${tone || ''}"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${s}</div></div>`;
+  const mn = MN[+lastReal.slice(5) - 1];
+  $('#cashKpis').className = 'kpis';
+  $('#cashKpis').innerHTML = card('Arrecadação realizada | ' + mn, fmtM2(rM), 'Acumulado: ' + fmtM2(rA)) + card(esc(rfLbl()) + ' | ' + mn, fmtM2(bM), 'Acumulado: ' + fmtM2(bA))
+    + card('Atingimento | ' + mn, pct(att), 'Acumulado: ' + pct(attA), att >= 1 ? 'good' : Number.isFinite(att) ? 'bad' : '')
+    + card('Desvio acumulado', fmtM2(rA != null && bA != null ? rA - bA : null), pct(attA - 1) + ' versus ' + esc(rfLbl()), rA >= bA ? 'good' : 'bad');
+  $('#cashPeriod').textContent = `Jan a ${mn}/${y}  |  Acumulado progressivo por mês`;
+  let h = `<table><thead><tr><th rowspan="2" style="text-align:left">Mês</th><th colspan="4" class="gm">Mês</th><th colspan="4" class="ga">Acumulado até o mês</th></tr>
+    <tr>${['Orçado', 'Realizado', 'Desvio R$', 'Desvio %'].map(t => `<th class="sub1">${t === 'Orçado' ? esc(rfLbl()) : t}</th>`).join('')}${['Orçado', 'Realizado', 'Desvio R$', 'Desvio %'].map((t, i) => `<th class="sub1 ${i ? '' : 'accStart'}">${t === 'Orçado' ? esc(rfLbl()) : t}</th>`).join('')}</tr></thead><tbody><tr class="sectionrow"><td colspan="9">ARRECADAÇÃO</td></tr>`;
+  let ar = 0, ab = 0, anyR = false;
+  meses.forEach(m => {
+    const r = real(m), b = orc(m), fut = !has(r);
+    if (has(r)) { ar += r; anyR = true; } if (has(b) && !fut) ab += b;
+    const d = has(r) && has(b) ? r - b : null, dp = dev(r, b);
+    h += `<tr class="${m === lastReal ? 'total' : ''}${fut ? ' future' : ''}"><td>${mlabel(m)}</td><td>${fmtM2(b)}</td><td>${fmtM2(r)}</td><td class="${d == null ? '' : d >= 0 ? 'pos' : 'neg'}">${fmtM2(d)}</td><td>${pillHtml(dp)}</td>
+      <td class="accStart">${fut ? '—' : fmtM2(ab)}</td><td>${fut ? '—' : fmtM2(ar)}</td><td class="${fut ? '' : ar - ab >= 0 ? 'pos' : 'neg'}">${fut ? '—' : fmtM2(ar - ab)}</td><td>${fut ? pillHtml(NaN) : pillHtml(dev(ar, ab))}</td></tr>`;
+  });
+  $('#cashTable').innerHTML = h + '</tbody></table>';
+}
+
+/* =====================================================================
+   ABA: Orçado RF
+   ===================================================================== */
+const RF_INDS = [['Faturamento Bruto', 'bruto', 0], ['Faturamento Direto', 'direto', 0], ['Diretas Água', 'dA', 0], ['Diretas Esgoto', 'dE', 0],
+  ['Faturamento Indireto', 'indireto', 0], ['Indiretas Água', 'iA', 0], ['Indiretas Esgoto', 'iE', 0], ['Cancelamentos', 'canc', 0],
+  ['Faturamento Líquido', 'liq', 0], ['Cut-Off', 'cutoff', 0], ['Arrecadação', 'arrec', 0], ['Economias Água', 'ecoA', 0], ['Economias Esgoto', 'ecoE', 0],
+  ['Volume Água (m³)', 'volA', 0], ['Volume Esgoto (m³)', 'volE', 0], ['Tarifa Média Água', 'tarA', 2], ['Tarifa Média Esgoto', 'tarE', 2]];
+function renderRF() {
+  const rf = D.rf[S.rf];
+  $('#rfTitle').textContent = 'Orçado ' + (S.rf || 'RF') + (S.sup ? ' | ' + S.sup : '');
+  if (!rf) { $('#rfTable').innerHTML = emptyMsg('Nenhum painel de orçado (RF) foi encontrado na pasta.'); $('#rfYears').innerHTML = ''; return; }
+  $('#rfYears').innerHTML = yearPills('rfYear').replace('<span style="width:14px"></span>', '');
+  bindYearPills('rfYear', renderRF);
+  const meses = monthsForYear('rfYear').filter(m => rf.meses.includes(m) || has(pair('bruto', [m]).a));
+  if (!meses.length) { $('#rfTable').innerHTML = emptyMsg(); return; }
+  const gl = meses.map(m => { const p = pair('liq', [m]); return p; });
+  const gb = meses.map(m => pair('bruto', [m]));
+  mkChart('rfChart', { type: 'bar', data: { labels: meses.map(mlabel), datasets: [
+    { label: 'Orçado — fat. líquido', data: gl.map(p => has(p.b) ? p.b / 1e6 : null), backgroundColor: '#b8c8d4' },
+    { label: 'Realizado — fat. líquido', data: gl.map(p => has(p.a) ? p.a / 1e6 : null), backgroundColor: '#176b9c' },
+    { type: 'line', label: 'Orçado — fat. bruto', data: gb.map(p => has(p.b) ? p.b / 1e6 : null), borderColor: '#d79b29', backgroundColor: '#d79b29', pointRadius: 2, spanGaps: true } ] },
+    options: { interaction: { mode: 'index', intersect: false }, scales: { y: { ticks: { callback: v => 'R$ ' + v + ' mi' }, grid: { color: '#e7eef4' } } }, plugins: { legend: { position: 'bottom' } } } });
+  let h = '<table><thead><tr><th>Indicador</th><th></th>' + meses.map(m => `<th class="${has(pair('bruto', [m]).a) ? '' : 'fut'}">${mlabel(m)}</th>`).join('') + '</tr></thead><tbody>';
+  RF_INDS.forEach(([lab, k, d]) => {
+    const ps = meses.map(m => k === 'arrec' ? { a: arrecMonth(m), b: (budgetBase(m) || {}).arrec, get d() { return dev(this.a, this.b); } } : pair(k, [m]));
+    if (ps.every(p => !has(p.a) && !has(p.b))) return;
+    h += `<tr class="sectionrow"><td colspan="${meses.length + 2}">${lab}</td></tr>`;
+    h += `<tr><td>Orçado</td><td></td>${ps.map((p, i) => `<td class="${has(p.a) ? '' : 'future'}">${d ? fmtN(p.b, d) : fmtBRL(p.b)}</td>`).join('')}</tr>`;
+    if (ps.some(p => has(p.a))) {
+      h += `<tr><td>Realizado</td><td></td>${ps.map(p => `<td>${has(p.a) ? (d ? fmtN(p.a, d) : fmtBRL(p.a)) : ''}</td>`).join('')}</tr>`;
+      h += `<tr><td>Desvio %</td><td></td>${ps.map(p => `<td>${has(p.a) && has(p.b) ? pillHtml(dev(p.a, p.b)) : ''}</td>`).join('')}</tr>`;
+    }
+  });
+  $('#rfTable').innerHTML = h + '</tbody></table>';
+}
+
+/* =====================================================================
+   ABAS: DRE Histórico e Gráficos (por município)
+   ===================================================================== */
+const HLINES = [
+  ['FATURAMENTO BRUTO', 'bruto', 0, true, false, 'moeda', null],
+  ['DIRETAS TOTAIS', 'direto', 0, true, false, 'moeda', 'bruto'],
+  ['Diretas Água', 'dA', 1, false, false, 'moeda', 'diretas|bruto'],
+  ['Diretas Esgoto', 'dE', 1, false, false, 'moeda', 'diretas|bruto'],
+  ['INDIRETAS TOTAIS', 'indireto', 0, true, false, 'moeda', 'bruto'],
+  ['INDIRETA ÁGUA', 'iA', 0, true, true, 'moeda', 'indiretas_sub|bruto'],
+  ['Corte de Água', 'F_Corte de Água', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
+  ['Religações', 'F_Religações', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
+  ['Ligações de Água', 'F_Ligações de Água', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
+  ['Sanções', 'F_Sanções', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
+  ['Outros Água', 'F_Outros Água', 1, false, false, 'moeda', 'ind_agua_extra|indiretas_sub|bruto'],
+  ['Venda e Análise de Água', 'F_Venda e Análise de Água', 1, false, false, 'moeda', 'ind_agua_extra|indiretas_sub|bruto'],
+  ['INDIRETA ESGOTO', 'iE', 0, true, true, 'moeda', 'indiretas_sub|bruto'],
+  ['Ligações de Esgoto', 'E_Ligações de Esgoto', 1, false, false, 'moeda', 'ind_esgoto|indiretas_sub|bruto'],
+  ['Outros Esgoto', 'E_Outros Esgoto', 1, false, false, 'moeda', 'ind_esgoto|indiretas_sub|bruto'],
+  ['FAT ECONOMIAS ÁGUA (qtd)', 'ecoA', 0, true, false, 'num', 'extras'],
+  ['FAT ECONOMIAS ESGOTO (qtd)', 'ecoE', 0, true, false, 'num', 'extras'],
+  ['VOL. FAT. ÁGUA (m³)', 'volA', 0, true, false, 'num', 'extras'],
+  ['VOL. FAT. ESGOTO (m³)', 'volE', 0, true, false, 'num', 'extras'],
+  ['VOLUME MEDIDO DE ÁGUA (m³)', 'volM', 0, true, false, 'num', 'extras'],
+  ['TARIFA MÉDIA DE ÁGUA (R$/m³)', 'tarA', 0, true, false, 'moeda4', 'extras'],
+  ['TARIFA MÉDIA DE ESGOTO (R$/m³)', 'tarE', 0, true, false, 'moeda4', 'extras'],
+  ['CANCELAMENTO', 'canc', 0, true, false, 'moeda', null],
+  ['FATURAMENTO LÍQUIDO C/ REAJUSTE', 'liq', 0, true, false, 'moeda', null],
+  ['ARRECADAÇÃO REAL (Arrecadação + Desconto)', 'arrecReal', 0, true, false, 'moeda', null],
+  ['DESCONTO', 'desc', 0, true, false, 'moeda', null],
+  ['ARRECADAÇÃO (Sem Desconto)', 'arrec', 0, true, false, 'moeda', null],
+  ['ARRECADAÇÃO / FATURAMENTO LÍQUIDO (%)', 'pct', 0, true, false, 'pct', 'indicador'],
+  ['QTD. CLIENTES PAGANTES', 'cli', 0, true, false, 'num', null],
+  ['QTD. CONTAS PAGAS', 'contas', 0, true, false, 'num', null],
+  ['TICKET MÉDIO (R$/cliente)', 'ticket', 0, true, false, 'moeda2', null]
+];
+const GRUPOS_TOGGLE = { diretas: 'DIRETAS TOTAIS', ind_agua: 'INDIRETA ÁGUA', ind_esgoto: 'INDIRETA ESGOTO' };
+const GRUPO_COMBO = { 'INDIRETAS TOTAIS': ['ind_agua', 'ind_esgoto', 'indiretas_sub'], 'FATURAMENTO BRUTO': ['bruto'] };
+const GRAFICOS = [
+  ['DIRETAS TOTAIS', [['Diretas Água', 'dA'], ['Diretas Esgoto', 'dE']], 'moeda'],
+  ['INDIRETA ÁGUA', [['Corte de Água', 'F_Corte de Água'], ['Religações', 'F_Religações'], ['Ligações de Água', 'F_Ligações de Água'], ['Sanções', 'F_Sanções'], ['Outros Água', 'F_Outros Água']], 'moeda'],
+  ['INDIRETA ESGOTO', [['Ligações de Esgoto', 'E_Ligações de Esgoto'], ['Outros Esgoto', 'E_Outros Esgoto']], 'moeda'],
+  ['FAT. ECONOMIAS ÁGUA E ESGOTO', [['Fat. Economias Água', 'ecoA'], ['Fat. Economias Esgoto', 'ecoE']], 'num'],
+  ['VOL. FAT. ÁGUA E ESGOTO', [['Vol. Fat. Água', 'volA'], ['Vol. Fat. Esgoto', 'volE']], 'num'],
+  ['VOLUME MEDIDO DE ÁGUA', [['Volume Medido de Água', 'volM']], 'num'],
+  ['TARIFA MÉDIA DE ÁGUA E ESGOTO', [['Tarifa Média de Água', 'tarA'], ['Tarifa Média de Esgoto', 'tarE']], 'moeda4'],
+  ['CANCELAMENTO', [['Cancelamento', 'canc']], 'moeda'],
+  ['FATURAMENTO LÍQUIDO C/ REAJUSTE', [['Faturamento Líquido c/ Reajuste', 'liq']], 'moeda'],
+  ['ARRECADAÇÃO REAL', [['Arrecadação Real (R$)', 'arrecReal']], 'moeda'],
+  ['CLIENTES PAGANTES E CONTAS PAGAS', [['Clientes Pagantes', 'cli'], ['Contas Pagas', 'contas']], 'num'],
+  ['TICKET MÉDIO (R$/cliente)', [['Ticket Médio', 'ticket']], 'moeda2']
+];
+function fmtH(v, tipo) {
+  if (v === undefined || v === null || Number.isNaN(v)) return '-';
+  if (tipo === 'moeda' || tipo === 'moeda2') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (tipo === 'moeda4') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  if (tipo === 'pct') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  return v.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+}
+const histCidades = () => {
+  if (!D.com) return [];
+  const s = new Set(); D.com.entries.forEach(e => { if (supOk(e, S.sup)) s.add(e.cid); });
+  return Array.from(s).sort();
+};
+function histMonths() { return allMonths().filter(m => !D.com || D.com.realMonths.has(m) || (D.arr && D.arr.byYm.has(m))); }
+function histAcc(months) {
+  const cids = new Set(S.hist.cidades || histCidades()); const curSet = S.hist.curvas ? new Set(S.hist.curvas) : null;
+  const lista = histCidades().filter(c => cids.has(c)); const cset = new Set(lista);
+  const acc = { dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {}, arr: { arrec: 0, cli: 0, contas: 0, desc: 0 }, nEco: 0 };
+  months.forEach(m => {
+    let anyEco = false;
+    (D.com ? D.com.byYm.get(m) || [] : []).forEach(e => {
+      if (!supOk(e, S.sup) || !cset.has(e.cid)) return;
+      if (curSet && !curSet.has(e.cur)) return;
+      if (S.aud && !S.audSel.has(e.sit)) return;
+      ['dA', 'dE', 'iA', 'iE', 'ecoA', 'ecoE', 'volA', 'volE', 'volM', 'canc', 'liq'].forEach(f => acc[f] += e[f]);
+      for (const k in e.fr) acc.fr[k] = (acc.fr[k] || 0) + e.fr[k];
+      if (e.ecoA || e.ecoE) anyEco = true;
+    });
+    if (anyEco) acc.nEco++;
+    if (D.arr) cset.forEach(c => { const x = D.arr.byCid.get(c); const r = x && x.get(m); if (r) { acc.arr.arrec += r.arrec; acc.arr.cli += r.cli; acc.arr.contas += r.contas; } });
+  });
+  return acc;
+}
+function histVal(a, k) {
+  const n = a.nEco || 1;
+  switch (k) {
+    case 'direto': return a.dA + a.dE; case 'indireto': return a.iA + a.iE; case 'bruto': return a.dA + a.dE + a.iA + a.iE;
+    case 'ecoA': return a.ecoA / n; case 'ecoE': return a.ecoE / n;
+    case 'tarA': return a.volA ? a.dA / a.volA : 0; case 'tarE': return a.volE ? a.dE / a.volE : 0;
+    case 'arrec': return a.arr.arrec; case 'desc': return a.arr.desc; case 'arrecReal': return a.arr.arrec + a.arr.desc;
+    case 'cli': return a.arr.cli; case 'contas': return a.arr.contas;
+    case 'ticket': return a.arr.cli ? a.arr.arrec / a.arr.cli : 0;
+    case 'pct': return a.liq ? (a.arr.arrec + a.arr.desc) / a.liq * 100 : 0;
+  }
+  if (k.startsWith('F_') || k.startsWith('E_')) return a.fr[k] || 0;
+  return a[k] || 0;
+}
+function histCols() {
+  const todos = histMonths(); const ms = todos.slice(S.hist.i0, S.hist.i1 + 1);
+  if (S.hist.modo === 'mensal') return { cols: ms.map(m => ({ label: mlabel(m), months: [m] })), all: ms };
+  const por = new Map(); ms.forEach(m => { const y = yearOf(m); if (!por.has(y)) por.set(y, []); por.get(y).push(m); });
+  return { cols: Array.from(por, ([y, l]) => ({ label: y, months: l })), all: ms };
+}
+function histFiltersHtml(withTable) {
+  const ms = histMonths(), cids = histCidades(), curs = D.com ? Array.from(D.com.curvas).sort() : [];
+  const selC = S.hist.cidades || cids, selCur = S.hist.curvas || curs;
+  const opts = (i) => ms.map((m, j) => `<option value="${j}" ${j === i ? 'selected' : ''}>${mlabel(m)}</option>`).join('');
+  return `<div class="dropdown"><button class="dropbtn" data-dd="cid" type="button">Cidades (${selC.length}/${cids.length}) ▾</button>
+      <div class="dropdown-content"><label><input type="checkbox" data-all="cid" ${selC.length === cids.length ? 'checked' : ''}> <b>Selecionar todas</b></label><hr>
+      ${cids.map(c => `<label><input type="checkbox" data-cid="${esc(c)}" ${selC.includes(c) ? 'checked' : ''}> ${esc(c)}</label>`).join('')}</div></div>
+    <div class="dropdown"><button class="dropbtn" data-dd="cur" type="button">Curva de cliente (${selCur.length}/${curs.length}) ▾</button>
+      <div class="dropdown-content"><label><input type="checkbox" data-all="cur" ${selCur.length === curs.length ? 'checked' : ''}> <b>Selecionar todas</b></label><hr>
+      ${curs.map(c => `<label><input type="checkbox" data-cur="${esc(c)}" ${selCur.includes(c) ? 'checked' : ''}> ${esc(c === '-' ? 'Sem curva (-)' : c)}</label>`).join('')}</div></div>
+    <div class="dropdown"><button class="dropbtn" data-dd="modo" type="button">Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} ▾</button>
+      <div class="dropdown-content"><div class="opcao" data-modo="mensal">Visão Mensal</div><div class="opcao" data-modo="anual">Visão Anual</div></div></div>
+    <span class="lbl">Período: De <select data-per="0">${opts(S.hist.i0)}</select> até <select data-per="1">${opts(S.hist.i1)}</select></span>`;
+}
+function bindHistFilters(host, rerender) {
+  const cids = histCidades(), curs = D.com ? Array.from(D.com.curvas).sort() : [];
+  host.querySelectorAll('[data-dd]').forEach(b => b.onclick = e => { e.stopPropagation(); const dd = b.closest('.dropdown'); const open = dd.classList.contains('aberto'); closeDropdowns(); if (!open) dd.classList.add('aberto'); });
+  host.querySelectorAll('.dropdown-content').forEach(c => c.onclick = e => e.stopPropagation());
+  host.querySelectorAll('[data-all]').forEach(c => c.onchange = () => {
+    if (c.dataset.all === 'cid') S.hist.cidades = c.checked ? null : []; else S.hist.curvas = c.checked ? null : [];
+    keepOpen = c.dataset.all; rerender();
+  });
+  host.querySelectorAll('[data-cid]').forEach(c => c.onchange = () => {
+    const cur = new Set(S.hist.cidades || cids); c.checked ? cur.add(c.dataset.cid) : cur.delete(c.dataset.cid);
+    S.hist.cidades = cur.size === cids.length ? null : Array.from(cur); keepOpen = 'cid'; rerender();
+  });
+  host.querySelectorAll('[data-cur]').forEach(c => c.onchange = () => {
+    const cur = new Set(S.hist.curvas || curs); c.checked ? cur.add(c.dataset.cur) : cur.delete(c.dataset.cur);
+    S.hist.curvas = cur.size === curs.length ? null : Array.from(cur); keepOpen = 'cur'; rerender();
+  });
+  host.querySelectorAll('[data-modo]').forEach(o => o.onclick = () => { S.hist.modo = o.dataset.modo; closeDropdowns(); rerender(); });
+  host.querySelectorAll('[data-per]').forEach(s => s.onchange = () => {
+    const v = +s.value; if (s.dataset.per === '0') { S.hist.i0 = v; if (S.hist.i0 > S.hist.i1) S.hist.i1 = v; } else { S.hist.i1 = v; if (S.hist.i1 < S.hist.i0) S.hist.i0 = v; }
+    rerender();
+  });
+  if (keepOpen) { const map = { cid: 'cid', cur: 'cur' }; const b = host.querySelector(`[data-dd="${map[keepOpen] || keepOpen}"]`); if (b) b.closest('.dropdown').classList.add('aberto'); keepOpen = null; }
+}
+let keepOpen = null;
+function closeDropdowns() { $$('.dropdown').forEach(d => d.classList.remove('aberto')); }
+function histInit() {
+  const ms = histMonths();
+  if (!ms.length) { S.hist.i0 = 0; S.hist.i1 = 0; return; }
+  if (S.hist.i1 >= ms.length || S.hist.i1 === 0 && S.hist.i0 === 0) { S.hist.i0 = 0; S.hist.i1 = ms.length - 1; }
+  const lr = lastRealMonth(); if (lr && S.hist._init !== lr) { S.hist.i1 = Math.max(0, ms.indexOf(lr)); S.hist.i0 = Math.max(0, S.hist.i1 - 23); S.hist._init = lr; }
+}
+function grupoVisivel(g) { if (g === null) return true; return !g.split('|').some(x => S.hist.ocultos.has(x)); }
+const comboOculto = l => l.every(g => S.hist.ocultos.has(g));
+function renderHistorico() {
+  histInit();
+  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, () => { renderHistorico(); if (S.tab === 'graficos') renderGraficos(); });
+  const head = $('#headerRow'), corpo = $('#corpoTabela');
+  if (!D.com) { head.innerHTML = '<th>Item</th>'; corpo.innerHTML = `<tr><td colspan="2">${emptyMsg()}</td></tr>`; $('#resumo').textContent = ''; return; }
+  const { cols, all } = histCols();
+  head.innerHTML = '<th>Item</th>' + cols.map(c => `<th>${c.label}</th>`).join('') + '<th class="col-total">Total Geral</th>';
+  const accs = cols.map(c => histAcc(c.months)), accTot = histAcc(all);
+  corpo.innerHTML = '';
+  HLINES.forEach(([nome, chave, nivel, isTotal, isSub, tipo, grupo]) => {
+    if (!grupoVisivel(grupo)) return;
+    const tr = document.createElement('tr'); tr.className = (isTotal ? 'total ' : '') + (isSub ? 'subtotal ' : '') + (nivel === 1 ? 'nivel1 ' : '');
+    const td = document.createElement('td'); let btn = null;
+    if (GRUPO_COMBO[nome]) { const gl = GRUPO_COMBO[nome]; btn = document.createElement('span'); btn.className = 'toggle-btn'; btn.textContent = comboOculto(gl) ? '+' : '−';
+      btn.onclick = e => { e.stopPropagation(); comboOculto(gl) ? gl.forEach(g => S.hist.ocultos.delete(g)) : gl.forEach(g => S.hist.ocultos.add(g)); renderHistorico(); }; }
+    for (const g in GRUPOS_TOGGLE) if (GRUPOS_TOGGLE[g] === nome) { btn = document.createElement('span'); btn.className = 'toggle-btn'; btn.textContent = S.hist.ocultos.has(g) ? '+' : '−';
+      btn.onclick = e => { e.stopPropagation(); S.hist.ocultos.has(g) ? S.hist.ocultos.delete(g) : S.hist.ocultos.add(g); renderHistorico(); }; }
+    if (btn) td.appendChild(btn); const sp = document.createElement('span'); sp.textContent = nome; td.appendChild(sp); tr.appendChild(td);
+    accs.concat([accTot]).forEach((a, i) => {
+      const v = histVal(a, chave), c = document.createElement('td'); c.textContent = fmtH(v, tipo);
+      if (i === accs.length) c.className = 'col-total'; if (v < 0) c.classList.add('negativo'); tr.appendChild(c);
+    });
+    corpo.appendChild(tr);
+  });
+  const nC = (S.hist.cidades || histCidades()).length;
+  $('#resumo').textContent = `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'} | Colunas: ${cols.length} | Visão Auditoria: ${S.aud ? 'Ativada (' + Array.from(S.audSel).join(' / ') + ')' : 'Desativada'}`;
+}
+const CORES = ['#176b9c', '#16a5b8', '#1f8a70', '#d79b29', '#6f7f8e'];
+function renderGraficos() {
+  histInit();
+  const fh = $('#grafFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, () => { renderGraficos(); renderHistorico(); });
+  const grid = $('#gridGraf'); Object.keys(charts).filter(k => k.startsWith('g_')).forEach(k => { charts[k].destroy(); delete charts[k]; });
+  grid.innerHTML = ''; if (!D.com) { grid.innerHTML = emptyMsg(); return; }
+  const { cols } = histCols(); const accs = cols.map(c => histAcc(c.months));
+  GRAFICOS.forEach(([titulo, series, tipo], idx) => {
+    const card = document.createElement('div'); card.className = 'card gcard';
+    card.innerHTML = `<h3>${titulo}</h3><canvas id="g_${idx}"></canvas>`; grid.appendChild(card);
+    const ds = [];
+    series.forEach(([n, k], i) => {
+      const vals = accs.map(a => histVal(a, k)); const cor = n.toLowerCase().includes('esgoto') ? '#d79b29' : CORES[i % CORES.length];
+      ds.push({ label: n, data: vals, borderColor: cor, backgroundColor: cor, tension: .25, pointRadius: 2 });
+      const med = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 0;
+      ds.push({ label: 'Média ' + n, data: vals.map(() => med), borderColor: '#9fb0bf', borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0 });
+    });
+    mkChart('g_' + idx, { type: 'line', data: { labels: cols.map(c => c.label), datasets: ds },
+      options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtH(c.parsed.y, tipo) } } },
+        scales: { x: { ticks: { font: { size: 10 } }, grid: { display: false } }, y: { ticks: { display: false }, grid: { display: false } } } } });
+  });
+}
+
+/* =====================================================================
+   ABA: Dados (diagnóstico)
+   ===================================================================== */
+function renderDados() {
+  const b = $('#dadosBox'); let h = '';
+  if (!D.files.length) { b.innerHTML = '<div class="panel">' + emptyMsg() + '</div>'; return; }
+  const dc = D.diag.com, da = D.diag.arr;
+  h += '<div class="panel" style="margin-bottom:16px"><h2>Arquivos lidos</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas</div><table class="dx"><thead><tr><th>Arquivo</th><th>Tipo</th><th>Detalhe</th></tr></thead><tbody>';
+  D.files.forEach(f => { h += `<tr><td>${esc(f.name)}</td><td>${esc(f.tipo)}</td><td>${esc(f.detalhe || '')}</td></tr>`; });
+  h += '</tbody></table></div>';
+  if (dc) {
+    const meses = Array.from(dc.meses).sort(), real = Array.from(D.com.realMonths).sort();
+    const calcLiq = dc.somaBruto + dc.somaCanc, difLiq = dc.somaLiq - calcLiq;
+    h += `<div class="panel" style="margin-bottom:16px"><h2>Comercial — conferências</h2><div class="hint">${esc(dc.file)}</div><table class="dx"><tbody>
+      <tr><td>Linhas lidas</td><td>${dc.linhas.toLocaleString('pt-BR')}</td></tr>
+      <tr><td>Linhas aproveitadas</td><td>${dc.usadas.toLocaleString('pt-BR')} (agregadas em ${dc.agregados.toLocaleString('pt-BR')} combinações)</td></tr>
+      <tr><td>Descartadas — totais (IsGrandTotalRowTotal)</td><td>${dc.descTotal.toLocaleString('pt-BR')}</td></tr>
+      <tr><td>Descartadas — DSC_CLASSE = 0</td><td>${dc.descClasse0.toLocaleString('pt-BR')}</td></tr>
+      <tr><td>Descartadas — cidade vazia/0 · mês inválido</td><td>${dc.descCidade.toLocaleString('pt-BR')} · ${dc.descMes.toLocaleString('pt-BR')}</td></tr>
+      <tr><td>Meses na base · meses com faturamento</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) : '—'} · ${real.length ? real.length + ' (' + mlabel(real[0]) + ' a ' + mlabel(real[real.length - 1]) + ')' : '<span class="tag bad">nenhum mês com valores</span>'}</td></tr>
+      <tr><td>Superintendências · cidades</td><td>${Array.from(D.com.sups).join(', ')} · ${D.com.cidSup.size}</td></tr>
+      <tr><td>Classes não mapeadas (ignoradas)</td><td>${dc.naoMapeadas.size ? Array.from(dc.naoMapeadas).map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
+      <tr><td>Líquido da coluna vs. bruto + cancelamento</td><td>${fmtBRL(dc.somaLiq)} vs. ${fmtBRL(calcLiq)} — diferença ${fmtBRL(difLiq)} ${Math.abs(difLiq) < 1 ? '<span class="tag">ok</span>' : '<span class="tag warn">verificar sinal de cancelamento / classes</span>'}</td></tr>
+      </tbody></table></div>`;
+    h += '<div class="panel" style="margin-bottom:16px"><h2>Soma bruta por DSC_CLASSE</h2><div class="hint">Soma de cada coluna de medida em todas as linhas da classe (antes de qualquer regra) — use para validar o mapeamento</div><div class="tablewrap" style="max-height:60vh"><table class="dx"><thead><tr><th>Classe</th><th>Linhas</th><th>Tratamento</th>' + MEAS.map(m => `<th>${m.replace(/_/g, ' ')}</th>`).join('') + '</tr></thead><tbody>';
+    Array.from(dc.classes.entries()).sort((a, b) => b[1].n - a[1].n).forEach(([c, v]) => {
+      let tr = CONFIG.classeZero.includes(c) ? 'descartada (0)' : CONFIG.classeDireta.includes(c) ? 'direta' : CONFIG.classeIndAgua[c] ? 'indireta água' : CONFIG.classeIndEsgoto[c] ? 'indireta esgoto' : CONFIG.classeIgnorar.includes(c) ? 'ignorada' : 'NÃO MAPEADA';
+      h += `<tr><td>${esc(c)}</td><td>${v.n.toLocaleString('pt-BR')}</td><td>${tr}</td>${MEAS.map(m => `<td>${v.s[m] !== undefined ? fmtN(v.s[m], 2) : ''}</td>`).join('')}</tr>`;
+    });
+    h += '</tbody></table></div></div>';
+  }
+  if (da) {
+    const meses = Array.from(da.meses).sort();
+    const semSup = D.arr && D.com ? Array.from(D.arr.byCid.keys()).filter(c => !D.com.cidSup.has(c)) : [];
+    h += `<div class="panel" style="margin-bottom:16px"><h2>Arrecadação — conferências</h2><div class="hint">${esc(da.file)}</div><table class="dx"><tbody>
+      <tr><td>Linhas lidas · aproveitadas</td><td>${da.linhas.toLocaleString('pt-BR')} · ${da.usadas.toLocaleString('pt-BR')}</td></tr>
+      <tr><td>Descartadas — totais · cidade vazia · mês inválido</td><td>${da.descTotal} · ${da.descCidade} · ${da.descMes}</td></tr>
+      <tr><td>Meses</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) + ' (' + meses.length + ')' : '—'}</td></tr>
+      <tr><td>Soma de Arrecadacao_Acumulada</td><td>${fmtBRL(da.somaArrec)}</td></tr>
+      <tr><td>Valores da coluna Classificação</td><td>${Array.from(da.classif).slice(0, 12).map(x => '<span class="tag">' + esc(x) + '</span>').join(' ') || '—'}</td></tr>
+      <tr><td>Cidades sem superintendência no Comercial</td><td>${semSup.length ? semSup.map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
+      </tbody></table></div>`;
+  }
+  Object.keys(D.rf).forEach(l => {
+    const r = D.rf[l], dg = D.diag['rf_' + l];
+    h += `<div class="panel" style="margin-bottom:16px"><h2>Orçado ${esc(l)} — conferências</h2><div class="hint">${esc(r.file)}</div><table class="dx"><tbody>
+      <tr><td>Superintendências</td><td>${Array.from(r.bySup.keys()).join(', ') || '—'}</td></tr>
+      <tr><td>Meses com valor</td><td>${r.meses.length ? mlabel(r.meses[0]) + ' a ' + mlabel(r.meses[r.meses.length - 1]) + ' (' + r.meses.length + ')' : '<span class="tag bad">nenhum mês com valores</span>'}</td></tr>
+      <tr><td>Rubricas reconhecidas</td><td>${dg.mapeadas.length ? dg.mapeadas.length + ' linhas com valor' : '<span class="tag bad">nenhuma com valor</span>'}</td></tr>
+      <tr><td>Rubricas não utilizadas</td><td>${Array.from(dg.naoMapeadas).slice(0, 40).map(x => '<span class="tag">' + esc(x) + '</span>').join(' ') || 'nenhuma'}</td></tr>
+      </tbody></table></div>`;
+  });
+  b.innerHTML = h;
+}
+
+/* =====================================================================
+   CABEÇALHO, FILTROS GLOBAIS, ABAS
+   ===================================================================== */
+function emptyMsg(t) {
+  return `<div class="empty">${t || '<b>Sem dados para o período.</b><br>Conecte a pasta com os arquivos (Comercial, Arrecadação e painéis RF) usando o botão <b>📁 Conectar pasta</b>.'}</div>`;
+}
+function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel) })); } catch (e) {} }
+function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); } catch (e) {} }
+
+function buildHeader() {
+  const sups = supList(); if (!sups.includes(S.sup)) S.sup = sups.includes('LAGOS') ? 'LAGOS' : (sups[0] || null);
+  $('#supBtns').innerHTML = sups.map(s => `<button class="fbtn ${s === S.sup ? 'active' : ''}" data-sup="${esc(s)}" type="button">${esc(s)}</button>`).join('') || '<span class="flabel">—</span>';
+  $$('#supBtns [data-sup]').forEach(b => b.onclick = () => { S.sup = b.dataset.sup; S.hist.cidades = null; persist(); fullRender(); });
+  const rfs = Object.keys(D.rf).sort((a, b) => rfOrd(a) - rfOrd(b)); if (!rfs.includes(S.rf)) S.rf = rfs[rfs.length - 1] || null;
+  $('#rfBtns').innerHTML = rfs.map(r => `<button class="fbtn ${r === S.rf ? 'active' : ''}" data-rf="${esc(r)}" type="button">${esc(r)}</button>`).join('') || '<span class="flabel">—</span>';
+  $$('#rfBtns [data-rf]').forEach(b => b.onclick = () => { S.rf = b.dataset.rf; persist(); fullRender(); });
+  const ms = allMonths(); const lr = lastRealMonth();
+  if (!ms.includes(S.ym)) S.ym = lr || ms[ms.length - 1] || null;
+  $('#monthFilter').innerHTML = ms.map(m => `<option value="${m}" ${m === S.ym ? 'selected' : ''}>${mlabel(m)}${D.com && D.com.realMonths.has(m) ? '' : ' (orçado)'}</option>`).join('');
+  // auditoria
+  const sits = D.com ? Array.from(D.com.sits).sort() : [];
+  if (!S.audSel.size) CONFIG.auditoriaPadrao.forEach(x => { const f = sits.find(s => norm(s) === norm(x)); if (f) S.audSel.add(f); });
+  $('#chkAud').checked = S.aud;
+  $('#listaAud').innerHTML = sits.map(s => `<label><input type="checkbox" data-sit="${esc(s)}" ${S.audSel.has(s) ? 'checked' : ''}> ${esc(s === '-' ? 'Sem situação (-)' : s)}</label>`).join('') || '<label>Sem dados</label>';
+  $$('#listaAud [data-sit]').forEach(c => c.onchange = () => { c.checked ? S.audSel.add(c.dataset.sit) : S.audSel.delete(c.dataset.sit); persist(); S.cache.clear(); renderAll(); });
+  const y = S.ym ? yearOf(S.ym) : '';
+  $('#titulo').textContent = y ? `DRE Comercial e Receita | Realizado ${y}` : 'DRE Comercial e Receita';
+  $('#subtitulo').textContent = S.rf ? `Comparativo com o orçamento ${S.rf} • visão mensal e acumulada` : 'Sem painel de orçado carregado';
+  $('#escopo').textContent = S.sup ? `Superintendência ${S.sup}${S.rf ? ' | ' + S.rf : ''}${S.aud ? ' | Visão Auditoria: ' + Array.from(S.audSel).join(' + ') : ''}` : '';
+}
+const rfOrd = l => { const m = /RF(\d)T(\d\d)/.exec(l); return m ? (+m[2]) * 10 + (+m[1]) : 0; };
+
+function renderAll() {
+  S.cache.clear();
+  const t = S.tab;
+  if (t === 'dre') renderDRE(); else if (t === 'dremensal') renderMonthly(); else if (t === 'receita') renderReceita();
+  else if (t === 'drivers') renderDrivers(); else if (t === 'caixa') renderCaixa(); else if (t === 'historico') renderHistorico();
+  else if (t === 'graficos') renderGraficos(); else if (t === 'rf') renderRF(); else if (t === 'dados') renderDados();
+  else if (t === 'arrecadacao') loadArrecFrame();
+  $('#escopo').textContent = S.sup ? `Superintendência ${S.sup}${S.rf ? ' | ' + S.rf : ''}${S.aud ? ' | Visão Auditoria: ' + Array.from(S.audSel).join(' + ') : ''}` : '';
+}
+function fullRender() { buildHeader(); renderAll(); }
+function loadArrecFrame() { const f = $('#arrecFrame'); if (!f.getAttribute('src')) f.setAttribute('src', f.dataset.src); }
+
+$$('.tab').forEach(b => b.onclick = () => {
+  $$('.tab,.page').forEach(x => x.classList.remove('active')); b.classList.add('active');
+  S.tab = b.dataset.page; $('#' + S.tab).classList.add('active'); renderAll();
+});
+$('#monthFilter').onchange = e => { S.ym = e.target.value; renderAll(); };
+$('#chkAud').onchange = e => { S.aud = e.target.checked; persist(); buildHeader(); renderAll(); };
+$('#btnDropAud').onclick = e => { e.stopPropagation(); const dd = e.target.closest('.dropdown'); const o = dd.classList.contains('aberto'); closeDropdowns(); if (!o) dd.classList.add('aberto'); };
+$('#listaAud').onclick = e => e.stopPropagation();
+document.addEventListener('click', closeDropdowns);
+
+/* =====================================================================
+   CONEXÃO COM A PASTA
+   ===================================================================== */
+const idb = {
+  open() { return new Promise((res, rej) => { const r = indexedDB.open('dreu', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async get(k) { try { const db = await this.open(); return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(null); }); } catch (e) { return null; } },
+  async set(k, v) { try { const db = await this.open(); await new Promise(res => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; }); } catch (e) {} }
+};
+let dirHandle = null;
+async function collect(handle, depth = 0) {
+  const out = [];
+  for await (const [name, h] of handle.entries()) {
+    if (h.kind === 'file' && /\.xlsx$/i.test(name) && !name.startsWith('~$')) out.push(await h.getFile());
+    else if (h.kind === 'directory' && depth < 2) out.push(...await collect(h, depth + 1));
+  }
+  return out;
+}
+async function pickFolder() {
+  if (window.showDirectoryPicker) {
+    try { dirHandle = await window.showDirectoryPicker({ mode: 'read' }); await idb.set('dir', dirHandle); $('#btnReload').style.display = ''; await loadFiles(await collect(dirHandle)); }
+    catch (e) { if (e.name !== 'AbortError') setStatus('Erro ao abrir a pasta: ' + e.message, true); }
+  } else $('#fileFallback').click();
+}
+async function reloadFolder() {
+  if (!dirHandle) return pickFolder();
+  try {
+    if ((await dirHandle.queryPermission({ mode: 'read' })) !== 'granted' && (await dirHandle.requestPermission({ mode: 'read' })) !== 'granted') return setStatus('Permissão de leitura negada.', true);
+    await loadFiles(await collect(dirHandle));
+  } catch (e) { setStatus('Erro ao atualizar: ' + e.message, true); }
+}
+function setStatus(t, err) { $('#fonteStatus').innerHTML = err ? '<span class="tag bad">Erro</span> ' + esc(t) : t; }
+$('#btnPasta').onclick = pickFolder;
+$('#btnReload').onclick = reloadFolder;
+$('#fileFallback').onchange = async e => { const fs = Array.from(e.target.files).filter(f => /\.xlsx$/i.test(f.name) && !f.name.startsWith('~$')); await loadFiles(fs); e.target.value = ''; };
+
+async function classify(file) {
+  const n = file.name;
+  if (/comercial/i.test(n)) return 'com'; if (/arrec/i.test(n)) return 'arr'; if (/RF\s*0?\d\s*T\s*\d{2}/i.test(n) || /painel/i.test(n)) return 'rf';
+  let hdr = null; await readXlsx(file, r => { hdr = r.map(hnorm); return false; });
+  if (hdr) { if (hdr.includes('dsc_classe')) return 'com'; if (hdr.includes('arrecadacao_acumulada')) return 'arr'; if (hdr.includes('rubrica')) return 'rf'; }
+  return null;
+}
+async function loadFiles(files) {
+  if (!files.length) return setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true);
+  try {
+    D.com = null; D.arr = null; D.rf = {}; D.diag = {}; D.files = []; S.cache.clear();
+    const grupos = { com: [], arr: [], rf: [] }, ignorados = [];
+    for (const f of files) { setStatus('Identificando <b>' + esc(f.name) + '</b>…'); await tick(); const t = await classify(f); t ? grupos[t].push(f) : ignorados.push(f.name); }
+    const latest = l => l.sort((a, b) => b.lastModified - a.lastModified)[0];
+    if (grupos.com.length) { const f = latest(grupos.com); await ingestComercial(f); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
+    if (grupos.arr.length) { const f = latest(grupos.arr); await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
+    for (const f of grupos.rf) { setStatus('Lendo <b>' + esc(f.name) + '</b>…'); await tick(); await ingestPainel(f); D.files.push({ name: f.name, tipo: 'Orçado ' + rfLabel(f.name), detalhe: D.rf[rfLabel(f.name)].meses.length + ' meses com valor' }); }
+    ignorados.forEach(n => D.files.push({ name: n, tipo: 'não reconhecido', detalhe: 'ignorado' }));
+    S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;
+    fullRender();
+    const partes = [];
+    if (D.com) partes.push('Comercial'); if (D.arr) partes.push('Arrecadação'); const rfs = Object.keys(D.rf); if (rfs.length) partes.push('Orçado ' + rfs.join(', '));
+    setStatus('Carregado: <b>' + (partes.join(' • ') || 'nada reconhecido') + '</b> — ' + new Date().toLocaleTimeString('pt-BR') + '. Veja a aba <b>Dados</b> para conferências.');
+  } catch (e) { console.error(e); setStatus(e.message, true); }
+}
+
+/* ---------- inicialização ---------- */
+(async function init() {
+  restore(); fullRender();
+  if (window.showDirectoryPicker) {
+    const h = await idb.get('dir');
+    if (h) {
+      dirHandle = h; $('#btnReload').style.display = '';
+      try { if ((await h.queryPermission({ mode: 'read' })) === 'granted') await loadFiles(await collect(h)); else setStatus('Pasta anterior encontrada — clique em <b>↻ Atualizar</b> para reconectar.'); } catch (e) {}
+    }
+  }
+})();
+</script>
+</body>
+</html>
