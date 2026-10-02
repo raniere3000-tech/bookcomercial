@@ -17,19 +17,32 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background-image: url('aguas-do-rio.jpeg');
+    /* Plano de fundo: a imagem preenche a tela e fica ancorada no canto superior esquerdo,
+       onde está a logo (ocupa ~27% da largura e ~18% da altura da imagem). */
+    background-color: #00264a;
+    background-image: url('Gemini_Generated_Image_.jpeg');
     background-size: cover;
     background-position: left top;
     background-repeat: no-repeat;
-    background-color: #102840;
+    background-attachment: fixed;
   }
 
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: radial-gradient(ellipse at center, rgba(23,79,112,0.35), rgba(16,40,64,0.80));
-    z-index: 0;
+  /* Telas baixas (celular deitado, janelas curtas): reserva a faixa da logo para o cartão não cobri-la */
+  @media (max-height: 760px) {
+    body { padding-top: 21vh; }
+  }
+
+  /* Telas em pé (celular): a imagem inteira na largura da tela — a logo nunca é cortada —
+     e o restante em azul-marinho, com degradê na emenda. */
+  @media (max-aspect-ratio: 3/4) {
+    body {
+      background-image:
+        linear-gradient(to bottom, rgba(0,38,74,0) calc(55.8vw - 16vw), #00264a 55.8vw),
+        url('Gemini_Generated_Image_.jpeg');
+      background-size: 100% 100%, 100% auto;
+      background-position: left top, left top;
+      background-attachment: scroll;
+    }
   }
 
   .card {
@@ -119,7 +132,7 @@
   <h1>Central de Links</h1>
   <p>Acesse o book executivo abaixo</p>
   <nav class="links">
-    <a href="DRE_Unificado.html">📊 DRE Comercial, Receita e Arrecadação</a>
+    <a href="DRE_Unificado.html">📊 DRE - Comercial</a>
   </nav>
   <div class="rodape">&copy; 2026 Águas do Rio. Todos os direitos reservados.</div>
 </main>
