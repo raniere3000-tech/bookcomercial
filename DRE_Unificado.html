@@ -344,17 +344,12 @@ async function readXlsx(file, onRow, opts = {}) {
     if (!names.length) throw new Error('Planilha não encontrada em ' + file.name);
     sheetName = names[0];
   }
-  const xml = await zip.file(sheetName).async('string');
+  // A planilha é descompactada e processada em blocos: o XML completo nunca fica em memória
+  // (arquivos grandes passam do limite de texto do navegador — "Invalid string length").
   const cellRe = /<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
-  let pos = 0, rowNo = 0, count = 0;
-  while (true) {
-    const a = xml.indexOf('<row ', pos); if (a < 0) break;
-    const b = xml.indexOf('>', a);
-    if (xml.charCodeAt(b - 1) === 47) { pos = b + 1; continue; }            // <row .../> vazio
-    const c = xml.indexOf('</row>', b); if (c < 0) break;
-    pos = c + 6;
-    const body = xml.substring(b + 1, c);
-    if (body.indexOf('<v>') < 0 && body.indexOf('<is>') < 0) continue;     // linha só com formatação
+  let count = 0, stopped = false;
+  const parseRow = body => {
+    if (body.indexOf('<v>') < 0 && body.indexOf('<is>') < 0) return true;     // linha só com formatação
     const row = []; cellRe.lastIndex = 0; let m;
     while ((m = cellRe.exec(body))) {
       const inner = m[3]; if (!inner) continue;
@@ -366,9 +361,42 @@ async function readXlsx(file, onRow, opts = {}) {
       row[colIdx(m[1])] = v;
     }
     count++;
-    if (onRow(row, count) === false) break;
-    if (count % 15000 === 0) { if (opts.progress) opts.progress(count); await tick(); }
-  }
+    if (onRow(row, count) === false) { stopped = true; return false; }
+    if (opts.progress && count % 15000 === 0) opts.progress(count);
+    return true;
+  };
+  // consome as linhas completas de buf; devolve o resto (linha ainda incompleta)
+  const drain = buf => {
+    let pos = 0;
+    while (!stopped) {
+      const a = buf.indexOf('<row ', pos); if (a < 0) { pos = Math.max(pos, buf.length - 5); break; }
+      const b = buf.indexOf('>', a); if (b < 0) { pos = a; break; }
+      if (buf.charCodeAt(b - 1) === 47) { pos = b + 1; continue; }              // <row .../> vazio
+      const c = buf.indexOf('</row>', b); if (c < 0) { pos = a; break; }
+      pos = c + 6;
+      if (parseRow(buf.substring(b + 1, c)) === false) break;
+    }
+    return buf.slice(pos);
+  };
+  await new Promise((resolve, reject) => {
+    const dec = new TextDecoder('utf-8'), parts = []; let size = 0, rest = '';
+    const helper = zip.file(sheetName).internalStream('uint8array');
+    const flush = last => {
+      if (!parts.length && !last) return;
+      let txt = rest + parts.map(u => dec.decode(u, { stream: true })).join(''); parts.length = 0; size = 0;
+      if (last) txt += dec.decode();
+      rest = drain(txt);
+    };
+    helper.on('data', chunk => {
+      if (stopped) return;
+      parts.push(chunk); size += chunk.length;
+      if (size >= (1 << 22)) { try { flush(false); } catch (e) { stopped = true; helper.pause(); reject(e); } }
+      if (stopped) { helper.pause(); resolve(); }
+    });
+    helper.on('error', reject);
+    helper.on('end', () => { try { if (!stopped) flush(true); resolve(); } catch (e) { reject(e); } });
+    helper.resume();
+  });
   return count;
 }
 
@@ -415,7 +443,7 @@ const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto'
   'faturamento_bruto_indiretas_total', 'qtd_eco_fat_agua', 'qtd_eco_fat_esgoto', 'vol_faturado_agua_direto_m', 'vol_faturado_esgoto_direto_m',
   'volume_medido_de_agua_m', 'r_cancelamento_total', 'r_faturamento_total_liquido', 'qtd_ligacoes'];
 
-async function ingestComercial(file) {
+async function ingestComercial(file, supPadrao = 'TOTAL') {
   const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
   let col = null; const map = new Map();
   const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
@@ -437,7 +465,7 @@ async function ingestComercial(file) {
     const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
     const ym = parseMonth(g('referencia')); if (!ym) { diag.descMes++; return true; }
     diag.usadas++; diag.meses.add(ym);
-    const sup = col['sup'] === undefined ? 'TOTAL' : normSup(g('sup'));
+    const sup = col['sup'] === undefined ? supPadrao : normSup(g('sup'));
     let cur = String(g('macrocluster_curva_cliente') == null ? '-' : g('macrocluster_curva_cliente')).trim(); if (cur === '0' || cur === '') cur = '-';
     let sit = String(g('baseinativacao_situacao_final') == null ? '-' : g('baseinativacao_situacao_final')).trim(); if (sit === '0' || sit === '') sit = '-';
     const key = sup + '|' + cid + '|' + cur + '|' + sit + '|' + ym;
@@ -466,7 +494,7 @@ async function ingestComercial(file) {
     diag.somaBruto += e.dA + e.dE + e.iA + e.iE; diag.somaCanc += e.canc; diag.somaLiq += e.liq;
   });
   const realMonths = new Set(); entries.forEach(e => { if (e.dA || e.dE || e.iA || e.iE || e.liq || e.canc) realMonths.add(e.ym); });
-  diag.agregados = entries.length;
+  diag.agregados = entries.length; diag.semColunaSup = col['sup'] === undefined; diag.supPadrao = supPadrao;
   D.com = { entries, byYm, sups, cidBySup, cidSup, curvas, sits, realMonths };
   D.diag.com = diag;
 }
@@ -1085,6 +1113,7 @@ function renderDados() {
       <tr><td>Descartadas — cidade vazia/0 · mês inválido</td><td>${dc.descCidade.toLocaleString('pt-BR')} · ${dc.descMes.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Meses na base · meses com faturamento</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) : '—'} · ${real.length ? real.length + ' (' + mlabel(real[0]) + ' a ' + mlabel(real[real.length - 1]) + ')' : '<span class="tag bad">nenhum mês com valores</span>'}</td></tr>
       <tr><td>Superintendências · cidades</td><td>${Array.from(D.com.sups).join(', ')} · ${D.com.cidSup.size}</td></tr>
+      ${dc.semColunaSup ? `<tr><td>Coluna Sup</td><td><span class="tag warn">ausente no arquivo</span> assumida a superintendência <b>${esc(dc.supPadrao)}</b> (única dos painéis de orçado)</td></tr>` : ''}
       <tr><td>Classes não mapeadas (ignoradas)</td><td>${dc.naoMapeadas.size ? Array.from(dc.naoMapeadas).map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
       <tr><td>Líquido da coluna vs. bruto + cancelamento</td><td>${fmtBRL(dc.somaLiq)} vs. ${fmtBRL(calcLiq)} — diferença ${fmtBRL(difLiq)} ${Math.abs(difLiq) < 1 ? '<span class="tag">ok</span>' : '<span class="tag warn">verificar sinal de cancelamento / classes</span>'}</td></tr>
       </tbody></table></div>`;
@@ -1222,9 +1251,11 @@ async function loadFiles(files) {
     const grupos = { com: [], arr: [], rf: [] }, ignorados = [];
     for (const f of files) { setStatus('Identificando <b>' + esc(f.name) + '</b>…'); await tick(); const t = await classify(f); t ? grupos[t].push(f) : ignorados.push(f.name); }
     const latest = l => l.sort((a, b) => b.lastModified - a.lastModified)[0];
-    if (grupos.com.length) { const f = latest(grupos.com); await ingestComercial(f); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
-    if (grupos.arr.length) { const f = latest(grupos.arr); await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
     for (const f of grupos.rf) { setStatus('Lendo <b>' + esc(f.name) + '</b>…'); await tick(); await ingestPainel(f); D.files.push({ name: f.name, tipo: 'Orçado ' + rfLabel(f.name), detalhe: D.rf[rfLabel(f.name)].meses.length + ' meses com valor' }); }
+    const supsRf = new Set(); Object.values(D.rf).forEach(r => r.bySup.forEach((_, k) => supsRf.add(k)));
+    const supPadrao = supsRf.size === 1 ? Array.from(supsRf)[0] : 'TOTAL';       // usado só se o Comercial não tiver a coluna Sup
+    if (grupos.com.length) { const f = latest(grupos.com); await ingestComercial(f, supPadrao); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
+    if (grupos.arr.length) { const f = latest(grupos.arr); await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
     ignorados.forEach(n => D.files.push({ name: n, tipo: 'não reconhecido', detalhe: 'ignorado' }));
     S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;
     fullRender();
