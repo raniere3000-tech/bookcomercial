@@ -288,7 +288,15 @@ const CONFIG = {
   classeIgnorar:  ['ARRECADACAO','IMPOSTOS','JUROS POR IMPONTUALIDADE','MULTA POR IMPONTUALIDADE','ACRESCIMO JUDICIAL',
                    'FINANCIAMENTOS','TAXA DE REPASSE','RECEITA/DESPESA FINANCEIRA','ATUALIZACAO MONETARIA',
                    'ABATIMENTO DE AGUA','ABATIMENTO DE SERVICO DE AGUA','DESCONTOS','CONSERTOS E REPAROS'],
-  classeZero: ['0','']                                     // linhas de total sem abertura: descartadas
+  classeZero: ['0',''],                                    // linhas de total sem abertura: descartadas
+  // Relação SUP FINAL × CIDADE. A superintendência vem SÓ daqui (a coluna Sup do arquivo é ignorada).
+  // Uma cidade pode estar em mais de uma superintendência (ex.: ITABORAI e RIO BONITO): nesse caso
+  // ela entra inteira na visão de cada uma, e na visão TODAS é contada uma única vez.
+  supCidades: {
+    'LAGOS': ['APERIBE', 'CAMBUCI', 'CACHOEIRAS DE MACACU', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS', 'ITABORAI',
+              'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'RIO DE JANEIRO', 'S.SEBASTIAO DO ALTO', 'S.FCO.DO ITABAPOANA'],
+    'LESTE': ['ITABORAI', 'MARICA', 'RIO BONITO', 'RIO DE JANEIRO - A', 'SAO GONCALO', 'SAQUAREMA', 'TANGUA']
+  }
 };
 
 const MN = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -308,6 +316,10 @@ const mlabel = ym => MN[+ym.slice(5) - 1] + '/' + ym.slice(0, 4);
 const yearOf = ym => ym.slice(0, 4);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const dev = (a, b) => (has(a) && has(b) && b !== 0) ? a / b - 1 : NaN;
+const CIDADE_SUPS = new Map();
+Object.keys(CONFIG.supCidades).forEach(sup => CONFIG.supCidades[sup].forEach(c => {
+  const k = norm(c); if (!CIDADE_SUPS.has(k)) CIDADE_SUPS.set(k, []); if (!CIDADE_SUPS.get(k).includes(sup)) CIDADE_SUPS.get(k).push(sup);
+}));
 
 /* =====================================================================
    LEITOR DE XLSX (streaming, leve em memória) — usa JSZip
@@ -432,7 +444,8 @@ const S = {
   hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['ind_agua_extra']) },
   cache: new Map()
 };
-const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM SUP'; };
+const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM SUP'; };    // usado só nos painéis de orçado
+const supsOf = cid => CIDADE_SUPS.get(norm(cid)) || ['SEM SUP'];
 
 /* ---------- Comercial ---------- */
 const COM_REQ = ['cidade', 'dsc_classe', 'referencia', 'baseinativacao_situacao_final', 'isgrandtotalrowtotal',
@@ -443,10 +456,10 @@ const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto'
   'faturamento_bruto_indiretas_total', 'qtd_eco_fat_agua', 'qtd_eco_fat_esgoto', 'vol_faturado_agua_direto_m', 'vol_faturado_esgoto_direto_m',
   'volume_medido_de_agua_m', 'r_cancelamento_total', 'r_faturamento_total_liquido', 'qtd_ligacoes'];
 
-async function ingestComercial(file, supPadrao = 'TOTAL') {
+async function ingestComercial(file) {
   const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
   let col = null; const map = new Map();
-  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), cidadesSemSup: new Set(), cidadesVistas: new Set(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
   const msg = $('#fonteStatus');
   await readXlsx(file, (r, n) => {
     if (!col) {
@@ -464,13 +477,13 @@ async function ingestComercial(file, supPadrao = 'TOTAL') {
     if (dZ.has(cls)) { diag.descClasse0++; return true; }
     const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
     const ym = parseMonth(g('referencia')); if (!ym) { diag.descMes++; return true; }
-    diag.usadas++; diag.meses.add(ym);
-    const sup = col['sup'] === undefined ? supPadrao : normSup(g('sup'));
+    diag.usadas++; diag.meses.add(ym); diag.cidadesVistas.add(cid);
+    const sups = supsOf(cid); if (sups[0] === 'SEM SUP') diag.cidadesSemSup.add(cid);
     let cur = String(g('macrocluster_curva_cliente') == null ? '-' : g('macrocluster_curva_cliente')).trim(); if (cur === '0' || cur === '') cur = '-';
     let sit = String(g('baseinativacao_situacao_final') == null ? '-' : g('baseinativacao_situacao_final')).trim(); if (sit === '0' || sit === '') sit = '-';
-    const key = sup + '|' + cid + '|' + cur + '|' + sit + '|' + ym;
+    const key = cid + '|' + cur + '|' + sit + '|' + ym;
     let e = map.get(key);
-    if (!e) { e = { sup, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {} }; map.set(key, e); }
+    if (!e) { e = { sups, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {} }; map.set(key, e); }
     const num = k => { const v = g(k); return typeof v === 'number' ? v : 0; };
     if (dClsD.has(cls)) {
       e.dA += num('faturamento_bruto_direta_agua'); e.dE += num('faturamento_bruto_direta_esgoto');
@@ -486,16 +499,15 @@ async function ingestComercial(file, supPadrao = 'TOTAL') {
   }, { progress: c => { msg.innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Comercial: arquivo sem dados');
   const entries = Array.from(map.values());
-  const byYm = new Map(), sups = new Set(), cidBySup = new Map(), curvas = new Set(), sits = new Set(), cidSup = new Map();
+  const byYm = new Map(), sups = new Set(), curvas = new Set(), sits = new Set();
   entries.forEach(e => {
     if (!byYm.has(e.ym)) byYm.set(e.ym, []); byYm.get(e.ym).push(e);
-    sups.add(e.sup); curvas.add(e.cur); sits.add(e.sit);
-    if (!cidBySup.has(e.sup)) cidBySup.set(e.sup, new Set()); cidBySup.get(e.sup).add(e.cid); cidSup.set(e.cid, e.sup);
+    e.sups.forEach(x => sups.add(x)); curvas.add(e.cur); sits.add(e.sit);
     diag.somaBruto += e.dA + e.dE + e.iA + e.iE; diag.somaCanc += e.canc; diag.somaLiq += e.liq;
   });
   const realMonths = new Set(); entries.forEach(e => { if (e.dA || e.dE || e.iA || e.iE || e.liq || e.canc) realMonths.add(e.ym); });
-  diag.agregados = entries.length; diag.semColunaSup = col['sup'] === undefined; diag.supPadrao = supPadrao;
-  D.com = { entries, byYm, sups, cidBySup, cidSup, curvas, sits, realMonths };
+  diag.agregados = entries.length; diag.colunaSupIgnorada = col['sup'] !== undefined;
+  D.com = { entries, byYm, sups, curvas, sits, realMonths };
   D.diag.com = diag;
 }
 
@@ -588,7 +600,7 @@ function supList() {
   Object.values(D.rf).forEach(r => r.bySup.forEach((_, k) => s.add(k)));
   const l = Array.from(s).sort(); if (l.length > 1) l.push('TODAS'); return l;
 }
-const supOk = (e, sup) => sup === 'TODAS' || e.sup === sup;
+const supOk = (e, sup) => sup === 'TODAS' || e.sups.includes(sup);
 
 function actualBase(ym) {
   if (!D.com) return null;
@@ -648,7 +660,7 @@ function arrecMonth(ym) {
   if (!D.arr) return null;
   const list = D.arr.byYm.get(ym); if (!list) return null;
   let v = 0, any = false;
-  list.forEach(e => { const sup = D.com ? D.com.cidSup.get(e.cid) : null; if (S.sup === 'TODAS' || sup === S.sup) { v += e.arrec; any = true; } });
+  list.forEach(e => { if (S.sup === 'TODAS' || supsOf(e.cid).includes(S.sup)) { v += e.arrec; any = true; } });
   return any && v ? v : null;
 }
 
@@ -1102,6 +1114,16 @@ function renderDados() {
   h += '<div class="panel" style="margin-bottom:16px"><h2>Arquivos lidos</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas</div><table class="dx"><thead><tr><th>Arquivo</th><th>Tipo</th><th>Detalhe</th></tr></thead><tbody>';
   D.files.forEach(f => { h += `<tr><td>${esc(f.name)}</td><td>${esc(f.tipo)}</td><td>${esc(f.detalhe || '')}</td></tr>`; });
   h += '</tbody></table></div>';
+  {
+    const cv = new Set(D.com ? D.com.entries.map(e => e.cid) : []), av = D.arr ? new Set(D.arr.byCid.keys()) : new Set();
+    h += '<div class="panel" style="margin-bottom:16px"><h2>Cidades por superintendência</h2><div class="hint">Relação SUP FINAL × cidade usada nos filtros. Cidades em mais de uma superintendência entram inteiras em cada uma e são contadas uma única vez em TODAS</div><table class="dx"><thead><tr><th>Superintendência</th><th>Cidades (✔ = com dados no Comercial · ◐ = só na Arrecadação · ✖ = sem dados)</th></tr></thead><tbody>';
+    Object.keys(CONFIG.supCidades).forEach(sup => {
+      h += `<tr><td><b>${esc(sup)}</b> (${CONFIG.supCidades[sup].length})</td><td>` + CONFIG.supCidades[sup].map(c => {
+        const k = norm(c), ok = cv.has(k), so = !ok && av.has(k), dup = supsOf(c).length > 1;
+        return `<span class="tag ${ok ? '' : so ? 'warn' : 'bad'}">${ok ? '✔' : so ? '◐' : '✖'} ${esc(c)}${dup ? ' ⇄' : ''}</span>`; }).join(' ') + '</td></tr>';
+    });
+    h += '</tbody></table><div class="hint" style="margin:10px 0 0">⇄ = cidade presente em mais de uma superintendência</div></div>';
+  }
   if (dc) {
     const meses = Array.from(dc.meses).sort(), real = Array.from(D.com.realMonths).sort();
     const calcLiq = dc.somaBruto + dc.somaCanc, difLiq = dc.somaLiq - calcLiq;
@@ -1112,8 +1134,9 @@ function renderDados() {
       <tr><td>Descartadas — DSC_CLASSE = 0</td><td>${dc.descClasse0.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Descartadas — cidade vazia/0 · mês inválido</td><td>${dc.descCidade.toLocaleString('pt-BR')} · ${dc.descMes.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Meses na base · meses com faturamento</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) : '—'} · ${real.length ? real.length + ' (' + mlabel(real[0]) + ' a ' + mlabel(real[real.length - 1]) + ')' : '<span class="tag bad">nenhum mês com valores</span>'}</td></tr>
-      <tr><td>Superintendências · cidades</td><td>${Array.from(D.com.sups).join(', ')} · ${D.com.cidSup.size}</td></tr>
-      ${dc.semColunaSup ? `<tr><td>Coluna Sup</td><td><span class="tag warn">ausente no arquivo</span> assumida a superintendência <b>${esc(dc.supPadrao)}</b> (única dos painéis de orçado)</td></tr>` : ''}
+      <tr><td>Superintendências · cidades no arquivo</td><td>${Array.from(D.com.sups).join(', ')} · ${dc.cidadesVistas.size}</td></tr>
+      <tr><td>Coluna Sup do arquivo</td><td>${dc.colunaSupIgnorada ? 'presente — <b>ignorada</b>' : 'ausente'}; a superintendência vem da relação cidade × SUP FINAL (<code>CONFIG.supCidades</code>)</td></tr>
+      <tr><td>Cidades do arquivo fora da relação</td><td>${dc.cidadesSemSup.size ? Array.from(dc.cidadesSemSup).map(x => '<span class="tag bad">' + esc(x) + '</span>').join(' ') + ' — aparecem só em TODAS / SEM SUP; inclua em <code>CONFIG.supCidades</code>' : 'nenhuma'}</td></tr>
       <tr><td>Classes não mapeadas (ignoradas)</td><td>${dc.naoMapeadas.size ? Array.from(dc.naoMapeadas).map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
       <tr><td>Líquido da coluna vs. bruto + cancelamento</td><td>${fmtBRL(dc.somaLiq)} vs. ${fmtBRL(calcLiq)} — diferença ${fmtBRL(difLiq)} ${Math.abs(difLiq) < 1 ? '<span class="tag">ok</span>' : '<span class="tag warn">verificar sinal de cancelamento / classes</span>'}</td></tr>
       </tbody></table></div>`;
@@ -1126,14 +1149,14 @@ function renderDados() {
   }
   if (da) {
     const meses = Array.from(da.meses).sort();
-    const semSup = D.arr && D.com ? Array.from(D.arr.byCid.keys()).filter(c => !D.com.cidSup.has(c)) : [];
+    const semSup = D.arr ? Array.from(D.arr.byCid.keys()).filter(c => supsOf(c)[0] === 'SEM SUP') : [];
     h += `<div class="panel" style="margin-bottom:16px"><h2>Arrecadação — conferências</h2><div class="hint">${esc(da.file)}</div><table class="dx"><tbody>
       <tr><td>Linhas lidas · aproveitadas</td><td>${da.linhas.toLocaleString('pt-BR')} · ${da.usadas.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Descartadas — totais · cidade vazia · mês inválido</td><td>${da.descTotal} · ${da.descCidade} · ${da.descMes}</td></tr>
       <tr><td>Meses</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) + ' (' + meses.length + ')' : '—'}</td></tr>
       <tr><td>Soma de Arrecadacao_Acumulada</td><td>${fmtBRL(da.somaArrec)}</td></tr>
       <tr><td>Valores da coluna Classificação</td><td>${Array.from(da.classif).slice(0, 12).map(x => '<span class="tag">' + esc(x) + '</span>').join(' ') || '—'}</td></tr>
-      <tr><td>Cidades sem superintendência no Comercial</td><td>${semSup.length ? semSup.map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
+      <tr><td>Cidades fora da relação cidade × SUP FINAL</td><td>${semSup.length ? semSup.map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
       </tbody></table></div>`;
   }
   Object.keys(D.rf).forEach(l => {
@@ -1252,9 +1275,7 @@ async function loadFiles(files) {
     for (const f of files) { setStatus('Identificando <b>' + esc(f.name) + '</b>…'); await tick(); const t = await classify(f); t ? grupos[t].push(f) : ignorados.push(f.name); }
     const latest = l => l.sort((a, b) => b.lastModified - a.lastModified)[0];
     for (const f of grupos.rf) { setStatus('Lendo <b>' + esc(f.name) + '</b>…'); await tick(); await ingestPainel(f); D.files.push({ name: f.name, tipo: 'Orçado ' + rfLabel(f.name), detalhe: D.rf[rfLabel(f.name)].meses.length + ' meses com valor' }); }
-    const supsRf = new Set(); Object.values(D.rf).forEach(r => r.bySup.forEach((_, k) => supsRf.add(k)));
-    const supPadrao = supsRf.size === 1 ? Array.from(supsRf)[0] : 'TOTAL';       // usado só se o Comercial não tiver a coluna Sup
-    if (grupos.com.length) { const f = latest(grupos.com); await ingestComercial(f, supPadrao); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
+    if (grupos.com.length) { const f = latest(grupos.com); await ingestComercial(f); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
     if (grupos.arr.length) { const f = latest(grupos.arr); await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
     ignorados.forEach(n => D.files.push({ name: n, tipo: 'não reconhecido', detalhe: 'ignorado' }));
     S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;

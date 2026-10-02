@@ -16,7 +16,8 @@ Identificados pelo nome ou, se o nome não ajudar, pelas colunas do cabeçalho. 
 | `RF*T*_painel.xlsx` | nome `RFnTyy` ou coluna `Rubrica` | Orçado por superintendência e mês (ex.: `RF3T25`, `RF01T26` → `RF1T26`) |
 
 ## Regras de leitura (editáveis em `CONFIG`, no topo do script de `DRE_Unificado.html`)
-- `Sup` = `Interior` é exibido como **LAGOS**.
+- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`); a coluna `Sup` do Comercial é ignorada. Cidades em mais de uma superintendência (ITABORAI e RIO BONITO) entram inteiras em LAGOS e em LESTE, e são contadas uma única vez em TODAS. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
+- Nos painéis de orçado, `Sup` = `Interior` é exibido como **LAGOS**.
 - Mês vem da coluna `Referência`.
 - Descartados: linhas com `IsGrandTotalRowTotal` marcado e `DSC_CLASSE = 0`.
 - Direta = `CONTAS DE ÁGUA` / `CONTAS DE ESGOTO`; indireta de água = Corte, Religações, Ligações de Água, Sanções, Outros Água (+ Venda e Análise); indireta de esgoto = Ligações de Esgoto, Outros Esgoto.
