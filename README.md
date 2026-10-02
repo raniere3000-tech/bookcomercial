@@ -37,3 +37,4 @@ O número da versão aparece no topo da página, ao lado de "Book Executivo". El
 |---|---|
 | v1 | DRE unificado (Comercial + Faturamento) com leitura de Excel por pasta, leitura em blocos para arquivos grandes, superintendência por cidade (LAGOS/LESTE), Visão Auditoria, Orçado RF, resumo por mês na aba Dados, barra de progresso e detalhes da leitura, mês opcional no Comercial. |
 | v2 | Cabeçalho enxuto (título "DRE - Comercial"; detalhes da leitura ocultos após carregar, disponíveis na aba Dados). Nova ordem das abas: DRE, Arrecadação (antiga Caixa), Receita, Drivers comerciais, DRE Mensais (antiga DRE mês a mês), DRE Histórico, Orçado RF, Dados. |
+| v3 | DRE Histórico passa para depois do Orçado RF. Ordem das abas: DRE, Arrecadação, Receita, Drivers comerciais, DRE Mensais, Orçado RF, DRE Histórico, Dados. |
