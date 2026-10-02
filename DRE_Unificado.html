@@ -280,6 +280,7 @@ const CONFIG = {
   }
 };
 
+const VERSAO = 'v2026.10.02-d (leitura em blocos)';
 const MN = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
@@ -1249,7 +1250,7 @@ async function reloadFolder() {
     await loadFiles(await collect(dirHandle));
   } catch (e) { setStatus('Erro ao atualizar: ' + e.message, true); }
 }
-function setStatus(t, err) { $('#fonteStatus').innerHTML = err ? '<span class="tag bad">Erro</span> ' + esc(t) : t; }
+function setStatus(t, err) { $('#fonteStatus').innerHTML = err ? '<span class="tag bad">Erro</span> ' + esc(t) + ' <span style="opacity:.7">[' + VERSAO + ']</span>' : t; }
 $('#btnPasta').onclick = pickFolder;
 $('#btnReload').onclick = reloadFolder;
 $('#fileFallback').onchange = async e => { const fs = Array.from(e.target.files).filter(f => /\.xlsx$/i.test(f.name) && !f.name.startsWith('~$')); await loadFiles(fs); e.target.value = ''; };
@@ -1283,6 +1284,7 @@ async function loadFiles(files) {
 /* ---------- inicialização ---------- */
 (async function init() {
   restore(); fullRender();
+  $('#fonteStatus').innerHTML = 'Nenhuma pasta conectada. <span style="opacity:.7">[' + VERSAO + ']</span>';
   if (window.showDirectoryPicker) {
     const h = await idb.get('dir');
     if (h) {
