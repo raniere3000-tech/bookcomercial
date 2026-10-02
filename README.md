@@ -24,9 +24,8 @@ Identificados pelo nome ou, se o nome não ajudar, pelas colunas do cabeçalho. 
 - Classes financeiras (arrecadação, impostos, juros, multa, acréscimo judicial, financiamentos, taxa de repasse, receita/despesa financeira, atualização monetária, abatimentos, descontos) são ignoradas; cancelamento vem da coluna `R__Cancelamento_total`.
 - Tarifa média = faturamento ÷ volume; volume médio = volume ÷ economias. Economias em totais/acumulados = média mensal.
 - **Visão Auditoria** (cabeçalho) filtra por `BASEINATIVACAO.SITUACAO_FINAL` (padrão: Ativa Faturando + Cortada).
-- Filtros de **cidade** e **curva de cliente** ficam no DRE Histórico e nos Gráficos.
+- Filtros de **cidade** e **curva de cliente** ficam no DRE Histórico.
+
+A aba **Orçado RF** mostra o orçado de todos os meses da referência (inclusive os próximos), com seletor de indicador, cartões-resumo e gráfico de realizado × orçado.
 
 A aba **Dados** mostra o que foi lido, o que foi descartado, a soma por `DSC_CLASSE` e conferências (ex.: líquido da coluna vs. bruto + cancelamento) para validar a leitura.
-
-## Arrecadação
-A aba Arrecadação continua sendo o painel original, preservado em `painel_arrecadacao.html`.

@@ -140,24 +140,15 @@ table.hist td.col-total{background:#f2f7fb}
 table.hist tr.total td.col-total{background:#dcebf4}
 .negativo{color:var(--red)}
 #resumo{margin-top:12px;font-size:11.5px;color:var(--muted)}
-#gridGraf{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-.gcard{padding:16px 16px 12px}
-.gcard h3{margin:0 0 10px;font-size:14px;color:var(--navy);font-weight:750}
-.gcard canvas{max-height:280px}
-.nota-grafico{margin-top:8px;font-size:11px;color:#664d18;background:#fff7e7;border:1px solid #f1d49b;border-left:4px solid var(--amber);border-radius:6px;padding:7px 10px}
 .note{background:#fff7e7;border:1px solid #f1d49b;padding:13px;border-radius:9px;color:#664d18}
 .empty{padding:34px;text-align:center;color:var(--muted);border:1px dashed #b8c5cf;border-radius:10px;background:#fafcfd}
 .empty b{color:var(--navy)}
-.cashToggle{display:flex;gap:6px}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#e7f6f4;color:#14735e;font-weight:700}
 .tag.warn{background:#fff4de;color:#9a6a0a}.tag.bad{background:#fdecec;color:#a63333}
 .dx{font-size:12px}.dx td,.dx th{padding:6px 9px}
 .dx td{text-align:left}.dx td:first-child{white-space:normal}.dx tr td:not(:first-child) {white-space:normal}
-iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#eef3f7}
-.embedShell{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.arrecHead{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid,.grid2{grid-template-columns:1fr}.bridgeCards{grid-template-columns:1fr}}
-@media(max-width:900px){#gridGraf{grid-template-columns:1fr}.top,.nav,main{padding-left:16px;padding-right:16px}}
+@media(max-width:900px){.top,.nav,main{padding-left:16px;padding-right:16px}}
 @media print{.toolbar,.nav,.filterbar{display:none}body{background:#fff}main{padding:12px}.page{display:block;break-before:page}.page:first-child{break-before:auto}}
 </style>
 </head>
@@ -196,9 +187,7 @@ iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#ee
   <button class="tab" data-page="receita">Receita</button>
   <button class="tab" data-page="drivers">Drivers comerciais</button>
   <button class="tab" data-page="caixa">Caixa</button>
-  <button class="tab" data-page="arrecadacao">Arrecadação</button>
   <button class="tab" data-page="historico">DRE Histórico</button>
-  <button class="tab" data-page="graficos">Gráficos</button>
   <button class="tab" data-page="rf">Orçado RF</button>
   <button class="tab" data-page="dados">Dados</button>
 </nav>
@@ -241,11 +230,6 @@ iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#ee
       <div class="period" id="cashPeriod"></div><div id="cashTable" class="tablewrap"></div></div>
   </section>
 
-  <section class="page" id="arrecadacao">
-    <div class="embedShell"><div class="arrecHead"><b>SLE · Acompanhamento de Arrecadação</b><span class="hint" style="margin:0">Painel preservado sem alterações</span></div>
-      <iframe id="arrecFrame" title="Dashboard de acompanhamento de arrecadação" data-src="painel_arrecadacao.html"></iframe></div>
-  </section>
-
   <section class="page" id="historico">
     <div class="panel"><h2>DRE Histórico por município</h2>
       <div class="hint">Realizado por cidade, mês ou ano. Economias nos totais e anos aparecem como média mensal; tarifa e volume médio são calculados sobre as somas.</div>
@@ -254,16 +238,13 @@ iframe#arrecFrame{display:block;width:100%;height:4600px;border:0;background:#ee
       <div id="resumo"></div></div>
   </section>
 
-  <section class="page" id="graficos">
-    <div class="panel" style="margin-bottom:16px"><div class="filterbar" id="grafFilters" style="margin:0;border:0;padding:0"></div></div>
-    <div id="gridGraf"></div>
-  </section>
-
   <section class="page" id="rf">
     <div class="panel"><h2 id="rfTitle">Orçado RF</h2>
       <div class="hint">Orçado de todos os meses disponíveis na referência, inclusive os próximos meses; meses sem realizado aparecem destacados</div>
-      <div id="rfYears" class="filterstrip"></div>
-      <div class="chartbox small" style="margin-bottom:14px"><canvas id="rfChart"></canvas></div>
+      <div id="rfInds" class="filterstrip" style="padding-bottom:10px;margin-bottom:12px"></div>
+      <div id="rfYears" class="filterstrip" style="padding-top:0"></div>
+      <div class="kpis" id="rfKpis"></div>
+      <div class="chartbox" style="height:380px;margin-bottom:16px"><canvas id="rfChart"></canvas></div>
       <div id="rfTable" class="tablewrap"></div></div>
   </section>
 
@@ -440,7 +421,7 @@ function parseMonth(v) {
    ===================================================================== */
 const D = { com: null, arr: null, rf: {}, diag: {}, files: [] };
 const S = {
-  sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null,
+  sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
   hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['ind_agua_extra']) },
   cache: new Map()
 };
@@ -874,30 +855,82 @@ const RF_INDS = [['Faturamento Bruto', 'bruto', 0], ['Faturamento Direto', 'dire
   ['Faturamento Indireto', 'indireto', 0], ['Indiretas Água', 'iA', 0], ['Indiretas Esgoto', 'iE', 0], ['Cancelamentos', 'canc', 0],
   ['Faturamento Líquido', 'liq', 0], ['Cut-Off', 'cutoff', 0], ['Arrecadação', 'arrec', 0], ['Economias Água', 'ecoA', 0], ['Economias Esgoto', 'ecoE', 0],
   ['Volume Água (m³)', 'volA', 0], ['Volume Esgoto (m³)', 'volE', 0], ['Tarifa Média Água', 'tarA', 2], ['Tarifa Média Esgoto', 'tarE', 2]];
+const RF_UNIT = { tarA: 2, tarE: 2, ecoA: 0, ecoE: 0, volA: 0, volE: 0 };
+const fmtAxis = (v, max) => max >= 1e6 ? 'R$ ' + (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi' : max >= 1e3 ? 'R$ ' + (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil' : 'R$ ' + v;
+function rfPair(k, m) { return k === 'arrec' ? { a: arrecMonth(m), b: (budgetBase(m) || {}).arrec, get d() { return dev(this.a, this.b); } } : pair(k, [m]); }
+const futureShade = {                    // faixa destacada nos meses sem realizado (só orçado)
+  id: 'futureShade',
+  beforeDatasetsDraw(chart, args, o) {
+    const first = o.first; if (first == null || first < 0) return;
+    const { ctx, chartArea: ca, scales: { x } } = chart; const n = chart.data.labels.length; if (first >= n) return;
+    const step = (ca.right - ca.left) / n, x0 = ca.left + step * first;
+    ctx.save(); ctx.fillStyle = 'rgba(215,155,41,.10)'; ctx.fillRect(x0, ca.top, ca.right - x0, ca.bottom - ca.top);
+    ctx.strokeStyle = 'rgba(215,155,41,.55)'; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(x0, ca.top); ctx.lineTo(x0, ca.bottom); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#9a6a0a'; ctx.font = '600 11px "Segoe UI",Arial'; ctx.textAlign = 'left'; ctx.fillText('Próximos meses — somente orçado', x0 + 8, ca.top + 14); ctx.restore();
+  }
+};
 function renderRF() {
   const rf = D.rf[S.rf];
   $('#rfTitle').textContent = 'Orçado ' + (S.rf || 'RF') + (S.sup ? ' | ' + S.sup : '');
-  if (!rf) { $('#rfTable').innerHTML = emptyMsg('Nenhum painel de orçado (RF) foi encontrado na pasta.'); $('#rfYears').innerHTML = ''; return; }
+  if (!rf) { $('#rfTable').innerHTML = emptyMsg('Nenhum painel de orçado (RF) foi encontrado na pasta.'); $('#rfYears').innerHTML = ''; $('#rfInds').innerHTML = ''; $('#rfKpis').innerHTML = ''; if (charts.rfChart) { charts.rfChart.destroy(); delete charts.rfChart; } return; }
   $('#rfYears').innerHTML = yearPills('rfYear').replace('<span style="width:14px"></span>', '');
   bindYearPills('rfYear', renderRF);
   const meses = monthsForYear('rfYear').filter(m => rf.meses.includes(m) || has(pair('bruto', [m]).a));
   if (!meses.length) { $('#rfTable').innerHTML = emptyMsg(); return; }
-  const gl = meses.map(m => { const p = pair('liq', [m]); return p; });
-  const gb = meses.map(m => pair('bruto', [m]));
-  mkChart('rfChart', { type: 'bar', data: { labels: meses.map(mlabel), datasets: [
-    { label: 'Orçado — fat. líquido', data: gl.map(p => has(p.b) ? p.b / 1e6 : null), backgroundColor: '#b8c8d4' },
-    { label: 'Realizado — fat. líquido', data: gl.map(p => has(p.a) ? p.a / 1e6 : null), backgroundColor: '#176b9c' },
-    { type: 'line', label: 'Orçado — fat. bruto', data: gb.map(p => has(p.b) ? p.b / 1e6 : null), borderColor: '#d79b29', backgroundColor: '#d79b29', pointRadius: 2, spanGaps: true } ] },
-    options: { interaction: { mode: 'index', intersect: false }, scales: { y: { ticks: { callback: v => 'R$ ' + v + ' mi' }, grid: { color: '#e7eef4' } } }, plugins: { legend: { position: 'bottom' } } } });
+  // indicadores com algum valor no período
+  const disp = RF_INDS.filter(([, k]) => meses.some(m => { const p = rfPair(k, m); return has(p.a) || has(p.b); }));
+  if (!disp.some(x => x[1] === S.rfInd)) S.rfInd = (disp.find(x => x[1] === 'liq') || disp[0] || [0, 'liq'])[1];
+  $('#rfInds').innerHTML = disp.map(([n, k]) => `<button class="filterpill ${k === S.rfInd ? 'active' : ''}" data-rfind="${k}">${n}</button>`).join('');
+  $$('#rfInds [data-rfind]').forEach(b => b.onclick = () => { S.rfInd = b.dataset.rfind; renderRF(); });
+  const [indNome, k, dec] = RF_INDS.find(x => x[1] === S.rfInd) || RF_INDS[0];
+  const unit = RF_UNIT[k] !== undefined ? RF_UNIT[k] : null, money = unit === null || k === 'tarA' || k === 'tarE';
+  const ps = meses.map(m => rfPair(k, m));
+  const first = ps.findIndex(p => !has(p.a));                          // primeiro mês sem realizado
+  const fut = first >= 0 && ps.slice(first).every(p => !has(p.a)) ? first : -1;
+  // cartões-resumo
+  const sum = l => { let t = 0, any = false; l.forEach(v => { if (has(v)) { t += v; any = true; } }); return any ? t : null; };
+  const comReal = ps.filter(p => has(p.a)), futuros = ps.filter(p => !has(p.a));
+  const agg = k === 'ecoA' || k === 'ecoE' || k === 'tarA' || k === 'tarE';                // indicadores que não se somam
+  const f = v => !has(v) ? '—' : agg ? fmtN(v, dec) : (unit === null ? fmtM(v) : fmtN(v, 0));
+  const oPer = agg ? null : sum(ps.map(p => p.b)), oReal = agg ? null : sum(comReal.map(p => p.b)), rReal = agg ? null : sum(comReal.map(p => p.a)), oFut = agg ? null : sum(futuros.map(p => p.b));
+  const card = (l, v, sub, tone) => `<div class="card kpi ${tone || ''}"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${sub}</div></div>`;
+  $('#rfKpis').className = 'kpis';
+  $('#rfKpis').innerHTML = agg
+    ? card('Orçado — último mês', f(ps.filter(p => has(p.b)).pop() && ps.filter(p => has(p.b)).pop().b), indNome) + card('Realizado — último mês', f(comReal.length ? comReal[comReal.length - 1].a : null), comReal.length ? mlabel(meses[ps.lastIndexOf(comReal[comReal.length - 1])]) : 'sem realizado')
+      + card('Meses com realizado', String(comReal.length), 'de ' + meses.length + ' no período') + card('Meses só com orçado', String(futuros.filter(p => has(p.b)).length), 'próximos meses')
+    : card('Orçado no período', f(oPer), indNome + ' — ' + meses.length + ' meses')
+      + card('Realizado', f(rReal), comReal.length + ' meses com realizado')
+      + card('Atingimento', pct(oReal && has(rReal) ? rReal / oReal : NaN), 'sobre o orçado dos mesmos meses', has(rReal) && oReal && rReal >= oReal ? 'good' : has(rReal) && oReal ? 'bad' : '')
+      + card('Orçado dos próximos meses', f(oFut), futuros.filter(p => has(p.b)).length + ' meses sem realizado');
+  // gráfico
+  const scale = (money && unit === null) ? 1 : 1, vals = ps.flatMap(p => [p.a, p.b]).filter(has), vmax = Math.max(...vals.map(Math.abs), 1);
+  const fmtTick = v => unit === null ? fmtAxis(v, vmax) : fmtN(v, dec);
+  const fmtTip = v => !has(v) ? '—' : unit === null ? fmtBRL(v) : fmtN(v, dec);
+  const many = meses.length > 18;
+  mkChart('rfChart', {
+    data: { labels: meses.map(m => many ? MN[+m.slice(5) - 1] + '/' + m.slice(2, 4) : MN[+m.slice(5) - 1] + '/' + m.slice(0, 4)), datasets: [
+      { type: 'bar', label: 'Realizado', data: ps.map(p => has(p.a) ? p.a * scale : null), backgroundColor: '#176b9c', borderRadius: 4, maxBarThickness: 38, order: 2 },
+      { type: 'line', label: 'Orçado ' + (S.rf || ''), data: ps.map(p => has(p.b) ? p.b * scale : null), borderColor: '#d79b29', backgroundColor: '#fff', borderWidth: 2.5,
+        pointRadius: many ? 2 : 4, pointHoverRadius: 6, pointBorderWidth: 2, pointBorderColor: '#d79b29', tension: .25, spanGaps: true, order: 1 } ] },
+    plugins: [futureShade],
+    options: { interaction: { mode: 'index', intersect: false },
+      scales: { y: { beginAtZero: k !== 'tarA' && k !== 'tarE', grid: { color: '#e7eef4' }, ticks: { callback: fmtTick } },
+                x: { grid: { display: false }, ticks: { maxRotation: many ? 60 : 0, autoSkip: true, maxTicksLimit: many ? 24 : 12 } } },
+      plugins: { futureShade: { first: fut }, legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
+        title: { display: true, text: indNome + (S.sup ? ' — ' + S.sup : ''), align: 'start', color: '#102840', font: { size: 14, weight: '700' } },
+        tooltip: { backgroundColor: '#102840', padding: 10, callbacks: { label: c => c.dataset.label + ': ' + fmtTip(c.parsed.y),
+          footer: items => { const i = items[0].dataIndex, p = ps[i]; return has(p.a) && has(p.b) && p.b ? ['Desvio: ' + pct(p.a / p.b - 1) + '  ·  Atingimento: ' + pct(p.a / p.b)] : (has(p.a) ? [] : ['Mês sem realizado — somente orçado']); } } } } }
+  });
+  // tabela
   let h = '<table><thead><tr><th>Indicador</th><th></th>' + meses.map(m => `<th class="${has(pair('bruto', [m]).a) ? '' : 'fut'}">${mlabel(m)}</th>`).join('') + '</tr></thead><tbody>';
-  RF_INDS.forEach(([lab, k, d]) => {
-    const ps = meses.map(m => k === 'arrec' ? { a: arrecMonth(m), b: (budgetBase(m) || {}).arrec, get d() { return dev(this.a, this.b); } } : pair(k, [m]));
-    if (ps.every(p => !has(p.a) && !has(p.b))) return;
+  RF_INDS.forEach(([lab, kk, d]) => {
+    const pp = meses.map(m => rfPair(kk, m));
+    if (pp.every(p => !has(p.a) && !has(p.b))) return;
     h += `<tr class="sectionrow"><td colspan="${meses.length + 2}">${lab}</td></tr>`;
-    h += `<tr><td>Orçado</td><td></td>${ps.map((p, i) => `<td class="${has(p.a) ? '' : 'future'}">${d ? fmtN(p.b, d) : fmtBRL(p.b)}</td>`).join('')}</tr>`;
-    if (ps.some(p => has(p.a))) {
-      h += `<tr><td>Realizado</td><td></td>${ps.map(p => `<td>${has(p.a) ? (d ? fmtN(p.a, d) : fmtBRL(p.a)) : ''}</td>`).join('')}</tr>`;
-      h += `<tr><td>Desvio %</td><td></td>${ps.map(p => `<td>${has(p.a) && has(p.b) ? pillHtml(dev(p.a, p.b)) : ''}</td>`).join('')}</tr>`;
+    h += `<tr><td>Orçado</td><td></td>${pp.map(p => `<td class="${has(p.a) ? '' : 'future'}">${d ? fmtN(p.b, d) : fmtBRL(p.b)}</td>`).join('')}</tr>`;
+    if (pp.some(p => has(p.a))) {
+      h += `<tr><td>Realizado</td><td></td>${pp.map(p => `<td>${has(p.a) ? (d ? fmtN(p.a, d) : fmtBRL(p.a)) : ''}</td>`).join('')}</tr>`;
+      h += `<tr><td>Desvio %</td><td></td>${pp.map(p => `<td>${has(p.a) && has(p.b) ? pillHtml(dev(p.a, p.b)) : ''}</td>`).join('')}</tr>`;
     }
   });
   $('#rfTable').innerHTML = h + '</tbody></table>';
@@ -941,20 +974,6 @@ const HLINES = [
 ];
 const GRUPOS_TOGGLE = { diretas: 'DIRETAS TOTAIS', ind_agua: 'INDIRETA ÁGUA', ind_esgoto: 'INDIRETA ESGOTO' };
 const GRUPO_COMBO = { 'INDIRETAS TOTAIS': ['ind_agua', 'ind_esgoto', 'indiretas_sub'], 'FATURAMENTO BRUTO': ['bruto'] };
-const GRAFICOS = [
-  ['DIRETAS TOTAIS', [['Diretas Água', 'dA'], ['Diretas Esgoto', 'dE']], 'moeda'],
-  ['INDIRETA ÁGUA', [['Corte de Água', 'F_Corte de Água'], ['Religações', 'F_Religações'], ['Ligações de Água', 'F_Ligações de Água'], ['Sanções', 'F_Sanções'], ['Outros Água', 'F_Outros Água']], 'moeda'],
-  ['INDIRETA ESGOTO', [['Ligações de Esgoto', 'E_Ligações de Esgoto'], ['Outros Esgoto', 'E_Outros Esgoto']], 'moeda'],
-  ['FAT. ECONOMIAS ÁGUA E ESGOTO', [['Fat. Economias Água', 'ecoA'], ['Fat. Economias Esgoto', 'ecoE']], 'num'],
-  ['VOL. FAT. ÁGUA E ESGOTO', [['Vol. Fat. Água', 'volA'], ['Vol. Fat. Esgoto', 'volE']], 'num'],
-  ['VOLUME MEDIDO DE ÁGUA', [['Volume Medido de Água', 'volM']], 'num'],
-  ['TARIFA MÉDIA DE ÁGUA E ESGOTO', [['Tarifa Média de Água', 'tarA'], ['Tarifa Média de Esgoto', 'tarE']], 'moeda4'],
-  ['CANCELAMENTO', [['Cancelamento', 'canc']], 'moeda'],
-  ['FATURAMENTO LÍQUIDO C/ REAJUSTE', [['Faturamento Líquido c/ Reajuste', 'liq']], 'moeda'],
-  ['ARRECADAÇÃO REAL', [['Arrecadação Real (R$)', 'arrecReal']], 'moeda'],
-  ['CLIENTES PAGANTES E CONTAS PAGAS', [['Clientes Pagantes', 'cli'], ['Contas Pagas', 'contas']], 'num'],
-  ['TICKET MÉDIO (R$/cliente)', [['Ticket Médio', 'ticket']], 'moeda2']
-];
 function fmtH(v, tipo) {
   if (v === undefined || v === null || Number.isNaN(v)) return '-';
   if (tipo === 'moeda' || tipo === 'moeda2') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1056,7 +1075,7 @@ function grupoVisivel(g) { if (g === null) return true; return !g.split('|').som
 const comboOculto = l => l.every(g => S.hist.ocultos.has(g));
 function renderHistorico() {
   histInit();
-  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, () => { renderHistorico(); if (S.tab === 'graficos') renderGraficos(); });
+  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, renderHistorico);
   const head = $('#headerRow'), corpo = $('#corpoTabela');
   if (!D.com) { head.innerHTML = '<th>Item</th>'; corpo.innerHTML = `<tr><td colspan="2">${emptyMsg()}</td></tr>`; $('#resumo').textContent = ''; return; }
   const { cols, all } = histCols();
@@ -1081,29 +1100,6 @@ function renderHistorico() {
   const nC = (S.hist.cidades || histCidades()).length;
   $('#resumo').textContent = `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'} | Colunas: ${cols.length} | Visão Auditoria: ${S.aud ? 'Ativada (' + Array.from(S.audSel).join(' / ') + ')' : 'Desativada'}`;
 }
-const CORES = ['#176b9c', '#16a5b8', '#1f8a70', '#d79b29', '#6f7f8e'];
-function renderGraficos() {
-  histInit();
-  const fh = $('#grafFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, () => { renderGraficos(); renderHistorico(); });
-  const grid = $('#gridGraf'); Object.keys(charts).filter(k => k.startsWith('g_')).forEach(k => { charts[k].destroy(); delete charts[k]; });
-  grid.innerHTML = ''; if (!D.com) { grid.innerHTML = emptyMsg(); return; }
-  const { cols } = histCols(); const accs = cols.map(c => histAcc(c.months));
-  GRAFICOS.forEach(([titulo, series, tipo], idx) => {
-    const card = document.createElement('div'); card.className = 'card gcard';
-    card.innerHTML = `<h3>${titulo}</h3><canvas id="g_${idx}"></canvas>`; grid.appendChild(card);
-    const ds = [];
-    series.forEach(([n, k], i) => {
-      const vals = accs.map(a => histVal(a, k)); const cor = n.toLowerCase().includes('esgoto') ? '#d79b29' : CORES[i % CORES.length];
-      ds.push({ label: n, data: vals, borderColor: cor, backgroundColor: cor, tension: .25, pointRadius: 2 });
-      const med = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 0;
-      ds.push({ label: 'Média ' + n, data: vals.map(() => med), borderColor: '#9fb0bf', borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0 });
-    });
-    mkChart('g_' + idx, { type: 'line', data: { labels: cols.map(c => c.label), datasets: ds },
-      options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtH(c.parsed.y, tipo) } } },
-        scales: { x: { ticks: { font: { size: 10 } }, grid: { display: false } }, y: { ticks: { display: false }, grid: { display: false } } } } });
-  });
-}
-
 /* =====================================================================
    ABA: Dados (diagnóstico)
    ===================================================================== */
@@ -1208,12 +1204,10 @@ function renderAll() {
   const t = S.tab;
   if (t === 'dre') renderDRE(); else if (t === 'dremensal') renderMonthly(); else if (t === 'receita') renderReceita();
   else if (t === 'drivers') renderDrivers(); else if (t === 'caixa') renderCaixa(); else if (t === 'historico') renderHistorico();
-  else if (t === 'graficos') renderGraficos(); else if (t === 'rf') renderRF(); else if (t === 'dados') renderDados();
-  else if (t === 'arrecadacao') loadArrecFrame();
+  else if (t === 'rf') renderRF(); else if (t === 'dados') renderDados();
   $('#escopo').textContent = S.sup ? `Superintendência ${S.sup}${S.rf ? ' | ' + S.rf : ''}${S.aud ? ' | Visão Auditoria: ' + Array.from(S.audSel).join(' + ') : ''}` : '';
 }
 function fullRender() { buildHeader(); renderAll(); }
-function loadArrecFrame() { const f = $('#arrecFrame'); if (!f.getAttribute('src')) f.setAttribute('src', f.dataset.src); }
 
 $$('.tab').forEach(b => b.onclick = () => {
   $$('.tab,.page').forEach(x => x.classList.remove('active')); b.classList.add('active');
