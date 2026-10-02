@@ -36,6 +36,20 @@ input:checked+.slider{background:var(--cyan)}
 input:checked+.slider:before{transform:translateX(20px)}
 .fonteStatus{margin-top:10px;font-size:11.5px;color:#bfe0eb}
 .fonteStatus b{color:#fff}
+.progWrap{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:12px;color:#d5e7ef}
+.progWrap[hidden]{display:none}
+.prog{flex:0 1 380px;width:380px;max-width:60vw;height:12px;background:rgba(255,255,255,.18);border-radius:8px;overflow:hidden}
+.progBar{height:100%;width:0;background:linear-gradient(90deg,#16a5b8,#7ee0bc);border-radius:8px;transition:width .25s ease}
+.progWrap.erro .progBar{background:#e06a6a}
+.progWrap.ok .progBar{background:#7ee0bc}
+#progPct{color:#fff;min-width:42px}
+.logBox{margin-top:8px;font-size:12px}
+.logBox summary{cursor:pointer;color:#bfe0eb;font-weight:700;user-select:none;padding:2px 0}
+.logBox summary:hover{color:#fff}
+.logBox.erro summary{color:#ffb3b3}
+.logTools{margin:6px 0}
+.logTools button{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer}
+#logPre{margin:0;background:rgba(0,0,0,.28);color:#e6f2f8;border-radius:8px;padding:10px 12px;max-height:280px;overflow:auto;font:11.5px/1.5 Consolas,"Courier New",monospace;white-space:pre-wrap;word-break:break-word}
 
 /* Dropdown */
 .dropdown{position:relative;display:inline-block}
@@ -179,6 +193,9 @@ table.hist tr.total td.col-total{background:#dcebf4}
     </div>
   </div>
   <div class="fonteStatus" id="fonteStatus">Nenhuma pasta conectada.</div>
+  <div class="progWrap" id="progWrap" hidden><div class="prog"><div class="progBar" id="progBar"></div></div><b id="progPct">0%</b><span id="progLabel"></span></div>
+  <details class="logBox" id="logBox"><summary>Detalhes da leitura</summary>
+    <div class="logTools"><button id="btnCopyLog" type="button">Copiar detalhes</button></div><pre id="logPre">Nenhuma leitura realizada ainda.</pre></details>
 </header>
 
 <nav class="nav" id="nav">
@@ -280,7 +297,48 @@ const CONFIG = {
   }
 };
 
-const VERSAO = 'v2026.10.02-d (leitura em blocos)';
+const VERSAO = 'v2026.10.02-e (leitura em blocos + progresso)';
+/* ---------- progresso e detalhes (log) ---------- */
+const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
+function log(msg, nivel) {
+  const t = new Date().toLocaleTimeString('pt-BR');
+  LOG.push('[' + t + '] ' + (nivel === 'erro' ? 'ERRO  ' : nivel === 'aviso' ? 'AVISO ' : '') + msg); if (LOG.length > 800) LOG.shift();
+  const pre = document.getElementById('logPre'); if (pre) { pre.textContent = LOG.join('\n'); pre.scrollTop = pre.scrollHeight; }
+}
+function etapa(txt, arquivo) { CTX.etapa = txt; if (arquivo !== undefined) CTX.arquivo = arquivo; log((CTX.arquivo ? CTX.arquivo + ' › ' : '') + txt); }
+const PG = { total: 0, base: 0, tam: 0 };
+function setProg(pct, label, estado) {
+  const w = document.getElementById('progWrap'); if (!w) return; w.hidden = false;
+  pct = Math.max(0, Math.min(100, pct)); w.classList.toggle('erro', estado === 'erro'); w.classList.toggle('ok', estado === 'ok');
+  document.getElementById('progBar').style.width = pct + '%'; document.getElementById('progPct').textContent = Math.round(pct) + '%';
+  if (label !== undefined) document.getElementById('progLabel').textContent = label;
+}
+function progArquivo(pctArquivo, linhas) {                       // pctArquivo: 0–100 do arquivo atual (bytes compactados lidos)
+  if (!PG.total) return; const feito = PG.base + PG.tam * (Math.min(100, pctArquivo || 0) / 100);
+  setProg(feito / PG.total * 94, (CTX.arquivo ? CTX.arquivo : '') + (linhas ? ' — ' + linhas.toLocaleString('pt-BR') + ' linhas' : ''));
+}
+function dicaErro(msg) {
+  if (/Invalid string length/i.test(msg)) return 'Texto grande demais para o navegador. Veja em qual etapa ocorreu: se for "Lendo textos compartilhados" o sharedStrings é enorme; se for "Descompactando planilha", confira se a versão exibida no topo é a mais recente (leitura em blocos).';
+  if (/Array buffer allocation failed|out of memory|Invalid array length/i.test(msg)) return 'Memória do navegador insuficiente. Feche outras abas e tente de novo; em último caso reduza o arquivo.';
+  if (/colunas ausentes/i.test(msg)) return 'O arquivo não tem as colunas esperadas no cabeçalho — confira o nome das colunas.';
+  if (/zip|central directory|corrupt/i.test(msg)) return 'O arquivo parece corrompido ou não é um .xlsx válido (ou ainda está sendo sincronizado pelo OneDrive).';
+  return '';
+}
+function logErro(e) {
+  const msg = (e && e.message) || String(e);
+  log('────────── DETALHE DO ERRO ──────────', 'erro');
+  log('Etapa: ' + (CTX.etapa || '—'), 'erro'); log('Arquivo: ' + (CTX.arquivo || '—'), 'erro');
+  if (CTX.linha) log('Última linha da planilha processada: ' + CTX.linha.toLocaleString('pt-BR'), 'erro');
+  log('Tipo: ' + ((e && e.name) || 'Error') + ' | Mensagem: ' + msg, 'erro');
+  const dica = dicaErro(msg); if (dica) log('Dica: ' + dica, 'aviso');
+  if (e && e.stack) { log('Pilha (onde no código):', 'erro'); String(e.stack).split('\n').slice(0, 9).forEach(l => log('   ' + l.trim().replace(/file:\/\/\S*\//, ''), 'erro')); }
+  log('Versão: ' + VERSAO, 'erro');
+  const box = document.getElementById('logBox'); if (box) { box.open = true; box.classList.add('erro'); }
+  setProg(parseFloat(document.getElementById('progBar').style.width) || 0, 'Erro em: ' + (CTX.etapa || '—'), 'erro');
+}
+window.addEventListener('error', ev => { log('Erro não tratado: ' + ev.message + (ev.filename ? ' (' + ev.filename.split('/').pop() + ':' + ev.lineno + ')' : ''), 'erro'); });
+window.addEventListener('unhandledrejection', ev => { log('Promessa rejeitada: ' + ((ev.reason && ev.reason.message) || ev.reason), 'erro'); });
+
 const MN = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
@@ -316,10 +374,12 @@ function decodeEnt(s) {
 function colIdx(letters) { let n = 0; for (let i = 0; i < letters.length; i++) n = n * 26 + letters.charCodeAt(i) - 64; return n - 1; }
 
 async function readXlsx(file, onRow, opts = {}) {
+  etapa('Abrindo o arquivo compactado (zip) — ' + (file.size / 1048576).toFixed(1) + ' MB', file.name); CTX.linha = 0;
   const zip = await JSZip.loadAsync(file);
   let shared = [];
   const sst = zip.file('xl/sharedStrings.xml');
   if (sst) {
+    etapa('Lendo textos compartilhados (sharedStrings)');
     const x = await sst.async('string');
     const re = /<si>([\s\S]*?)<\/si>|<si\/>/g; let m;
     while ((m = re.exec(x))) {
@@ -338,10 +398,11 @@ async function readXlsx(file, onRow, opts = {}) {
     if (!names.length) throw new Error('Planilha não encontrada em ' + file.name);
     sheetName = names[0];
   }
+  etapa('Descompactando a planilha em blocos e lendo as linhas');
   // A planilha é descompactada e processada em blocos: o XML completo nunca fica em memória
   // (arquivos grandes passam do limite de texto do navegador — "Invalid string length").
   const cellRe = /<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
-  let count = 0, stopped = false;
+  let count = 0, stopped = false, lastPct = 0;
   const parseRow = body => {
     if (body.indexOf('<v>') < 0 && body.indexOf('<is>') < 0) return true;     // linha só com formatação
     const row = []; cellRe.lastIndex = 0; let m;
@@ -354,9 +415,9 @@ async function readXlsx(file, onRow, opts = {}) {
         else if (t === 'b') v = raw === '1'; else { v = Number(raw); if (Number.isNaN(v)) v = raw; } }
       row[colIdx(m[1])] = v;
     }
-    count++;
+    count++; CTX.linha = count;
     if (onRow(row, count) === false) { stopped = true; return false; }
-    if (opts.progress && count % 15000 === 0) opts.progress(count);
+    if (count % 15000 === 0) { progArquivo(lastPct, count); if (opts.progress) opts.progress(count); }
     return true;
   };
   // consome as linhas completas de buf; devolve o resto (linha ainda incompleta)
@@ -381,14 +442,14 @@ async function readXlsx(file, onRow, opts = {}) {
       if (last) txt += dec.decode();
       rest = drain(txt);
     };
-    helper.on('data', chunk => {
-      if (stopped) return;
+    helper.on('data', (chunk, meta) => {
+      if (stopped) return; if (meta && typeof meta.percent === 'number') lastPct = meta.percent;
       parts.push(chunk); size += chunk.length;
       if (size >= (1 << 22)) { try { flush(false); } catch (e) { stopped = true; helper.pause(); reject(e); } }
       if (stopped) { helper.pause(); resolve(); }
     });
     helper.on('error', reject);
-    helper.on('end', () => { try { if (!stopped) flush(true); resolve(); } catch (e) { reject(e); } });
+    helper.on('end', () => { try { if (!stopped) flush(true); progArquivo(100, count); resolve(); } catch (e) { reject(e); } });
     helper.resume();
   });
   return count;
@@ -445,7 +506,7 @@ async function ingestComercial(file) {
   const msg = $('#fonteStatus');
   await readXlsx(file, (r, n) => {
     if (!col) {
-      col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
+      etapa('Validando as colunas do cabeçalho (Comercial)'); col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
       const falta = COM_REQ.filter(c => !(c in col));
       if (falta.length) throw new Error('Comercial: colunas ausentes -> ' + falta.join(', '));
       return true;
@@ -480,6 +541,7 @@ async function ingestComercial(file) {
     return true;
   }, { progress: c => { msg.innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Comercial: arquivo sem dados');
+  etapa('Montando índices por mês, cidade, curva e situação');
   const entries = Array.from(map.values());
   const byYm = new Map(), sups = new Set(), curvas = new Set(), sits = new Set();
   entries.forEach(e => {
@@ -518,6 +580,7 @@ async function ingestArrec(file) {
     return true;
   }, { progress: c => { $('#fonteStatus').innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Arrecadação: arquivo sem dados');
+  etapa('Montando índices da Arrecadação');
   const byCid = new Map(), byYm = new Map();
   Array.from(map.values()).forEach(e => {
     if (!byCid.has(e.cid)) byCid.set(e.cid, new Map()); byCid.get(e.cid).set(e.ym, e);
@@ -1202,7 +1265,7 @@ const rfOrd = l => { const m = /RF(\d)T(\d\d)/.exec(l); return m ? (+m[2]) * 10 
 
 function renderAll() {
   S.cache.clear();
-  const t = S.tab;
+  const t = S.tab; CTX.etapa = 'Renderizando a aba "' + t + '"';
   if (t === 'dre') renderDRE(); else if (t === 'dremensal') renderMonthly(); else if (t === 'receita') renderReceita();
   else if (t === 'drivers') renderDrivers(); else if (t === 'caixa') renderCaixa(); else if (t === 'historico') renderHistorico();
   else if (t === 'rf') renderRF(); else if (t === 'dados') renderDados();
@@ -1251,6 +1314,7 @@ async function reloadFolder() {
   } catch (e) { setStatus('Erro ao atualizar: ' + e.message, true); }
 }
 function setStatus(t, err) { $('#fonteStatus').innerHTML = err ? '<span class="tag bad">Erro</span> ' + esc(t) + ' <span style="opacity:.7">[' + VERSAO + ']</span>' : t; }
+$('#btnCopyLog').onclick = async () => { try { await navigator.clipboard.writeText(LOG.join('\n')); $('#btnCopyLog').textContent = 'Copiado ✔'; } catch (e) { const r = document.createRange(); r.selectNodeContents($('#logPre')); getSelection().removeAllRanges(); getSelection().addRange(r); $('#btnCopyLog').textContent = 'Selecionado — use Ctrl+C'; } setTimeout(() => $('#btnCopyLog').textContent = 'Copiar detalhes', 2500); };
 $('#btnPasta').onclick = pickFolder;
 $('#btnReload').onclick = reloadFolder;
 $('#fileFallback').onchange = async e => { const fs = Array.from(e.target.files).filter(f => /\.xlsx$/i.test(f.name) && !f.name.startsWith('~$')); await loadFiles(fs); e.target.value = ''; };
@@ -1264,21 +1328,38 @@ async function classify(file) {
 }
 async function loadFiles(files) {
   if (!files.length) return setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true);
+  LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
+  log('Versão ' + VERSAO + ' — ' + files.length + ' arquivo(s) .xlsx na pasta');
+  files.forEach(f => log('  • ' + f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)'));
+  setProg(0, 'Identificando os arquivos…');
   try {
     D.com = null; D.arr = null; D.rf = {}; D.diag = {}; D.files = []; S.cache.clear();
     const grupos = { com: [], arr: [], rf: [] }, ignorados = [];
-    for (const f of files) { setStatus('Identificando <b>' + esc(f.name) + '</b>…'); await tick(); const t = await classify(f); t ? grupos[t].push(f) : ignorados.push(f.name); }
+    for (const f of files) { setStatus('Identificando <b>' + esc(f.name) + '</b>…'); etapa('Identificando o tipo do arquivo', f.name); await tick(); const t = await classify(f); log('  → ' + (t === 'com' ? 'Comercial' : t === 'arr' ? 'Arrecadação' : t === 'rf' ? 'Orçado (RF)' : 'não reconhecido (ignorado)')); t ? grupos[t].push(f) : ignorados.push(f.name); }
     const latest = l => l.sort((a, b) => b.lastModified - a.lastModified)[0];
-    for (const f of grupos.rf) { setStatus('Lendo <b>' + esc(f.name) + '</b>…'); await tick(); await ingestPainel(f); D.files.push({ name: f.name, tipo: 'Orçado ' + rfLabel(f.name), detalhe: D.rf[rfLabel(f.name)].meses.length + ' meses com valor' }); }
-    if (grupos.com.length) { const f = latest(grupos.com); await ingestComercial(f); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
-    if (grupos.arr.length) { const f = latest(grupos.arr); await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
+    const fila = [];                                                   // ordem: painéis RF, Comercial, Arrecadação
+    grupos.rf.forEach(f => fila.push(['rf', f])); if (grupos.com.length) fila.push(['com', latest(grupos.com)]); if (grupos.arr.length) fila.push(['arr', latest(grupos.arr)]);
+    PG.total = fila.reduce((t, x) => t + x[1].size, 0) || 1; PG.base = 0;
+    for (const [tipo, f] of fila) {
+      PG.tam = f.size; CTX.arquivo = f.name; CTX.linha = 0; setStatus('Lendo <b>' + esc(f.name) + '</b>…'); progArquivo(0, 0); await tick();
+      if (tipo === 'rf') { await ingestPainel(f); D.files.push({ name: f.name, tipo: 'Orçado ' + rfLabel(f.name), detalhe: D.rf[rfLabel(f.name)].meses.length + ' meses com valor' }); }
+      else if (tipo === 'com') { await ingestComercial(f); D.files.push({ name: f.name, tipo: 'Comercial', detalhe: `${D.diag.com.usadas.toLocaleString('pt-BR')} linhas aproveitadas` + (grupos.com.length > 1 ? ' — usado o mais recente de ' + grupos.com.length : '') }); }
+      else { await ingestArrec(f); D.files.push({ name: f.name, tipo: 'Arrecadação', detalhe: `${D.diag.arr.usadas.toLocaleString('pt-BR')} linhas aproveitadas` }); }
+      PG.base += f.size; log('  ✔ concluído: ' + f.name + (tipo === 'com' ? ' — ' + D.diag.com.usadas.toLocaleString('pt-BR') + ' linhas aproveitadas de ' + D.diag.com.linhas.toLocaleString('pt-BR') : tipo === 'arr' ? ' — ' + D.diag.arr.usadas.toLocaleString('pt-BR') + ' linhas' : ''));
+    }
     ignorados.forEach(n => D.files.push({ name: n, tipo: 'não reconhecido', detalhe: 'ignorado' }));
     S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;
+    CTX.arquivo = ''; CTX.linha = 0; setProg(96, 'Montando as telas…'); etapa('Montando as telas'); await tick();
     fullRender();
     const partes = [];
     if (D.com) partes.push('Comercial'); if (D.arr) partes.push('Arrecadação'); const rfs = Object.keys(D.rf); if (rfs.length) partes.push('Orçado ' + rfs.join(', '));
+    setProg(100, 'Concluído', 'ok'); log('Leitura concluída com sucesso.');
     setStatus('Carregado: <b>' + (partes.join(' • ') || 'nada reconhecido') + '</b> — ' + new Date().toLocaleTimeString('pt-BR') + '. Veja a aba <b>Dados</b> para conferências.');
-  } catch (e) { console.error(e); setStatus(e.message, true); }
+  } catch (e) {
+    console.error(e); logErro(e);
+    try { D.com = null; D.arr = null; fullRender(); } catch (e2) { log('Falha ao limpar as telas: ' + e2.message, 'erro'); }   // não deixa dados da leitura anterior na tela
+    setStatus(e.message, true);
+  }
 }
 
 /* ---------- inicialização ---------- */
