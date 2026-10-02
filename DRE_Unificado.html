@@ -17,6 +17,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",Ar
 .eyebrow{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:#9fe1e7;font-weight:700}
 .top h1{margin:5px 0 3px;font-size:26px;color:#fff}
 .sub{color:#d5e7ef}
+.verBadge{text-transform:none;display:inline-block;margin-left:8px;padding:1px 9px;border-radius:99px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:10.5px;letter-spacing:.6px;font-weight:800;vertical-align:1px}
 .scopeLine{font-size:11px;font-weight:700;color:#bfe0eb;margin-top:5px}
 .toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
 .toolbar select,.toolbar .btn{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;text-decoration:none;display:inline-block}
@@ -172,7 +173,7 @@ table.hist tr.total td.col-total{background:#dcebf4}
 <header class="top">
   <div class="toprow">
     <div>
-      <div class="eyebrow">Águas do Rio • Book Executivo</div>
+      <div class="eyebrow">Águas do Rio • Book Executivo <span class="verBadge" id="verBadge">v1</span></div>
       <h1 id="titulo">DRE Comercial e Receita</h1>
       <div class="sub" id="subtitulo">Conecte a pasta com os arquivos para carregar os dados</div>
       <div class="scopeLine" id="escopo"></div>
@@ -298,7 +299,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO = 'v2026.10.02-g (mês opcional no Comercial)';
+const VERSAO_BOOK = 'v1';                                    // número exibido no topo — aumentar a cada alteração (v2, v3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.10.02-h';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1423,6 +1425,7 @@ async function loadFilesOnce(files) {
 /* ---------- inicialização ---------- */
 (async function init() {
   restore(); fullRender();
+  $('#verBadge').textContent = VERSAO_BOOK; document.title = 'Book Executivo DRE ' + VERSAO_BOOK + ' | Águas do Rio';
   $('#mesManual').value = S.mesManual || ''; if (S.mesManual) $('#mesManualBox').style.display = '';
   $('#fonteStatus').innerHTML = 'Nenhuma pasta conectada. <span style="opacity:.7">[' + VERSAO + ']</span>';
   if (window.showDirectoryPicker) {

@@ -29,3 +29,10 @@ Identificados pelo nome ou, se o nome não ajudar, pelas colunas do cabeçalho. 
 A aba **Orçado RF** mostra o orçado de todos os meses da referência (inclusive os próximos), com seletor de indicador, cartões-resumo e gráfico de realizado × orçado.
 
 A aba **Dados** mostra o que foi lido, um resumo por mês dos valores identificados em cada arquivo, o que foi descartado, a soma por `DSC_CLASSE` e conferências (ex.: líquido da coluna vs. bruto + cancelamento) para validar a leitura.
+
+## Versões
+O número da versão aparece no topo da página, ao lado de "Book Executivo". Ele sobe a cada alteração (`VERSAO_BOOK` no script de `DRE_Unificado.html`) e também aparece nas mensagens de erro e no log.
+
+| Versão | O que mudou |
+|---|---|
+| v1 | DRE unificado (Comercial + Faturamento) com leitura de Excel por pasta, leitura em blocos para arquivos grandes, superintendência por cidade (LAGOS/LESTE), Visão Auditoria, Orçado RF, resumo por mês na aba Dados, barra de progresso e detalhes da leitura, mês opcional no Comercial. |
