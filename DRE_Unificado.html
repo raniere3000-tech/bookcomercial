@@ -181,6 +181,7 @@ table.hist tr.total td.col-total{background:#dcebf4}
       <div class="fgroup"><span class="flabel">Superintendência</span><span id="supBtns"></span></div>
       <div class="fgroup"><span class="flabel">Referência</span><span id="rfBtns"></span></div>
       <div class="fgroup"><span class="flabel">Mês</span><select id="monthFilter"></select></div>
+      <div class="fgroup" id="mesManualBox" style="display:none"><span class="flabel">Mês do Comercial</span><input type="month" id="mesManual" style="border:0;background:transparent;color:#fff;padding:7px 8px;font-size:13px;color-scheme:dark"></div>
       <div class="fgroup" id="audBox">
         <span class="flabel">Visão Auditoria</span>
         <label class="switch"><input type="checkbox" id="chkAud"><span class="slider"></span></label>
@@ -297,7 +298,7 @@ const CONFIG = {
   }
 };
 
-const VERSAO = 'v2026.10.02-f (resumo por mês na aba Dados)';
+const VERSAO = 'v2026.10.02-g (mês opcional no Comercial)';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -320,6 +321,7 @@ function progArquivo(pctArquivo, linhas) {                       // pctArquivo: 
 function dicaErro(msg) {
   if (/Invalid string length/i.test(msg)) return 'Texto grande demais para o navegador. Veja em qual etapa ocorreu: se for "Lendo textos compartilhados" o sharedStrings é enorme; se for "Descompactando planilha", confira se a versão exibida no topo é a mais recente (leitura em blocos).';
   if (/Array buffer allocation failed|out of memory|Invalid array length/i.test(msg)) return 'Memória do navegador insuficiente. Feche outras abas e tente de novo; em último caso reduza o arquivo.';
+  if (/coluna de mês/i.test(msg)) return 'Falta a coluna com o mês (Referência ou AnoMês). Reinclua a coluna na consulta do Excel ou informe o mês no campo "Mês do Comercial" (aparece no cabeçalho).';
   if (/colunas ausentes/i.test(msg)) return 'O arquivo não tem as colunas esperadas no cabeçalho — confira o nome das colunas.';
   if (/zip|central directory|corrupt/i.test(msg)) return 'O arquivo parece corrompido ou não é um .xlsx válido (ou ainda está sendo sincronizado pelo OneDrive).';
   return '';
@@ -483,7 +485,7 @@ function parseMonth(v) {
    ===================================================================== */
 const D = { com: null, arr: null, rf: {}, diag: {}, files: [] };
 const S = {
-  sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
+  mesManual: '', sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
   hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['ind_agua_extra']) },
   cache: new Map()
 };
@@ -491,7 +493,8 @@ const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM
 const supsOf = cid => CIDADE_SUPS.get(norm(cid)) || ['SEM SUP'];
 
 /* ---------- Comercial ---------- */
-const COM_REQ = ['cidade', 'dsc_classe', 'referencia', 'baseinativacao_situacao_final', 'isgrandtotalrowtotal',
+const MES_COLS = ['referencia', 'anomes', 'ano_mes', 'mes_ano', 'competencia', 'data_referencia', 'mes', 'data'];   // nomes aceitos para a coluna de mês
+const COM_REQ = ['cidade', 'dsc_classe', 'baseinativacao_situacao_final', 'isgrandtotalrowtotal',
   'faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto', 'faturamento_bruto_indireta_agua', 'faturamento_bruto_indireta_esgoto',
   'qtd_eco_fat_agua', 'qtd_eco_fat_esgoto', 'vol_faturado_agua_direto_m', 'vol_faturado_esgoto_direto_m', 'volume_medido_de_agua_m',
   'r_cancelamento_total', 'r_faturamento_total_liquido'];
@@ -501,14 +504,19 @@ const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto'
 
 async function ingestComercial(file) {
   const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
-  let col = null; const map = new Map();
+  let col = null, mesCol = null; const map = new Map();
   const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(), cidadesSemSup: new Set(), cidadesVistas: new Set(), linhasMes: new Map(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, somaIndTotCol: 0 };
   const msg = $('#fonteStatus');
   await readXlsx(file, (r, n) => {
     if (!col) {
       etapa('Validando as colunas do cabeçalho (Comercial)'); col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
+      log('  colunas encontradas: ' + r.filter(h => h != null).join(' | '));
       const falta = COM_REQ.filter(c => !(c in col));
       if (falta.length) throw new Error('Comercial: colunas ausentes -> ' + falta.join(', '));
+      mesCol = MES_COLS.find(c => c in col) || null;
+      if (mesCol) log('  coluna de mês usada: ' + r[col[mesCol]]);
+      else if (S.mesManual) { diag.mesManual = S.mesManual; log('  sem coluna de mês no arquivo — usando o mês informado manualmente: ' + S.mesManual, 'aviso'); }
+      else { const er = new Error('Comercial: o arquivo não tem coluna de mês (Referência / AnoMês). Inclua a coluna no Excel ou informe o mês no campo "Mês do Comercial" no cabeçalho.'); er.codigo = 'SEM_MES'; throw er; }
       return true;
     }
     diag.linhas++;
@@ -519,7 +527,7 @@ async function ingestComercial(file) {
     if (truthy(g('isgrandtotalrowtotal'))) { diag.descTotal++; return true; }
     if (dZ.has(cls)) { diag.descClasse0++; return true; }
     const cid = norm(g('cidade')); if (!cid || cid === '0') { diag.descCidade++; return true; }
-    const ym = parseMonth(g('referencia')); if (!ym) { diag.descMes++; return true; }
+    const ym = mesCol ? parseMonth(g(mesCol)) : S.mesManual; if (!ym) { diag.descMes++; return true; }
     diag.usadas++; diag.meses.add(ym); diag.cidadesVistas.add(cid); diag.linhasMes.set(ym, (diag.linhasMes.get(ym) || 0) + 1);
     const sups = supsOf(cid); if (sups[0] === 'SEM SUP') diag.cidadesSemSup.add(cid);
     let cur = String(g('macrocluster_curva_cliente') == null ? '-' : g('macrocluster_curva_cliente')).trim(); if (cur === '0' || cur === '') cur = '-';
@@ -1233,6 +1241,7 @@ function renderDados() {
       <tr><td>Descartadas — totais (IsGrandTotalRowTotal)</td><td>${dc.descTotal.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Descartadas — DSC_CLASSE = 0</td><td>${dc.descClasse0.toLocaleString('pt-BR')}</td></tr>
       <tr><td>Descartadas — cidade vazia/0 · mês inválido</td><td>${dc.descCidade.toLocaleString('pt-BR')} · ${dc.descMes.toLocaleString('pt-BR')}</td></tr>
+      ${dc.mesManual ? `<tr><td>Mês do arquivo</td><td><span class="tag warn">informado manualmente</span> ${mlabel(dc.mesManual)} — o arquivo não tem coluna de mês</td></tr>` : ''}
       <tr><td>Meses na base · meses com faturamento</td><td>${meses.length ? mlabel(meses[0]) + ' a ' + mlabel(meses[meses.length - 1]) : '—'} · ${real.length ? real.length + ' (' + mlabel(real[0]) + ' a ' + mlabel(real[real.length - 1]) + ')' : '<span class="tag bad">nenhum mês com valores</span>'}</td></tr>
       <tr><td>Superintendências · cidades no arquivo</td><td>${Array.from(D.com.sups).join(', ')} · ${dc.cidadesVistas.size}</td></tr>
       <tr><td>Coluna Sup do arquivo</td><td>${dc.colunaSupIgnorada ? 'presente — <b>ignorada</b>' : 'ausente'}; a superintendência vem da relação cidade × SUP FINAL (<code>CONFIG.supCidades</code>)</td></tr>
@@ -1277,8 +1286,8 @@ function renderDados() {
 function emptyMsg(t) {
   return `<div class="empty">${t || '<b>Sem dados para o período.</b><br>Conecte a pasta com os arquivos (Comercial, Arrecadação e painéis RF) usando o botão <b>📁 Conectar pasta</b>.'}</div>`;
 }
-function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel) })); } catch (e) {} }
-function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); } catch (e) {} }
+function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel), mesManual: S.mesManual })); } catch (e) {} }
+function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); if (o.mesManual) S.mesManual = o.mesManual; } catch (e) {} }
 
 function buildHeader() {
   const sups = supList(); if (!sups.includes(S.sup)) S.sup = sups.includes('LAGOS') ? 'LAGOS' : (sups[0] || null);
@@ -1354,6 +1363,7 @@ async function reloadFolder() {
   } catch (e) { setStatus('Erro ao atualizar: ' + e.message, true); }
 }
 function setStatus(t, err) { $('#fonteStatus').innerHTML = err ? '<span class="tag bad">Erro</span> ' + esc(t) + ' <span style="opacity:.7">[' + VERSAO + ']</span>' : t; }
+$('#mesManual').onchange = e => { S.mesManual = e.target.value; persist(); if (LAST_FILES) loadFiles(LAST_FILES); };
 $('#btnCopyLog').onclick = async () => { try { await navigator.clipboard.writeText(LOG.join('\n')); $('#btnCopyLog').textContent = 'Copiado ✔'; } catch (e) { const r = document.createRange(); r.selectNodeContents($('#logPre')); getSelection().removeAllRanges(); getSelection().addRange(r); $('#btnCopyLog').textContent = 'Selecionado — use Ctrl+C'; } setTimeout(() => $('#btnCopyLog').textContent = 'Copiar detalhes', 2500); };
 $('#btnPasta').onclick = pickFolder;
 $('#btnReload').onclick = reloadFolder;
@@ -1366,9 +1376,16 @@ async function classify(file) {
   if (hdr) { if (hdr.includes('dsc_classe')) return 'com'; if (hdr.includes('arrecadacao_acumulada')) return 'arr'; if (hdr.includes('rubrica')) return 'rf'; }
   return null;
 }
+let LAST_FILES = null, LOADING = false, RELOAD = false;
 async function loadFiles(files) {
+  if (LOADING) { RELOAD = true; log('Leitura já em andamento — nova leitura agendada para depois.', 'aviso'); return; }   // nunca lê em paralelo
+  LOADING = true;
+  try { await loadFilesOnce(files); } finally { LOADING = false; }
+  if (RELOAD) { RELOAD = false; await loadFiles(LAST_FILES); }
+}
+async function loadFilesOnce(files) {
   if (!files.length) return setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true);
-  LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
+  LAST_FILES = files; LOG.length = 0; $('#logBox').classList.remove('erro'); CTX.etapa = ''; CTX.arquivo = ''; CTX.linha = 0;
   log('Versão ' + VERSAO + ' — ' + files.length + ' arquivo(s) .xlsx na pasta');
   files.forEach(f => log('  • ' + f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)'));
   setProg(0, 'Identificando os arquivos…');
@@ -1388,7 +1405,7 @@ async function loadFiles(files) {
       PG.base += f.size; log('  ✔ concluído: ' + f.name + (tipo === 'com' ? ' — ' + D.diag.com.usadas.toLocaleString('pt-BR') + ' linhas aproveitadas de ' + D.diag.com.linhas.toLocaleString('pt-BR') : tipo === 'arr' ? ' — ' + D.diag.arr.usadas.toLocaleString('pt-BR') + ' linhas' : ''));
     }
     ignorados.forEach(n => D.files.push({ name: n, tipo: 'não reconhecido', detalhe: 'ignorado' }));
-    S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;
+    S.ym = null; S.hist._init = null; S.hist.i0 = 0; S.hist.i1 = 0; S.hist.cidades = null; S.hist.curvas = null;   // recalcula o mês padrão (último com realizado)
     CTX.arquivo = ''; CTX.linha = 0; setProg(96, 'Montando as telas…'); etapa('Montando as telas'); await tick();
     fullRender();
     const partes = [];
@@ -1397,6 +1414,7 @@ async function loadFiles(files) {
     setStatus('Carregado: <b>' + (partes.join(' • ') || 'nada reconhecido') + '</b> — ' + new Date().toLocaleTimeString('pt-BR') + '. Veja a aba <b>Dados</b> para conferências.');
   } catch (e) {
     console.error(e); logErro(e);
+    if (e.codigo === 'SEM_MES') $('#mesManualBox').style.display = '';
     try { D.com = null; D.arr = null; fullRender(); } catch (e2) { log('Falha ao limpar as telas: ' + e2.message, 'erro'); }   // não deixa dados da leitura anterior na tela
     setStatus(e.message, true);
   }
@@ -1405,6 +1423,7 @@ async function loadFiles(files) {
 /* ---------- inicialização ---------- */
 (async function init() {
   restore(); fullRender();
+  $('#mesManual').value = S.mesManual || ''; if (S.mesManual) $('#mesManualBox').style.display = '';
   $('#fonteStatus').innerHTML = 'Nenhuma pasta conectada. <span style="opacity:.7">[' + VERSAO + ']</span>';
   if (window.showDirectoryPicker) {
     const h = await idb.get('dir');
