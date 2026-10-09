@@ -149,7 +149,10 @@ th.fut{background:#fff4de;color:#9a6a0a}
 .toggle-btn{cursor:pointer;color:var(--blue);font-weight:800;margin-right:6px;display:inline-block;width:16px;text-align:center}
 table.hist th{background:var(--navy);color:#fff}
 table.hist tr.subtotal td{font-weight:700;font-style:italic;background:#f2f7fb;color:#33485a}
-table.hist tr.nivel1 td:first-child{padding-left:28px;color:#4d6375;font-weight:normal}
+table.hist tr.nivel1 td:first-child{padding-left:28px;color:#33485a}
+table.hist tr.nivel2 td:first-child{padding-left:50px;color:#4d6375;font-weight:normal;font-style:normal}
+table.hist tr.destaque td{background:#dcebf4;color:var(--navy);font-weight:800;font-size:12.5px;border-top:2px solid #6f93ad}
+table.hist tr.destaque td.col-total{background:#c9e0ef}
 table.hist td.col-total,table.hist th.col-total{font-weight:750;border-left:2px dashed #89a5bb}
 table.hist td.col-total{background:#f2f7fb}
 table.hist tr.total td.col-total{background:#dcebf4}
@@ -1109,43 +1112,49 @@ function renderRF() {
 /* =====================================================================
    ABAS: DRE Histórico e Gráficos (por município)
    ===================================================================== */
+/* [nome, chave, nível, total, subtotal, formato, grupo, destaque]; chave null = faixa de seção (como na aba DRE) */
 const HLINES = [
-  ['FATURAMENTO', null],
-  ['FATURAMENTO BRUTO', 'bruto', 0, true, false, 'moeda', null],
-  ['DIRETAS TOTAIS', 'direto', 0, true, false, 'moeda', 'bruto'],
-  ['Diretas Água', 'dA', 1, false, false, 'moeda', 'diretas|bruto'],
-  ['Diretas Esgoto', 'dE', 1, false, false, 'moeda', 'diretas|bruto'],
-  ['INDIRETAS TOTAIS', 'indireto', 0, true, false, 'moeda', 'bruto'],
-  ['INDIRETA ÁGUA', 'iA', 0, true, true, 'moeda', 'indiretas_sub|bruto'],
-  ['Corte de Água', 'F_Corte de Água', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
-  ['Religações', 'F_Religações', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
-  ['Ligações de Água', 'F_Ligações de Água', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
-  ['Sanções', 'F_Sanções', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
-  ['Outros Água', 'F_Outros Água', 1, false, false, 'moeda', 'ind_agua_extra|indiretas_sub|bruto'],
-  ['Venda e Análise de Água', 'F_Venda e Análise de Água', 1, false, false, 'moeda', 'ind_agua_extra|indiretas_sub|bruto'],
-  ['INDIRETA ESGOTO', 'iE', 0, true, true, 'moeda', 'indiretas_sub|bruto'],
-  ['Ligações de Esgoto', 'E_Ligações de Esgoto', 1, false, false, 'moeda', 'ind_esgoto|indiretas_sub|bruto'],
-  ['Outros Esgoto', 'E_Outros Esgoto', 1, false, false, 'moeda', 'ind_esgoto|indiretas_sub|bruto'],
-  ['FAT ECONOMIAS ÁGUA (qtd)', 'ecoA', 0, true, false, 'num', 'extras'],
-  ['FAT ECONOMIAS ESGOTO (qtd)', 'ecoE', 0, true, false, 'num', 'extras'],
-  ['VOL. FAT. ÁGUA (m³)', 'volA', 0, true, false, 'num', 'extras'],
-  ['VOL. FAT. ESGOTO (m³)', 'volE', 0, true, false, 'num', 'extras'],
-  ['VOLUME MEDIDO DE ÁGUA (m³)', 'volM', 0, true, false, 'num', 'extras'],
-  ['TARIFA MÉDIA DE ÁGUA (R$/m³)', 'tarA', 0, true, false, 'moeda4', 'extras'],
-  ['TARIFA MÉDIA DE ESGOTO (R$/m³)', 'tarE', 0, true, false, 'moeda4', 'extras'],
-  ['CANCELAMENTO', 'canc', 0, true, false, 'moeda', null],
-  ['FATURAMENTO LÍQUIDO C/ REAJUSTE', 'liq', 0, true, false, 'moeda', null],
+  ['FATURAMENTO DIRETO', null],
+  ['Faturamento Direto', 'direto', 0, true, false, 'moeda', null, true],
+  ['Diretas Água', 'dA', 1, false, true, 'moeda', 'diretas'],
+  ['Volume Faturado - Água (m³)', 'volA', 2, false, false, 'num', 'diretas|drv_agua'],
+  ['Volume Medido - Água (m³)', 'volM', 2, false, false, 'num', 'diretas|drv_agua'],
+  ['Economias - Água (qtd)', 'ecoA', 2, false, false, 'num', 'diretas|drv_agua'],
+  ['Tarifa Média - Água (R$/m³)', 'tarA', 2, false, false, 'moeda4', 'diretas|drv_agua'],
+  ['Diretas Esgoto', 'dE', 1, false, true, 'moeda', 'diretas'],
+  ['Volume Faturado - Esgoto (m³)', 'volE', 2, false, false, 'num', 'diretas|drv_esgoto'],
+  ['Economias - Esgoto (qtd)', 'ecoE', 2, false, false, 'num', 'diretas|drv_esgoto'],
+  ['Tarifa Média - Esgoto (R$/m³)', 'tarE', 2, false, false, 'moeda4', 'diretas|drv_esgoto'],
+  ['FATURAMENTO INDIRETO', null],
+  ['Faturamento Indireto', 'indireto', 0, true, false, 'moeda', null, true],
+  ['Indiretas Água', 'iA', 1, false, true, 'moeda', 'indiretas_sub'],
+  ['Corte de Água', 'F_Corte de Água', 2, false, false, 'moeda', 'ind_agua|indiretas_sub'],
+  ['Religações', 'F_Religações', 2, false, false, 'moeda', 'ind_agua|indiretas_sub'],
+  ['Ligações de Água', 'F_Ligações de Água', 2, false, false, 'moeda', 'ind_agua|indiretas_sub'],
+  ['Sanções', 'F_Sanções', 2, false, false, 'moeda', 'ind_agua|indiretas_sub'],
+  ['Outros Água', 'F_Outros Água', 2, false, false, 'moeda', 'ind_agua_extra|indiretas_sub'],
+  ['Venda e Análise de Água', 'F_Venda e Análise de Água', 2, false, false, 'moeda', 'ind_agua_extra|indiretas_sub'],
+  ['Indiretas Esgoto', 'iE', 1, false, true, 'moeda', 'indiretas_sub'],
+  ['Ligações de Esgoto', 'E_Ligações de Esgoto', 2, false, false, 'moeda', 'ind_esgoto|indiretas_sub'],
+  ['Outros Esgoto', 'E_Outros Esgoto', 2, false, false, 'moeda', 'ind_esgoto|indiretas_sub'],
+  ['FATURAMENTO BRUTO', null],
+  ['Faturamento Bruto (Direto + Indireto)', 'bruto', 0, true, false, 'moeda', null, true],
+  ['DEDUÇÕES', null],
+  ['Cancelamentos', 'canc', 0, false, false, 'moeda', null],
+  ['RECEITA LÍQUIDA', null],
+  ['Faturamento Líquido c/ Reajuste', 'liq', 0, true, false, 'moeda', null, true],
   ['ARRECADAÇÃO', null],
-  ['ARRECADAÇÃO REAL (Arrecadação + Desconto)', 'arrecReal', 0, true, false, 'moeda', null],
-  ['DESCONTO', 'desc', 0, true, false, 'moeda', null],
-  ['ARRECADAÇÃO (Sem Desconto)', 'arrec', 0, true, false, 'moeda', null],
-  ['ARRECADAÇÃO / FATURAMENTO LÍQUIDO (%)', 'pct', 0, true, false, 'pct', 'indicador'],
-  ['QTD. CLIENTES PAGANTES', 'cli', 0, true, false, 'num', null],
-  ['QTD. CONTAS PAGAS', 'contas', 0, true, false, 'num', null],
-  ['TICKET MÉDIO (R$/cliente)', 'ticket', 0, true, false, 'moeda2', null]
+  ['Arrecadação Real (Arrecadação + Desconto)', 'arrecReal', 0, true, false, 'moeda', null, true],
+  ['Desconto', 'desc', 1, false, false, 'moeda', null],
+  ['Arrecadação (Sem Desconto)', 'arrec', 1, false, false, 'moeda', null],
+  ['Arrecadação / Faturamento Líquido (%)', 'pct', 0, true, false, 'pct', null],
+  ['INDICADORES DE ARRECADAÇÃO', null],
+  ['Qtd. Clientes Pagantes', 'cli', 0, false, false, 'num', null],
+  ['Qtd. Contas Pagas', 'contas', 0, false, false, 'num', null],
+  ['Ticket Médio (R$/cliente)', 'ticket', 0, false, false, 'moeda2', null]
 ];
-const GRUPOS_TOGGLE = { diretas: 'DIRETAS TOTAIS', ind_agua: 'INDIRETA ÁGUA', ind_esgoto: 'INDIRETA ESGOTO' };
-const GRUPO_COMBO = { 'INDIRETAS TOTAIS': ['ind_agua', 'ind_esgoto', 'indiretas_sub'], 'FATURAMENTO BRUTO': ['bruto'] };
+const GRUPOS_TOGGLE = { drv_agua: 'Diretas Água', drv_esgoto: 'Diretas Esgoto', ind_agua: 'Indiretas Água', ind_esgoto: 'Indiretas Esgoto' };
+const GRUPO_COMBO = { 'Faturamento Direto': ['diretas'], 'Faturamento Indireto': ['ind_agua', 'ind_esgoto', 'indiretas_sub'] };
 function fmtH(v, tipo) {
   if (v === undefined || v === null || Number.isNaN(v)) return '-';
   if (tipo === 'moeda' || tipo === 'moeda2') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1254,10 +1263,10 @@ function renderHistorico() {
   head.innerHTML = '<th>Item</th>' + cols.map(c => `<th>${c.label}</th>`).join('') + '<th class="col-total">Total Geral</th>';
   const accs = cols.map(c => histAcc(c.months)), accTot = histAcc(all);
   corpo.innerHTML = '';
-  HLINES.forEach(([nome, chave, nivel, isTotal, isSub, tipo, grupo]) => {
+  HLINES.forEach(([nome, chave, nivel, isTotal, isSub, tipo, grupo, destaque]) => {
     if (chave === null) { const sr = document.createElement('tr'); sr.className = 'sectionrow'; sr.innerHTML = `<td colspan="${cols.length + 2}">${nome}</td>`; corpo.appendChild(sr); return; }
     if (!grupoVisivel(grupo)) return;
-    const tr = document.createElement('tr'); tr.className = (isTotal ? 'total ' : '') + (isSub ? 'subtotal ' : '') + (nivel === 1 ? 'nivel1 ' : '');
+    const tr = document.createElement('tr'); tr.className = (isTotal ? 'total ' : '') + (isSub ? 'subtotal ' : '') + (destaque ? 'destaque ' : '') + (nivel ? 'nivel' + nivel + ' ' : '') + (nivel === 2 && /^(vol|eco|tar)/.test(chave) ? 'driver ' : '');
     const td = document.createElement('td'); let btn = null;
     if (GRUPO_COMBO[nome]) { const gl = GRUPO_COMBO[nome]; btn = document.createElement('span'); btn.className = 'toggle-btn'; btn.textContent = comboOculto(gl) ? '+' : '−';
       btn.onclick = e => { e.stopPropagation(); comboOculto(gl) ? gl.forEach(g => S.hist.ocultos.delete(g)) : gl.forEach(g => S.hist.ocultos.add(g)); renderHistorico(); }; }
