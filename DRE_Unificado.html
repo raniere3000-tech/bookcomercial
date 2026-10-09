@@ -1110,6 +1110,7 @@ function renderRF() {
    ABAS: DRE Histórico e Gráficos (por município)
    ===================================================================== */
 const HLINES = [
+  ['FATURAMENTO', null],
   ['FATURAMENTO BRUTO', 'bruto', 0, true, false, 'moeda', null],
   ['DIRETAS TOTAIS', 'direto', 0, true, false, 'moeda', 'bruto'],
   ['Diretas Água', 'dA', 1, false, false, 'moeda', 'diretas|bruto'],
@@ -1134,6 +1135,7 @@ const HLINES = [
   ['TARIFA MÉDIA DE ESGOTO (R$/m³)', 'tarE', 0, true, false, 'moeda4', 'extras'],
   ['CANCELAMENTO', 'canc', 0, true, false, 'moeda', null],
   ['FATURAMENTO LÍQUIDO C/ REAJUSTE', 'liq', 0, true, false, 'moeda', null],
+  ['ARRECADAÇÃO', null],
   ['ARRECADAÇÃO REAL (Arrecadação + Desconto)', 'arrecReal', 0, true, false, 'moeda', null],
   ['DESCONTO', 'desc', 0, true, false, 'moeda', null],
   ['ARRECADAÇÃO (Sem Desconto)', 'arrec', 0, true, false, 'moeda', null],
@@ -1253,6 +1255,7 @@ function renderHistorico() {
   const accs = cols.map(c => histAcc(c.months)), accTot = histAcc(all);
   corpo.innerHTML = '';
   HLINES.forEach(([nome, chave, nivel, isTotal, isSub, tipo, grupo]) => {
+    if (chave === null) { const sr = document.createElement('tr'); sr.className = 'sectionrow'; sr.innerHTML = `<td colspan="${cols.length + 2}">${nome}</td>`; corpo.appendChild(sr); return; }
     if (!grupoVisivel(grupo)) return;
     const tr = document.createElement('tr'); tr.className = (isTotal ? 'total ' : '') + (isSub ? 'subtotal ' : '') + (nivel === 1 ? 'nivel1 ' : '');
     const td = document.createElement('td'); let btn = null;
