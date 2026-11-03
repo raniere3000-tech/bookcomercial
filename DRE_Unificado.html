@@ -247,6 +247,10 @@ td{padding:3px 8px}
 #pdfDlg .hint{margin:4px 0 0}
 #pdfDlg .acoes{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;border-bottom:1px solid var(--line)}
 #pdfDlg .lista{overflow:auto;padding:8px 20px;flex:1}
+#pdfDlg .pdfOpc{display:flex;flex-direction:column;gap:8px;padding:10px 20px;border-bottom:1px solid var(--line);background:#f7fafc}
+#pdfDlg .pdfOpc>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#pdfDlg .pdfOpc .lbl{font-size:12.5px;font-weight:650;color:var(--blue);min-width:108px}
+#pdfDlg .seg button{min-height:34px}
 #pdfDlg label{display:flex;align-items:center;gap:8px;min-height:32px;font-size:13px;color:#33485a;cursor:pointer}
 #pdfDlg label input{width:16px;height:16px;margin:0}
 #pdfDlg label.n0{font-weight:750;color:#1b2a36;border-top:1px solid #eef2f5;margin-top:4px;padding-top:4px}
@@ -355,6 +359,10 @@ table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-to
   <dialog id="pdfDlg"><form method="dialog" class="dlg">
     <header><h3>Tópicos do PDF</h3><div class="hint">Marque o que deve sair no PDF. Itens recolhidos na tela também podem ser incluídos.</div></header>
     <div class="acoes"><button class="minibtn" type="button" data-pdfsel="tudo">Marcar tudo</button><button class="minibtn" type="button" data-pdfsel="nada">Desmarcar tudo</button><button class="minibtn" type="button" data-pdfsel="tela">Igual à tela</button><button class="minibtn" type="button" data-pdfsel="principais">Só os totais</button></div>
+    <div class="pdfOpc">
+      <div id="pdfColsBox"><span class="lbl">Versão</span><span class="seg" id="pdfCols"><button type="button" data-v="todas">Completo</button><button type="button" data-v="or">Só Orçado e Realizado</button></span></div>
+      <div><span class="lbl">Visão Auditoria</span><span class="seg" id="pdfAud"><button type="button" data-v="nao">Não</button><button type="button" data-v="sim">Sim</button></span><span class="hint" id="pdfAudSit" style="margin:0"></span></div>
+    </div>
     <div class="lista" id="pdfLista"></div>
     <footer><span id="pdfConta" class="hint" style="margin:0 auto 0 0;align-self:center"></span><button class="minibtn" value="cancel" type="submit">Cancelar</button><button class="minibtn primario" type="button" id="pdfGerar">Baixar PDF</button></footer>
   </form></dialog>
@@ -409,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V13';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-m';
+const VERSAO_BOOK = 'V14';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-n';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1055,7 +1063,7 @@ function drePdf(sel) {
   const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' }), W = doc.internal.pageSize.getWidth();
   doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text('DRE: mês e acumulado', 10, 12);
   doc.setFontSize(8.5); doc.setTextColor(90, 110, 125);
-  doc.text(`${mn} | Acumulado Jan–${MN[+m.slice(5) - 1]}/${yearOf(m)} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()}${S.aud ? ' · Visão Auditoria: ' + Array.from(S.audSel).join(' / ') : ''}`, 10, 17);
+  doc.text(`${mn} | Acumulado Jan–${MN[+m.slice(5) - 1]}/${yearOf(m)} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()} · Visão Auditoria: ${S.aud ? 'Sim (' + Array.from(S.audSel).join(' / ') + ')' : 'Não'}`, 10, 17);
   const CORES = { top: [174, 203, 221], sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
   const prof = id => { let n = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) n++; return n; };
   const sub = so ? ['Orçado', 'Realizado'] : ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
@@ -1076,7 +1084,7 @@ function drePdf(sel) {
     },
     didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
   });
-  doc.save(`DRE_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${m}.pdf`);
+  doc.save(`DRE_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${m}${S.aud ? '_Auditoria' : ''}.pdf`);
 }
 
 /* =====================================================================
@@ -1475,7 +1483,7 @@ function histInit() {
 function linhaVisivel(id) { for (let p = HPAI.get(id); p; p = HPAI.get(p)) if (S.hist.ocultos.has(p)) return false; return true; }
 /* Janela "Tópicos do PDF", usada pela aba DRE e pelo DRE Histórico */
 const PDF_HIST = { tree: HTREE, pai: HPAI, chave: 'pdfHist', visivel: id => linhaVisivel(id), gerar: sel => histPdf(sel) };
-const PDF_DRE = { tree: DTREE, pai: DPAI, chave: 'pdfDre', visivel: id => dreLinhaVisivel(id), gerar: sel => drePdf(sel) };
+const PDF_DRE = { tree: DTREE, pai: DPAI, chave: 'pdfDre', visivel: id => dreLinhaVisivel(id), gerar: sel => drePdf(sel), versao: true };
 function abrirPdfDlg(cfg) {
   if (!D.com) { alert('Carregue os dados antes de gerar o PDF.'); return; }
   const dlg = $('#pdfDlg'), lista = $('#pdfLista'), T = cfg.tree, P = cfg.pai;
@@ -1498,7 +1506,19 @@ function abrirPdfDlg(cfg) {
     S[cfg.chave] = new Set(t === 'tudo' ? T.map(l => l[0]) : t === 'nada' ? [] : t === 'tela' ? T.filter(l => cfg.visivel(l[0])).map(l => l[0]) : T.filter(l => l[3] === 'top' || l[3] === 'sec' || l[3] === 'sub' || l[3] === 'dest').map(l => l[0]));
     desenhar();
   });
-  $('#pdfGerar').onclick = () => { if (!sel().size) { alert('Selecione pelo menos um tópico.'); return; } dlg.close(); cfg.gerar(new Set(sel())); };
+  // perguntas: versão (só na aba DRE) e Visão Auditoria; começam iguais à tela
+  const op = { cols: S.dreCols === 'or' ? 'or' : 'todas', aud: S.aud ? 'sim' : 'nao' };
+  const seg = (id, k) => $$('#' + id + ' [data-v]').forEach(b => { b.classList.toggle('on', b.dataset.v === op[k]); b.onclick = () => { op[k] = b.dataset.v; seg(id, k); }; });
+  $('#pdfColsBox').style.display = cfg.versao ? '' : 'none'; seg('pdfCols', 'cols'); seg('pdfAud', 'aud');
+  $('#pdfAudSit').textContent = S.audSel.size ? 'situações: ' + Array.from(S.audSel).join(' / ') : '';
+  $('#pdfGerar').onclick = () => {
+    if (!sel().size) { alert('Selecione pelo menos um tópico.'); return; }
+    dlg.close();
+    const antes = { aud: S.aud, cols: S.dreCols };                                   // aplica as respostas só para gerar o PDF
+    S.aud = op.aud === 'sim'; if (S.aud && !S.audSel.size && D.com) CONFIG.auditoriaPadrao.forEach(x => { const f = Array.from(D.com.sits).find(s => norm(s) === norm(x)); if (f) S.audSel.add(f); });
+    S.dreCols = op.cols;
+    try { cfg.gerar(new Set(sel())); } finally { S.aud = antes.aud; S.dreCols = antes.cols; }
+  };
   desenhar(); dlg.showModal();
 }
 function histPdf(ids) {
@@ -1521,7 +1541,9 @@ function histPdf(ids) {
   const W = doc.internal.pageSize.getWidth();
   doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text('DRE Histórico por município', 10, 12);
   doc.setFontSize(8); doc.setTextColor(90, 110, 125);
-  doc.text(doc.splitTextToSize($('#resumo').textContent, W - 20), 10, 17);
+  const nC = (S.hist.cidades || histCidades()).length;
+  const subt = `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'} | Visão Auditoria: ${S.aud ? 'Sim (' + Array.from(S.audSel).join(' / ') + ')' : 'Não'}`;
+  doc.text(doc.splitTextToSize(subt, W - 20), 10, 17);
   doc.autoTable({
     head, body, startY: 24, theme: 'grid', margin: { left: 8, right: 8 },
     horizontalPageBreak: true, horizontalPageBreakRepeat: 0,
@@ -1542,7 +1564,7 @@ function histPdf(ids) {
     didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
   });
   const per = all.length ? all[0] + (all.length > 1 ? '_a_' + all[all.length - 1] : '') : '';
-  doc.save(`DRE_Historico_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${per}.pdf`);
+  doc.save(`DRE_Historico_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${per}${S.aud ? '_Auditoria' : ''}.pdf`);
 }
 function renderHistorico() {
   histInit();
