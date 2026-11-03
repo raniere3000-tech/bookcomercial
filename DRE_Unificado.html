@@ -417,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V15';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-o';
+const VERSAO_BOOK = 'V16';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-p';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1760,11 +1760,119 @@ function bindVarredura() {
   const sel = $('#selRepetido'); if (sel) sel.onchange = () => { S.repetido = sel.value; persist(); S.cache.clear(); montarComercial(); montarArrec(); S.ym = null; fullRender(); log('Meses repetidos: ' + (S.repetido === 'somar' ? 'somar os arquivos' : 'usar o arquivo mais recente')); };
   $$('[data-mesfile]').forEach(i => i.onchange = () => { S.mesArquivo[i.dataset.mesfile] = i.value; persist(); if (LAST_FILES) loadFiles(LAST_FILES); });
 }
+/* =====================================================================
+   QUADRO PARA APRESENTAÇÃO (aba Dados): DRE | Orçado | mês | Dif | %
+   ===================================================================== */
+// [rótulo, chave, estilo, casas decimais]  estilo: T = total (negrito), S = subtotal (negrito itálico), D = detalhe (rótulo à direita), I = indicador, B = linha em branco
+const QUADRO = [
+  ['FATURAMENTO BRUTO', 'brutoSoma', 'T', 0], ['DIRETAS TOTAIS', 'direto', 'T', 0],
+  ['DIRETAS ÁGUA', 'dA', 'D', 0], ['DIRETAS ESGOTO', 'dE', 'D', 0],
+  ['INDIRETAS TOTAIS', 'indireto', 'T', 0], ['INDIRETA ÁGUA', 'iA', 'S', 0],
+  ['CORTE DE ÁGUA', 'F_Corte de Água', 'D', 0], ['RELIGAÇÕES', 'F_Religações', 'D', 0], ['LIGAÇÕES DE ÁGUA', 'F_Ligações de Água', 'D', 0],
+  ['SANÇÕES', 'F_Sanções', 'D', 0], ['OUTROS ÁGUA', 'F_Outros Água', 'D', 0],
+  ['VENDA E ANÁLISE DE ÁGUA', 'F_Venda e Análise de Água', 'D?', 0], ['CONSERTOS E REPAROS', 'F_Consertos e Reparos', 'D?', 0], ['OUTRAS CLASSES ÁGUA', 'F_Outras classes', 'D?', 0],
+  ['INDIRETA ESGOTO', 'iE', 'S', 0], ['LIGAÇÕES DE ESGOTO', 'E_Ligações de Esgoto', 'D', 0], ['OUTROS ESGOTO', 'E_Outros Esgoto', 'D?', 0], ['OUTRAS CLASSES ESGOTO', 'E_Outras classes', 'D?', 0],
+  ['FAT ECONOMIAS ÁGUA', 'ecoA', 'I', 0], ['FAT ECONOMIAS ESGOTO', 'ecoE', 'I', 0], ['VOL. FAT. ÁGUA', 'volA', 'I', 0], ['VOL. FAT. ESGOTO', 'volE', 'I', 0],
+  ['', null, 'B'],
+  ['VOLUME MÉDIO DE ÁGUA', 'volMA', 'I', 2], ['VOLUME MÉDIO DE ESGOTO', 'volME', 'I', 2], ['TARIFA MÉDIA DE ÁGUA', 'tarA', 'I', 2], ['TARIFA MÉDIA  DE ESGOTO', 'tarE', 'I', 2],
+  ['CANCELAMENTO', 'canc', 'T', 0], ['FATURAMENTO LIQUIDO C/ REAJUSTE', 'liq', 'T', 0]
+];
+/* linhas do quadro para o mês, com ou sem Visão Auditoria (a tela não muda) */
+function quadroLinhas(m, aud) {
+  const antes = S.aud; S.aud = aud;
+  if (aud && !S.audSel.size && D.com) CONFIG.auditoriaPadrao.forEach(x => { const f = Array.from(D.com.sits).find(s => norm(s) === norm(x)); if (f) S.audSel.add(f); });
+  try {
+    const out = [];
+    QUADRO.forEach(([lab, key, est, dec]) => {
+      if (est === 'B') { out.push({ lab: '', est }); return; }
+      const p = pair(key, [m]), o = has(p.b) ? p.b : 0, r = has(p.a) ? p.a : 0;
+      if (est === 'D?' && !o && !r) return;                                            // aberturas eventuais só com valor
+      out.push({ lab, est: est.replace('?', ''), dec, o, r, dif: r - o, pc: o ? r / o - 1 : null });
+    });
+    return out;
+  } finally { S.aud = antes; }
+}
+function quadroCanvas(m, aud) {
+  const L = quadroLinhas(m, aud), esc2 = 2, W = [480, 180, 180, 190, 170], H = 32, HH = 34;
+  const cv = document.createElement('canvas'), tw = W.reduce((a, b) => a + b, 0), th = HH + L.length * H;
+  cv.width = tw * esc2; cv.height = th * esc2; const c = cv.getContext('2d'); c.scale(esc2, esc2);
+  const F = (peso, it) => `${it ? 'italic ' : ''}${peso} 17px "Aptos","Segoe UI",Calibri,Arial,sans-serif`;
+  const n = (v, d) => v == null ? '' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  c.fillStyle = '#fff'; c.fillRect(0, 0, tw, th);
+  c.fillStyle = '#0f2742'; c.fillRect(0, 0, tw, HH);
+  const cab = ['DRE', 'Orçado', '01/' + m.slice(5) + '/' + m.slice(0, 4), 'Dif', '%'];
+  c.fillStyle = '#fff'; c.font = F('bold'); c.textBaseline = 'middle'; c.textAlign = 'center';
+  let x = 0; cab.forEach((t, i) => { c.fillText(t, x + W[i] / 2, HH / 2 + 1); x += W[i]; });
+  L.forEach((l, i) => {
+    const y = HH + i * H, cy = y + H / 2 + 1;
+    c.strokeStyle = '#e3e7eb'; c.lineWidth = 1; c.beginPath(); c.moveTo(0, y + H - 0.5); c.lineTo(tw, y + H - 0.5); c.stroke();
+    if (l.est === 'B') { c.fillStyle = '#000'; c.font = F('bold'); c.textAlign = 'center'; return; }
+    const bold = l.est === 'T' || l.est === 'S', it = l.est === 'S';
+    c.fillStyle = '#000'; c.font = F(bold ? 'bold' : 'normal', it); c.textAlign = l.est === 'D' ? 'right' : 'left';
+    c.fillText(l.lab, l.est === 'D' ? W[0] - 14 : 6, cy);
+    const cel = (txt, col, neg, negrito, itx) => {
+      const x0 = W.slice(0, col).reduce((a, b) => a + b, 0);
+      if (neg) { c.fillStyle = '#ffc7ce'; c.fillRect(x0 + 1, y + 1, W[col] - 2, H - 2); }
+      c.fillStyle = neg ? '#9c0006' : '#000'; c.font = F(negrito ? 'bold' : 'normal', itx); c.textAlign = 'center'; c.fillText(txt, x0 + W[col] / 2, cy);
+    };
+    cel(n(l.o, l.dec), 1, false, bold, it); cel(n(l.r, l.dec), 2, false, bold, it);
+    cel(n(l.dif, 0), 3, l.dif < -0.5, true); cel(l.pc == null ? '' : n(l.pc * 100, 2) + '%', 4, l.pc != null && l.pc < 0, true);
+  });
+  return cv;
+}
+/* versão em tabela HTML (para colar no Excel/PowerPoint mantendo a formatação) */
+function quadroHtml(m, aud) {
+  const L = quadroLinhas(m, aud), n = (v, d) => v == null ? '' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const td = (t, st) => `<td style="font-family:Aptos,Calibri,Arial;font-size:12pt;padding:3px 8px;border-bottom:1px solid #e3e7eb;${st}">${t}</td>`;
+  let h = '<table style="border-collapse:collapse"><tr>' + ['DRE', 'Orçado', '01/' + m.slice(5) + '/' + m.slice(0, 4), 'Dif', '%'].map(t => `<th style="background:#0f2742;color:#fff;font-family:Aptos,Calibri,Arial;font-size:12pt;padding:4px 10px">${t}</th>`).join('') + '</tr>';
+  L.forEach(l => {
+    if (l.est === 'B') { h += '<tr>' + td('', '') + td('', '') + td('', '') + td('', '') + td('', '') + '</tr>'; return; }
+    const b = l.est === 'T' || l.est === 'S' ? 'font-weight:bold;' : '', i = l.est === 'S' ? 'font-style:italic;' : '', neg = 'background:#ffc7ce;color:#9c0006;';
+    h += '<tr>' + td(esc(l.lab), b + i + (l.est === 'D' ? 'text-align:right;' : '')) + td(n(l.o, l.dec), b + i + 'text-align:center') + td(n(l.r, l.dec), b + i + 'text-align:center')
+      + td(n(l.dif, 0), 'font-weight:bold;text-align:center;' + (l.dif < -0.5 ? neg : '')) + td(l.pc == null ? '' : n(l.pc * 100, 2) + '%', 'font-weight:bold;text-align:center;' + (l.pc != null && l.pc < 0 ? neg : '')) + '</tr>';
+  });
+  return h + '</table>';
+}
+function quadroPainelHtml() {
+  if (!D.com) return '';
+  const meses = Array.from(D.com.realMonths).sort(); if (!meses.length) return '';
+  if (!S.quadro) S.quadro = {}; if (!meses.includes(S.quadro.ym)) S.quadro.ym = meses.includes(S.ym) ? S.ym : meses[meses.length - 1];
+  const sit = Array.from(S.audSel).join(' / ') || CONFIG.auditoriaPadrao.join(' / ');
+  const bloco = (aud, tit) => `<div style="flex:1 1 520px;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><b style="color:var(--navy)">${tit}</b>
+      <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="minibtn" type="button" data-qcopy="${aud}">Copiar imagem</button><button class="minibtn" type="button" data-qtab="${aud}">Copiar tabela</button><button class="minibtn primario" type="button" data-qpng="${aud}" style="background:#0d5f98;color:#fff;border-color:#0d5f98">Baixar PNG</button></span></div>
+      <div id="quadroImg${aud}" style="border:1px solid var(--line);border-radius:6px;overflow:auto;background:#fff"></div></div>`;
+  return `<div class="panel" style="margin-bottom:16px"><h2>Quadro para apresentação</h2>
+    <div class="hint">Formato DRE | Orçado | mês | Dif | %, da superintendência selecionada (${esc(S.sup || '—')}) e do orçado ${esc(rfLbl())}. “Copiar imagem” cola direto no PowerPoint; “Copiar tabela” cola como tabela editável (Excel ou PowerPoint).</div>
+    <div class="filterbar" style="padding-bottom:10px"><span class="lbl">Mês</span><select id="quadroYm">${meses.map(x => `<option value="${x}" ${x === S.quadro.ym ? 'selected' : ''}>${mlabel(x)}</option>`).join('')}</select><span class="hint" id="quadroMsg" style="margin:0"></span></div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap">${bloco(0, 'Visão Auditoria: Não')}${bloco(1, 'Visão Auditoria: Sim (' + esc(sit) + ')')}</div></div>`;
+}
+function bindQuadro() {
+  const sel = $('#quadroYm'); if (!sel) return;
+  const m = S.quadro.ym, msg = t => { const e = $('#quadroMsg'); if (e) { e.textContent = t; setTimeout(() => { if (e.textContent === t) e.textContent = ''; }, 4000); } };
+  [0, 1].forEach(a => { const cv = quadroCanvas(m, !!a); cv.style.width = '100%'; cv.style.maxWidth = (cv.width / 2) + 'px'; cv.style.display = 'block'; $('#quadroImg' + a).appendChild(cv); });
+  sel.onchange = () => { S.quadro.ym = sel.value; renderDados(); };
+  const nome = a => `Quadro_DRE_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${m}_Auditoria_${a ? 'Sim' : 'Nao'}.png`;
+  $$('[data-qpng]').forEach(b => b.onclick = () => { const a = +b.dataset.qpng; quadroCanvas(m, !!a).toBlob(bl => { const u = URL.createObjectURL(bl), l = document.createElement('a'); l.href = u; l.download = nome(a); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 1500); }, 'image/png'); });
+  $$('[data-qcopy]').forEach(b => b.onclick = () => {
+    const a = +b.dataset.qcopy;
+    if (!navigator.clipboard || !window.ClipboardItem) { msg('Este navegador não deixa copiar imagem aqui — use “Baixar PNG”.'); return; }
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': new Promise(r => quadroCanvas(m, !!a).toBlob(r, 'image/png')) })])
+      .then(() => msg('Imagem copiada — cole na apresentação (Ctrl+V).')).catch(() => msg('Não foi possível copiar a imagem — use “Baixar PNG”.'));
+  });
+  $$('[data-qtab]').forEach(b => b.onclick = () => {
+    const a = +b.dataset.qtab, html = quadroHtml(m, !!a), txt = quadroLinhas(m, !!a).map(l => l.est === 'B' ? '' : [l.lab, l.o, l.r, l.dif, l.pc == null ? '' : l.pc].join('\t')).join('\n');
+    const ok = () => msg('Tabela copiada — cole no Excel ou no PowerPoint (Ctrl+V).');
+    if (navigator.clipboard && window.ClipboardItem) navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([txt], { type: 'text/plain' }) })]).then(ok).catch(() => fallback());
+    else fallback();
+    function fallback() { const d = document.createElement('div'); d.innerHTML = html; d.style.position = 'fixed'; d.style.left = '-9999px'; document.body.appendChild(d); const r = document.createRange(); r.selectNodeContents(d); getSelection().removeAllRanges(); getSelection().addRange(r); try { document.execCommand('copy'); ok(); } catch (e) { msg('Não foi possível copiar.'); } getSelection().removeAllRanges(); d.remove(); }
+  });
+}
 function renderDados() {
   const b = $('#dadosBox'); let h = '';
   if (!D.comFiles.length && !D.arrFiles.length && !D.rfFiles.length && !D.ignorados.length) { b.innerHTML = '<div class="panel">' + emptyMsg() + '</div>'; return; }
   const dc = D.diag.com, da = D.diag.arr;
   h += '<div class="panel" style="margin-bottom:16px;padding:12px 18px"><button class="filterpill" type="button" onclick="const x=document.getElementById(\'loadInfo\');x.hidden=!x.hidden;if(!x.hidden)window.scrollTo(0,0)">Mostrar / ocultar detalhes da leitura no topo</button></div>';
+  h += quadroPainelHtml();
   h += varreduraHtml();
   h += conferenciaHtml();
   h += resumoMensalHtml();
@@ -1825,7 +1933,7 @@ function renderDados() {
       <tr><td>Rubricas não utilizadas</td><td>${Array.from(dg.naoMapeadas).slice(0, 40).map(x => '<span class="tag">' + esc(x) + '</span>').join(' ') || 'nenhuma'}</td></tr>
       </tbody></table></div>`;
   });
-  b.innerHTML = h; bindVarredura();
+  b.innerHTML = h; bindVarredura(); bindQuadro();
 }
 
 /* =====================================================================
