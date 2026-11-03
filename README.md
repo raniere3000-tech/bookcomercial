@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V15 | Aba DRE: opção “Período do RF” para o acumulado. O painel confere no RF selecionado quais meses têm valor preenchido (para a superintendência) e soma orçado e realizado só desses meses; mostra os meses usados, os sem valor no RF e os sem realizado. Vale também para o PDF. |
 | V14 | Janela do PDF pergunta a versão (Completo ou Só Orçado e Realizado, na aba DRE) e se o PDF deve usar a Visão Auditoria (DRE e DRE Histórico). O PDF informa no topo e no nome do arquivo quando usa a auditoria. |
 | V13 | Aba DRE: opção “Só Orçado e Realizado” (esconde Absoluto e Relativo), que vale também para o PDF e fica lembrada no navegador. |
 | V12 | Aba DRE: Faturamento Bruto passa a ser o grupo principal, com (+) Faturamento de Água e (+) Faturamento de Esgoto e todas as aberturas dentro, e o valor é a soma delas. Volume Médio por Economia de Esgoto e Tarifa Média de Esgoto vão para dentro de Faturamento Direto de Esgoto. |
