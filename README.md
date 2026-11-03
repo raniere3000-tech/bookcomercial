@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V9 | Aba DRE (mês e acumulado) no mesmo modelo do DRE Histórico: (+) Faturamento de Água e de Esgoto com direto e indireto, (-) Cancelamentos abertos, (=) Faturamento Líquido, Arrecadação e Outros indicadores (Faturamento Bruto, volume médio e tarifa de esgoto, Cut-Off), em árvore recolhível. Botão Baixar PDF com escolha de tópicos também na aba DRE. |
 | V8 | Baixar PDF abre a lista de tópicos do DRE Histórico para escolher o que sai no PDF (marcar tudo, desmarcar, igual à tela ou só os totais); grupos marcam e desmarcam o que está dentro. |
 | V7 | Cachoeiras de Macacu passa da LESTE para LAGOS (Interior). |
 | V6 | Faturamento Direto volta a ser só CONTAS DE ÁGUA / CONTAS DE ESGOTO (na V4 passou a somar a coluna direta de todas as classes e ficava acima do Excel). A aba Dados lista as classes com valor na coluna direta fora de CONTAS. |
