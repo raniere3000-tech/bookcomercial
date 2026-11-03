@@ -417,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V18';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-r';
+const VERSAO_BOOK = 'V19';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-s';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1363,7 +1363,7 @@ const HTREE = [
   ['ecoA', 'Economias Faturadas de Água', 'ecoA', 'item', 'dirA', 'num'],
   ['volA', 'Volume Faturado de Água', 'volA', 'item', 'dirA', 'num'],
   ['vmeA', 'Volume Médio por Economia de Água', 'vmeA', 'item', 'dirA', 'num2'],
-  ['tarA', 'Tarifa Média de Água', 'tarA', 'item', 'dirA', 'moeda4'],
+  ['tarA', 'Tarifa Média de Água', 'tarA', 'item', 'dirA', 'num2'],
   ['indA', 'Faturamento Indireto de Água', 'iA', 'sub', 'fatA', 'moeda'],
   ['iA1', 'Corte de Água', 'F_Corte de Água', 'det', 'indA', 'moeda'],
   ['iA2', 'Religações', 'F_Religações', 'det', 'indA', 'moeda'],
@@ -1377,6 +1377,7 @@ const HTREE = [
   ['dirE', 'Faturamento Direto de Esgoto', 'dE', 'sub', 'fatE', 'moeda'],
   ['ecoE', 'Economias Faturadas de Esgoto', 'ecoE', 'item', 'dirE', 'num'],
   ['volE', 'Volume Faturado de Esgoto', 'volE', 'item', 'dirE', 'num'],
+  ['tarE', 'Tarifa Média de Esgoto', 'tarE', 'item', 'dirE', 'num2'],
   ['indE', 'Faturamento Indireto de Esgoto', 'iE', 'sub', 'fatE', 'moeda'],
   ['iE1', 'Ligações de Esgoto', 'E_Ligações de Esgoto', 'det', 'indE', 'moeda'],
   ['iE2', 'Outros Esgoto', 'E_Outros Esgoto', 'det', 'indE', 'moeda'],
@@ -1399,8 +1400,7 @@ const HTREE = [
   ['contas', 'Qtd. Contas Pagas', 'contas', 'item', 'arrecG', 'num'],
   ['ticket', 'Ticket Médio (R$/cliente)', 'ticket', 'item', 'arrecG', 'moeda2'],
   ['outros', 'Outros indicadores', null, 'sec', null, null],
-  ['volM', 'Volume Medido de Água (m³)', 'volM', 'item', 'outros', 'num'],
-  ['tarE', 'Tarifa Média de Esgoto (R$/m³)', 'tarE', 'item', 'outros', 'moeda4']
+  ['volM', 'Volume Medido de Água (m³)', 'volM', 'item', 'outros', 'num']
 ];
 const HPAI = new Map(HTREE.map(l => [l[0], l[4]]));
 const HFILHOS = new Set(HTREE.map(l => l[4]).filter(Boolean));
