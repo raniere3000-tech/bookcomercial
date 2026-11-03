@@ -403,8 +403,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V9';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-i';
+const VERSAO_BOOK = 'V10';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-j';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -867,11 +867,11 @@ const supOk = (e, sup) => sup === 'TODAS' || e.sups.includes(sup);
 function actualBase(ym) {
   if (!D.com) return null;
   const k = 'A|' + S.sup + '|' + audSig() + '|' + ym; if (S.cache.has(k)) return S.cache.get(k);
-  const acc = { dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, canc: 0, liq: 0 }; let any = false;
+  const BASE = ['dA', 'dE', 'iA', 'iE', 'ecoA', 'ecoE', 'volA', 'volE', 'canc', 'liq', 'cDA', 'cDE', 'cIA', 'cIE', 'cRes', 'cReu', 'cOut'];
+  const acc = {}; BASE.forEach(f => acc[f] = 0); let any = false;
   (D.com.byYm.get(ym) || []).forEach(e => {
     if (!supOk(e, S.sup)) return; if (S.aud && !S.audSel.has(e.sit)) return;
-    for (const f in acc) acc[f] += e[f]; any = true;
-    ['cDA', 'cDE', 'cIA', 'cIE', 'cRes', 'cReu', 'cOut'].forEach(f => acc[f] = (acc[f] || 0) + (e[f] || 0));
+    BASE.forEach(f => acc[f] += e[f] || 0); any = true;                         // só os campos fixos; as aberturas por classe vêm a seguir
     for (const k in e.fr) acc[k] = (acc[k] || 0) + e.fr[k];
   });
   const ar = arrecMonth(ym); if (has(ar)) acc.arrec = ar;
