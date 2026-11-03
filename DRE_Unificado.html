@@ -370,8 +370,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V1';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-a';
+const VERSAO_BOOK = 'V2';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-b';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -594,6 +594,7 @@ async function ingestComercial(file) {
   const msg = $('#fonteStatus');
   await readXlsx(file, (r, n) => {
     if (!col) {
+      const hs = r.map(hnorm); if (!hs.includes('dsc_classe') && n < HDR_MAX) return true;    // pula linhas antes do cabeçalho
       etapa('Validando as colunas do cabeçalho (Comercial)'); col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
       log('  colunas encontradas: ' + r.filter(h => h != null).join(' | '));
       const falta = COM_REQ.filter(c => !(c in col));
@@ -645,20 +646,36 @@ async function ingestComercial(file) {
   return Object.assign(base, { status: 'ok', entries, diag, meses: new Set(diag.meses), mesesValor, byYm });
 }
 
-/* junta todos os arquivos Comercial lidos; mês repetido: usa o arquivo mais recente (padrão) ou soma */
+/* Combina arquivos do mesmo tipo POR CIDADE e mês: arquivos com cidades diferentes (ex.: LESTE e INTERIOR) somam-se;
+   a mesma cidade no mesmo mês em mais de um arquivo usa o arquivo mais recente (padrão) ou soma, conforme a opção. */
 const maisNovo = (a, b) => (b.modified - a.modified) || b.name.localeCompare(a.name);
+function combinarPorCidade(oks, ym, temValor, uso) {
+  const tem = oks.filter(f => f.meses.has(ym)), comValor = tem.filter(f => f.mesesValor.has(ym));
+  const pool = (comValor.length ? comValor : tem).slice().sort(maisNovo);
+  const escolhido = new Map(), usados = new Set(), sobrepostas = new Set();                 // cid -> { f, lista, valor }
+  pool.forEach(f => {
+    const g = new Map(); (f.byYm.get(ym) || []).forEach(e => { let l = g.get(e.cid); if (!l) g.set(e.cid, l = []); l.push(e); });
+    g.forEach((lista, cid) => {
+      const valor = lista.some(temValor), cur = escolhido.get(cid);
+      if (cur && cur.valor && valor) sobrepostas.add(cid);
+      if (S.repetido === 'somar') { if (!cur) escolhido.set(cid, { lista: lista.slice(), valor, fs: [f] }); else { cur.lista.push(...lista); cur.valor = cur.valor || valor; cur.fs.push(f); } }
+      else if (!cur || (!cur.valor && valor)) escolhido.set(cid, { lista, valor, fs: [f] });
+    });
+  });
+  const out = []; escolhido.forEach(x => { out.push(...x.lista); x.fs.forEach(f => usados.add(f)); });
+  uso.set(ym, { usar: new Set(Array.from(usados, f => f.name)), tem: new Set(tem.map(f => f.name)), valor: new Set(comValor.map(f => f.name)), sobrepostas });
+  return out;
+}
+const comTemValor = e => e.dA || e.dE || e.iA || e.iE || e.liq || e.canc;
 function montarComercial() {
   D.uso.com = new Map();
   const oks = D.comFiles.filter(f => f.status === 'ok');
   if (!oks.length) { D.com = null; delete D.diag.com; return; }
   const todos = new Set(); oks.forEach(f => f.meses.forEach(m => todos.add(m)));
   const entries = [];
-  todos.forEach(ym => {
-    const tem = oks.filter(f => f.meses.has(ym)), comValor = tem.filter(f => f.mesesValor.has(ym)), pool = (comValor.length ? comValor : tem).slice();
-    const usar = S.repetido === 'somar' ? pool : [pool.sort(maisNovo)[0]];
-    D.uso.com.set(ym, { usar: new Set(usar.map(f => f.name)), tem: new Set(tem.map(f => f.name)), valor: new Set(comValor.map(f => f.name)) });
-    usar.forEach(f => entries.push(...f.byYm.get(ym)));
-  });
+  Array.from(todos).sort().forEach(ym => entries.push(...combinarPorCidade(oks, ym, comTemValor, D.uso.com)));
+  const sob = new Set(); D.uso.com.forEach(u => u.sobrepostas.forEach(c => sob.add(c)));
+  if (oks.length > 1) log('Comercial: ' + oks.length + ' arquivos combinados por cidade' + (sob.size ? ' — cidade(s) presentes em mais de um arquivo no mesmo mês (' + (S.repetido === 'somar' ? 'somadas' : 'usado o arquivo mais recente') + '): ' + Array.from(sob).sort().join(', ') : ''), sob.size ? 'aviso' : undefined);
   const dg = { file: oks.length === 1 ? oks[0].name : oks.length + ' arquivos', linhas: 0, usadas: 0, descTotal: 0, descClasse0: 0, descCidade: 0, descMes: 0, classes: new Map(), naoMapeadas: new Set(),
     cidadesSemSup: new Set(), cidadesVistas: new Set(), linhasMes: new Map(), meses: new Set(), somaBruto: 0, somaCanc: 0, somaLiq: 0, agregados: entries.length, colunaSupIgnorada: false, mesManual: null };
   oks.forEach(f => { const d = f.diag;
@@ -680,9 +697,10 @@ function montarComercial() {
 /* ---------- Arrecadação ---------- */
 async function ingestArrec(file) {
   let col = null; const map = new Map();
-  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, linhasMes: new Map(), meses: new Set() };
+  const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, linhasMes: new Map(), meses: new Set(), pulos: 0 };
   await readXlsx(file, (r) => {
     if (!col) {
+      const hs = r.map(hnorm); if (!hs.includes('arrecadacao_acumulada') && diag.pulos++ < HDR_MAX) return true;   // pula linhas antes do cabeçalho
       col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
       const falta = ['cidade', 'mes_ano', 'arrecadacao_acumulada'].filter(c => !(c in col));
       if (falta.length) throw new Error('Arrecadação: colunas ausentes -> ' + falta.join(', '));
@@ -708,19 +726,15 @@ async function ingestArrec(file) {
   return { tipo: 'arr', status: 'ok', name: file.name, size: file.size, modified: file.lastModified, diag, meses: new Set(diag.meses), mesesValor, byYm };
 }
 
-/* junta todos os arquivos de Arrecadação; mês repetido: usa o mais recente (padrão) ou soma */
+/* junta todos os arquivos de Arrecadação por cidade (ver combinarPorCidade) */
 function montarArrec() {
   D.uso.arr = new Map();
   const oks = D.arrFiles.filter(f => f.status === 'ok');
   if (!oks.length) { D.arr = null; delete D.diag.arr; return; }
   const todos = new Set(); oks.forEach(f => f.meses.forEach(m => todos.add(m)));
   const acc = new Map();
-  todos.forEach(ym => {
-    const tem = oks.filter(f => f.meses.has(ym)), comValor = tem.filter(f => f.mesesValor.has(ym)), pool = (comValor.length ? comValor : tem).slice();
-    const usar = S.repetido === 'somar' ? pool : [pool.sort(maisNovo)[0]];
-    D.uso.arr.set(ym, { usar: new Set(usar.map(f => f.name)), tem: new Set(tem.map(f => f.name)), valor: new Set(comValor.map(f => f.name)) });
-    usar.forEach(f => f.byYm.get(ym).forEach(r => { const k = r.cid + '|' + ym; let e = acc.get(k); if (!e) { e = { cid: r.cid, ym, arrec: 0, cli: 0, contas: 0 }; acc.set(k, e); } e.arrec += r.arrec; e.cli += r.cli; e.contas += r.contas; }));
-  });
+  Array.from(todos).sort().forEach(ym => combinarPorCidade(oks, ym, r => r.arrec, D.uso.arr).forEach(r => {
+    const k = r.cid + '|' + ym; let e = acc.get(k); if (!e) { e = { cid: r.cid, ym, arrec: 0, cli: 0, contas: 0 }; acc.set(k, e); } e.arrec += r.arrec; e.cli += r.cli; e.contas += r.contas; }));
   const dg = { file: oks.length === 1 ? oks[0].name : oks.length + ' arquivos', linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, linhasMes: new Map(), meses: new Set() };
   oks.forEach(f => { const d = f.diag; dg.linhas += d.linhas; dg.descTotal += d.descTotal; dg.descCidade += d.descCidade; dg.descMes += d.descMes; d.classif.forEach(x => dg.classif.add(x));
     d.linhasMes.forEach((n, ym) => { if (D.uso.arr.get(ym).usar.has(f.name)) { dg.usadas += n; dg.linhasMes.set(ym, (dg.linhasMes.get(ym) || 0) + n); dg.meses.add(ym); } }); });
@@ -750,12 +764,12 @@ function rfLabel(name) {
 }
 async function ingestPainel(file) {
   const label = rfLabel(file.name);
-  let hdr = null; const bySup = new Map();
+  let hdr = null, pulos = 0; const bySup = new Map();
   const diag = { file: file.name, label, mapeadas: [], naoMapeadas: new Set(), meses: new Set(), linhas: 0 };
   await readXlsx(file, r => {
     if (!hdr) {
       hdr = []; r.forEach((h, i) => { if (i >= 2) { const ym = parseMonth(h); if (ym) hdr[i] = ym; } });
-      if (!hdr.some(Boolean)) throw new Error('Painel ' + file.name + ': nenhuma coluna de mês reconhecida');
+      if (!hdr.some(Boolean)) { hdr = null; if (++pulos < HDR_MAX) return true; throw new Error('Painel ' + file.name + ': nenhuma coluna de mês reconhecida'); }
       return true;
     }
     diag.linhas++;
@@ -772,8 +786,12 @@ async function ingestPainel(file) {
     if (any) diag.mapeadas.push(sup + ' · ' + r[1] + ' → ' + campo);
     return true;
   });
-  const meses = new Set(); bySup.forEach(mm => mm.forEach((o, ym) => meses.add(ym)));
-  D.rf[label] = { label, bySup, meses: Array.from(meses).sort(), file: file.name };
+  // vários arquivos do mesmo orçado (ex.: um por superintendência): junta por Sup; a mesma Sup em dois arquivos → o mais recente (lido por último)
+  const ant = D.rf[label], tudo = ant ? ant.bySup : new Map();
+  bySup.forEach((mm, sup) => { if (tudo.has(sup)) log('  orçado ' + label + ': ' + sup + ' também está em ' + ant.file + ' — prevalece ' + file.name, 'aviso'); tudo.set(sup, mm); });
+  const meses = new Set(); tudo.forEach(mm => mm.forEach((o, ym) => meses.add(ym)));
+  D.rf[label] = { label, bySup: tudo, meses: Array.from(meses).sort(), file: ant ? ant.file + ' + ' + file.name : file.name };
+  if (ant && D.diag['rf_' + label]) { const d0 = D.diag['rf_' + label]; diag.mapeadas = d0.mapeadas.concat(diag.mapeadas); d0.naoMapeadas.forEach(x => diag.naoMapeadas.add(x)); d0.meses.forEach(x => diag.meses.add(x)); diag.linhas += d0.linhas; diag.file = D.rf[label].file; }
   D.diag['rf_' + label] = diag;
 }
 
@@ -1435,7 +1453,7 @@ function varreduraHtml() {
   const multi = nC > 1 || nA > 1;
   let h = `<div class="panel" style="margin-bottom:16px"><h2>Varredura da pasta</h2><div class="hint">Cada arquivo é identificado pelo nome (Comercial*, Arrec*, RF…) ou pelas colunas do cabeçalho; as datas no nome são ignoradas. Todos os arquivos de um mesmo tipo são lidos e combinados.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${chip('Comercial', nC)}${chip('Arrecadação', nA)}${chip('Orçado (RF)', rfAll)}${D.ignorados.length ? `<span class="tag warn">não reconhecidos: ${D.ignorados.length}</span>` : ''}</div>`;
-  if (multi) h += `<div class="filterbar" style="padding-bottom:10px"><span class="lbl">Meses repetidos entre arquivos:</span><select id="selRepetido"><option value="recente" ${S.repetido === 'recente' ? 'selected' : ''}>Usar o arquivo mais recente (recomendado)</option><option value="somar" ${S.repetido === 'somar' ? 'selected' : ''}>Somar os arquivos</option></select><span class="hint" style="margin:0">“Mais recente” = data de modificação do arquivo. Somar só faz sentido se os arquivos tiverem partes diferentes do mesmo mês.</span></div>`;
+  if (multi) h += `<div class="filterbar" style="padding-bottom:10px"><span class="lbl">Mesma cidade e mês em mais de um arquivo:</span><select id="selRepetido"><option value="recente" ${S.repetido === 'recente' ? 'selected' : ''}>Usar o arquivo mais recente (recomendado)</option><option value="somar" ${S.repetido === 'somar' ? 'selected' : ''}>Somar os arquivos</option></select><span class="hint" style="margin:0">Os arquivos são combinados por cidade: cidades diferentes (ex.: LESTE e INTERIOR) sempre se somam. Esta opção vale só para a mesma cidade repetida no mesmo mês — “mais recente” = data de modificação do arquivo.</span></div>`;
   h += `<div class="tablewrap" style="max-height:50vh"><table class="dx dxn"><thead><tr><th>Tipo</th><th>Arquivo</th><th>Tamanho</th><th>Modificado</th><th>Linhas lidas</th><th>Meses</th><th>Situação</th></tr></thead><tbody>${linhas.join('')}</tbody></table></div>`;
   // matriz mês × arquivo quando há mais de um arquivo do tipo
   [['Comercial', D.comFiles, 'com'], ['Arrecadação', D.arrFiles, 'arr']].forEach(([nome, lista, k]) => {
@@ -1602,11 +1620,27 @@ $('#btnPasta').onclick = pickFolder;
 $('#btnReload').onclick = reloadFolder;
 $('#fileFallback').onchange = async e => { const fs = Array.from(e.target.files).filter(f => /\.xlsx$/i.test(f.name) && !f.name.startsWith('~$')); await loadFiles(fs); e.target.value = ''; };
 
+/* Identifica o tipo de cada Excel pelo CABEÇALHO da tabela (procura nas primeiras linhas); o nome do arquivo só é usado se o cabeçalho não for reconhecido. */
+const HDR_MAX = 30;
+function tipoPorCabecalho(r) {
+  const hs = r.map(hnorm);
+  if (hs.includes('dsc_classe')) return 'com';
+  if (hs.includes('arrecadacao_acumulada')) return 'arr';
+  if (hs.includes('rubrica') || r.slice(2).filter(h => h != null && parseMonth(h)).length >= 3) return 'rf';
+  return null;
+}
 async function classify(file) {
-  const n = file.name;
-  if (/comercial/i.test(n)) return 'com'; if (/arrec/i.test(n)) return 'arr'; if (/RF\s*0?\d\s*T\s*\d{2}/i.test(n) || /painel/i.test(n)) return 'rf';
-  let hdr = null; await readXlsx(file, r => { hdr = r.map(hnorm); return false; });
-  if (hdr) { if (hdr.includes('dsc_classe')) return 'com'; if (hdr.includes('arrecadacao_acumulada')) return 'arr'; if (hdr.includes('rubrica')) return 'rf'; }
+  let tipo = null, linhaHdr = 0, n = 0, cabec = null;
+  try {
+    await readXlsx(file, r => {
+      n++; const t = tipoPorCabecalho(r);
+      if (t) { tipo = t; linhaHdr = n; cabec = r.filter(h => h != null).slice(0, 8).join(' | '); return false; }
+      return n < HDR_MAX;
+    });
+  } catch (e) { log('  não foi possível ler o cabeçalho: ' + e.message, 'aviso'); }
+  if (tipo) { log('  cabeçalho reconhecido na linha ' + linhaHdr + ': ' + cabec); return tipo; }
+  const nm = file.name;
+  if (/comercial/i.test(nm)) return 'com'; if (/arrec/i.test(nm)) return 'arr'; if (/RF\s*0?\d\s*T\s*\d{2}/i.test(nm) || /painel/i.test(nm)) return 'rf';
   return null;
 }
 let LAST_FILES = null, LOADING = false, RELOAD = false;
@@ -1634,10 +1668,10 @@ async function loadFilesOnce(files) {
     }
     // painéis de orçado: para o mesmo RF, o arquivo mais recente prevalece
     const porRotulo = new Map(); grupos.rf.forEach(f => { const l = rfLabel(f.name); if (!porRotulo.has(l)) porRotulo.set(l, []); porRotulo.get(l).push(f); });
-    const rfLer = []; porRotulo.forEach((l, lab) => { l.sort(maisNovoF); rfLer.push(l[0]); l.slice(1).forEach(f => D.rfFiles.push({ name: f.name, size: f.size, modified: f.lastModified, label: lab, status: 'substituido', meses: [] })); });
+    const rfLer = []; porRotulo.forEach(l => { l.sort(maisNovoF).reverse(); rfLer.push(...l); });     // todos são lidos, do mais antigo ao mais recente
     log('Varredura: Comercial ' + grupos.com.length + ' • Arrecadação ' + grupos.arr.length + ' • Orçado ' + grupos.rf.length + (D.ignorados.length ? ' • não reconhecidos ' + D.ignorados.length : ''));
-    if (grupos.com.length > 1) log('  atenção: ' + grupos.com.length + ' arquivos Comercial — serão combinados (mês repetido: ' + (S.repetido === 'somar' ? 'soma' : 'prevalece o mais recente') + ')', 'aviso');
-    if (grupos.arr.length > 1) log('  atenção: ' + grupos.arr.length + ' arquivos de Arrecadação — serão combinados (mês repetido: ' + (S.repetido === 'somar' ? 'soma' : 'prevalece o mais recente') + ')', 'aviso');
+    if (grupos.com.length > 1) log('  atenção: ' + grupos.com.length + ' arquivos Comercial — serão combinados por cidade (mesma cidade e mês em dois arquivos: ' + (S.repetido === 'somar' ? 'soma' : 'prevalece o mais recente') + ')', 'aviso');
+    if (grupos.arr.length > 1) log('  atenção: ' + grupos.arr.length + ' arquivos de Arrecadação — serão combinados por cidade (mesma cidade e mês em dois arquivos: ' + (S.repetido === 'somar' ? 'soma' : 'prevalece o mais recente') + ')', 'aviso');
     const fila = [];
     rfLer.forEach(f => fila.push(['rf', f])); grupos.com.sort(maisNovoF).reverse().forEach(f => fila.push(['com', f])); grupos.arr.sort(maisNovoF).reverse().forEach(f => fila.push(['arr', f]));
     PG.total = fila.reduce((t, x) => t + x[1].size, 0) || 1; PG.base = 0;
@@ -1645,8 +1679,8 @@ async function loadFilesOnce(files) {
       PG.tam = f.size; CTX.arquivo = f.name; CTX.linha = 0; setStatus('Lendo <b>' + esc(f.name) + '</b>…'); progArquivo(0, 0); await tick();
       try {
         if (tipo === 'rf') {
-          await ingestPainel(f); const l = rfLabel(f.name); D.rfFiles.push({ name: f.name, size: f.size, modified: f.lastModified, label: l, status: 'usado', meses: D.rf[l].meses });
-          log('  ✔ concluído: ' + f.name + ' — orçado ' + l + ', ' + D.rf[l].meses.length + ' meses com valor');
+          await ingestPainel(f); const l = rfLabel(f.name); D.rfFiles.push({ name: f.name, size: f.size, modified: f.lastModified, label: l, status: 'usado', meses: Array.from(D.diag['rf_' + l].meses || []).sort() });
+          log('  ✔ concluído: ' + f.name + ' — orçado ' + l + ', ' + D.rf[l].meses.length + ' meses com valor (superintendências: ' + Array.from(D.rf[l].bySup.keys()).join(', ') + ')');
         } else {
           const k = cacheKey(tipo, f); let r = RESCACHE.get(k);
           if (r) log('  ↺ ' + f.name + ': usando a leitura já feita (arquivo não mudou)');
