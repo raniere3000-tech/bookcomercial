@@ -31,7 +31,13 @@ A aba **Orçado RF** mostra o orçado de todos os meses da referência (inclusiv
 A aba **Dados** mostra o que foi lido, um resumo por mês dos valores identificados em cada arquivo, o que foi descartado, a soma por `DSC_CLASSE` e conferências (ex.: líquido da coluna vs. bruto + cancelamento) para validar a leitura.
 
 ## Versões
-O número da versão aparece no topo da página, ao lado de "Book Executivo". Ele sobe a cada alteração (`VERSAO_BOOK` no script de `DRE_Unificado.html`) e também aparece nas mensagens de erro e no log.
+A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.: **V1**). Ela sobe a cada alteração publicada no `main` (`VERSAO_BOOK` no script de `DRE_Unificado.html`: V1, V2, V3…) e também aparece no título da aba do navegador, nas mensagens de erro e no log.
+
+| Versão | O que mudou |
+|---|---|
+| V1 | Numeração reiniciada. Estado atual: DRE Histórico na estrutura "Econômico" recolhível (Faturamento de Água/Esgoto, Cancelamentos abertos, Faturamento Líquido, Arrecadação com aberturas), tabela compacta com tamanho ajustável, botão Baixar PDF e superintendências LESTE/LAGOS atualizadas. |
+
+Histórico anterior à renumeração:
 
 | Versão | O que mudou |
 |---|---|
