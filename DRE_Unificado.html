@@ -374,8 +374,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V5';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-e';
+const VERSAO_BOOK = 'V6';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-f';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -642,16 +642,17 @@ async function ingestComercial(file) {
     let e = map.get(key);
     if (!e) { e = { sups, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {}, cDA: 0, cDE: 0, cIA: 0, cIE: 0, cRes: 0, cReu: 0, cOut: 0 }; map.set(key, e); }
     const num = k => { const v = g(k); return typeof v === 'number' ? v : 0; };
-    // faturamento: soma das COLUNAS em todas as classes (igual a uma tabela dinâmica do Excel); a classe só define a abertura
+    // direto: coluna direta só nas classes CONTAS DE ÁGUA / CONTAS DE ESGOTO; indireto: coluna indireta em todas as classes (a classe define a abertura)
     const vdA = num('faturamento_bruto_direta_agua'), vdE = num('faturamento_bruto_direta_esgoto'), viA = num('faturamento_bruto_indireta_agua'), viE = num('faturamento_bruto_indireta_esgoto');
-    e.dA += vdA; e.dE += vdE; e.iA += viA; e.iE += viE;
+    if (dClsD.has(cls)) { e.dA += vdA; e.dE += vdE; } else if (vdA || vdE) diag.diretaForaContas = (diag.diretaForaContas || new Set()).add(cls);
+    e.iA += viA; e.iE += viE;
     if (viA) { const k = 'F_' + (dIA[cls] || 'Outras classes'); e.fr[k] = (e.fr[k] || 0) + viA; }
     if (viE) { const k = 'E_' + (dIE[cls] || 'Outras classes'); e.fr[k] = (e.fr[k] || 0) + viE; }
     if (dClsD.has(cls)) {
       e.ecoA += num('qtd_eco_fat_agua'); e.ecoE += num('qtd_eco_fat_esgoto');
       e.volA += num('vol_faturado_agua_direto_m'); e.volE += num('vol_faturado_esgoto_direto_m'); e.volM += num('volume_medido_de_agua_m');
     } else if (!dIA[cls] && !dIE[cls] && !dIg.has(cls)) diag.naoMapeadas.add(cls);
-    if ((vdA || vdE || viA || viE) && dIg.has(cls)) diag.ignoradaComValor = (diag.ignoradaComValor || new Set()).add(cls);
+    if (viA || viE) if (dIg.has(cls)) diag.ignoradaComValor = (diag.ignoradaComValor || new Set()).add(cls);
     { const pc = e.pc || (e.pc = {}), c = pc[cls] || (pc[cls] = { dA: 0, dE: 0, iA: 0, iE: 0, canc: 0, liq: 0 });   // por classe, para a conferência
       c.dA += vdA; c.dE += vdE; c.iA += viA; c.iE += viE; c.canc += num('r_cancelamento_total'); c.liq += num('r_faturamento_total_liquido'); }
     const cv = num('r_cancelamento_total'); e.canc += cv; e.liq += num('r_faturamento_total_liquido');
@@ -1579,6 +1580,8 @@ function renderDados() {
       <tr><td>Superintendências · cidades no arquivo</td><td>${Array.from(D.com.sups).join(', ')} · ${dc.cidadesVistas.size}</td></tr>
       <tr><td>Coluna Sup do arquivo</td><td>${dc.colunaSupIgnorada ? 'presente — <b>ignorada</b>' : 'ausente'}; a superintendência vem da relação cidade × SUP FINAL (<code>CONFIG.supCidades</code>)</td></tr>
       <tr><td>Cidades do arquivo fora da relação</td><td>${dc.cidadesSemSup.size ? Array.from(dc.cidadesSemSup).map(x => '<span class="tag bad">' + esc(x) + '</span>').join(' ') + ' — aparecem só em TODAS / SEM SUP; inclua em <code>CONFIG.supCidades</code>' : 'nenhuma'}</td></tr>
+      <tr><td>Valor na coluna direta fora de CONTAS DE ÁGUA/ESGOTO (fica fora do Faturamento Direto)</td><td>${(() => { const l = Array.from(dc.classes.entries()).filter(([c, v]) => !CONFIG.classeDireta.includes(c) && !CONFIG.classeZero.includes(c) && ((v.s.faturamento_bruto_direta_agua || 0) || (v.s.faturamento_bruto_direta_esgoto || 0)));
+        return l.length ? l.map(([c, v]) => `<span class="tag warn">${esc(c)}: água ${fmtBRL(v.s.faturamento_bruto_direta_agua || 0)} · esgoto ${fmtBRL(v.s.faturamento_bruto_direta_esgoto || 0)}</span>`).join(' ') : 'nenhuma'; })()}</td></tr>
       <tr><td>Classes não mapeadas (ignoradas)</td><td>${dc.naoMapeadas.size ? Array.from(dc.naoMapeadas).map(x => '<span class="tag warn">' + esc(x) + '</span>').join(' ') : 'nenhuma'}</td></tr>
       <tr><td>Líquido da coluna vs. bruto + cancelamento</td><td>${fmtBRL(dc.somaLiq)} vs. ${fmtBRL(calcLiq)} — diferença ${fmtBRL(difLiq)} ${Math.abs(difLiq) < 1 ? '<span class="tag">ok</span>' : '<span class="tag warn">verificar sinal de cancelamento / classes</span>'}</td></tr>
       </tbody></table></div>`;
