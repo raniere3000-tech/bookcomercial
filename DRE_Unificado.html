@@ -239,6 +239,24 @@ main{padding:12px 20px 12px}
 table{font-size:11px}
 th{padding:5px 8px;font-size:10.5px}
 td{padding:3px 8px}
+#pdfDlg{border:none;border-radius:14px;padding:0;width:min(520px,calc(100vw - 32px));max-height:min(86vh,760px);box-shadow:0 18px 48px rgba(10,30,50,.32)}
+#pdfDlg::backdrop{background:rgba(10,30,50,.45)}
+#pdfDlg .dlg{display:flex;flex-direction:column;max-height:min(86vh,760px)}
+#pdfDlg header{padding:16px 20px 10px;border-bottom:1px solid var(--line)}
+#pdfDlg h3{margin:0;font-size:16px;color:var(--navy);text-wrap:balance}
+#pdfDlg .hint{margin:4px 0 0}
+#pdfDlg .acoes{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;border-bottom:1px solid var(--line)}
+#pdfDlg .lista{overflow:auto;padding:8px 20px;flex:1}
+#pdfDlg label{display:flex;align-items:center;gap:8px;min-height:32px;font-size:13px;color:#33485a;cursor:pointer}
+#pdfDlg label input{width:16px;height:16px;margin:0}
+#pdfDlg label.n0{font-weight:750;color:#1b2a36;border-top:1px solid #eef2f5;margin-top:4px;padding-top:4px}
+#pdfDlg label.n1{padding-left:22px}
+#pdfDlg label.grupo{font-weight:650;color:#1b2a36}
+#pdfDlg label.n2{padding-left:44px}
+#pdfDlg label.n3{padding-left:66px;color:#5b6f80}
+#pdfDlg footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--line)}
+#pdfDlg footer .minibtn{min-height:40px;padding:0 16px;font-size:13px}
+#pdfDlg .primario{background:#0d5f98;color:#fff;border-color:#0d5f98}
 </style>
 </head>
 <body>
@@ -323,6 +341,12 @@ td{padding:3px 8px}
       <div class="period" id="cashPeriod"></div><div id="cashTable" class="tablewrap"></div></div>
   </section>
 
+  <dialog id="pdfDlg"><form method="dialog" class="dlg">
+    <header><h3>Tópicos do PDF</h3><div class="hint">Marque o que deve sair no PDF. Itens recolhidos na tela também podem ser incluídos.</div></header>
+    <div class="acoes"><button class="minibtn" type="button" data-pdfsel="tudo">Marcar tudo</button><button class="minibtn" type="button" data-pdfsel="nada">Desmarcar tudo</button><button class="minibtn" type="button" data-pdfsel="tela">Igual à tela</button><button class="minibtn" type="button" data-pdfsel="principais">Só os totais</button></div>
+    <div class="lista" id="pdfLista"></div>
+    <footer><span id="pdfConta" class="hint" style="margin:0 auto 0 0;align-self:center"></span><button class="minibtn" value="cancel" type="submit">Cancelar</button><button class="minibtn primario" type="button" id="pdfGerar">Baixar PDF</button></footer>
+  </form></dialog>
   <section class="page" id="historico">
     <div class="panel"><h2>DRE Histórico por município</h2>
       <div class="hint">Realizado por cidade, mês ou ano. Economias nos totais e anos aparecem como média mensal; tarifa e volume médio são calculados sobre as somas.</div>
@@ -374,8 +398,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V7';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-g';
+const VERSAO_BOOK = 'V8';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-h';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1340,16 +1364,45 @@ function histInit() {
   const lr = lastRealMonth(); if (lr && S.hist._init !== lr) { S.hist.i1 = Math.max(0, ms.indexOf(lr)); S.hist.i0 = Math.max(0, S.hist.i1 - 23); S.hist._init = lr; }
 }
 function linhaVisivel(id) { for (let p = HPAI.get(id); p; p = HPAI.get(p)) if (S.hist.ocultos.has(p)) return false; return true; }
-function histPdf() {
+function pdfNivel(id) { let n = 0; for (let p = HPAI.get(id); p; p = HPAI.get(p)) n++; return n; }
+function pdfDescendentes(id) { return HTREE.filter(l => { for (let p = HPAI.get(l[0]); p; p = HPAI.get(p)) if (p === id) return true; return false; }).map(l => l[0]); }
+function abrirPdfDlg() {
+  if (!D.com) { alert('Carregue os dados antes de gerar o PDF.'); return; }
+  const dlg = $('#pdfDlg'), lista = $('#pdfLista');
+  if (!S.hist.pdfSel) S.hist.pdfSel = new Set(HTREE.filter(l => linhaVisivel(l[0])).map(l => l[0]));
+  const desenhar = () => {
+    lista.innerHTML = HTREE.map(([id, nome, , estilo]) => `<label class="n${pdfNivel(id)}${estilo === 'sub' || estilo === 'dest' ? ' grupo' : ''}"><input type="checkbox" data-pdfid="${id}" ${S.hist.pdfSel.has(id) ? 'checked' : ''}> ${esc(nome)}</label>`).join('');
+    $('#pdfConta').textContent = S.hist.pdfSel.size + ' de ' + HTREE.length + ' tópicos';
+    lista.querySelectorAll('[data-pdfid]').forEach(c => c.onchange = () => {
+      const id = c.dataset.pdfid, alvo = [id].concat(pdfDescendentes(id));          // marcar/desmarcar um grupo leva junto o que está dentro
+      alvo.forEach(x => c.checked ? S.hist.pdfSel.add(x) : S.hist.pdfSel.delete(x));
+      if (c.checked) for (let p = HPAI.get(id); p; p = HPAI.get(p)) S.hist.pdfSel.add(p); // e garante o grupo acima
+      desenhar();
+    });
+  };
+  dlg.querySelectorAll('[data-pdfsel]').forEach(b => b.onclick = () => {
+    const t = b.dataset.pdfsel;
+    S.hist.pdfSel = new Set(t === 'tudo' ? HTREE.map(l => l[0]) : t === 'nada' ? [] : t === 'tela' ? HTREE.filter(l => linhaVisivel(l[0])).map(l => l[0]) : HTREE.filter(l => l[3] === 'sec' || l[3] === 'sub' || l[3] === 'dest').map(l => l[0]));
+    desenhar();
+  });
+  $('#pdfGerar').onclick = () => { if (!S.hist.pdfSel.size) { alert('Selecione pelo menos um tópico.'); return; } dlg.close(); histPdf(new Set(S.hist.pdfSel)); };
+  desenhar(); dlg.showModal();
+}
+function histPdf(ids) {
   if (!window.jspdf) { alert('Biblioteca de PDF não carregada (lib/jspdf.umd.min.js).'); return; }
   if (!D.com) { alert('Carregue os dados antes de gerar o PDF.'); return; }
-  const tb = $('#tabelaDRE'), head = [Array.from(tb.querySelectorAll('thead th')).map(th => th.textContent.trim())];
+  const sel = ids || new Set(HTREE.filter(l => linhaVisivel(l[0])).map(l => l[0]));
+  const { cols, all } = histCols(), accs = cols.map(c => histAcc(c.months)).concat([histAcc(all)]);
+  const head = [['Econômico'].concat(cols.map(c => c.label), ['Total Geral'])];
   const CORES = { sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
   const IND = { sec: 2, sub: 5, item: 10, det: 15, dest: 5 };
-  const estilos = [], body = Array.from(tb.querySelectorAll('tbody tr')).map(tr => {
-    const est = (tr.className.match(/r-(\w+)/) || [0, 'item'])[1]; estilos.push(est);
-    return Array.from(tr.children).map((td, i) => i ? td.textContent : td.lastChild.textContent);
+  const estilos = [], body = [];
+  HTREE.forEach(([id, nome, chave, estilo, , tipo]) => {
+    if (!sel.has(id)) return;
+    if ((id === 'iA8' || id === 'iE3' || id === 'iA7') && !histVal(accs[accs.length - 1], chave)) return;
+    estilos.push(estilo); body.push([nome].concat(accs.map(a => chave ? fmtH(histVal(a, chave), tipo) : '')));
   });
+  if (!body.length) { alert('Selecione pelo menos um tópico.'); return; }
   const nCol = head[0].length, fmt = nCol > 16 ? 'a3' : 'a4';
   const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: fmt });
   const W = doc.internal.pageSize.getWidth();
@@ -1375,7 +1428,7 @@ function histPdf() {
     },
     didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
   });
-  const cols = histCols().all; const per = cols.length ? cols[0] + (cols.length > 1 ? '_a_' + cols[cols.length - 1] : '') : '';
+  const per = all.length ? all[0] + (all.length > 1 ? '_a_' + all[all.length - 1] : '') : '';
   doc.save(`DRE_Historico_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${per}.pdf`);
 }
 function renderHistorico() {
@@ -1383,7 +1436,7 @@ function renderHistorico() {
   const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml() + `<span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="zoomctl">Tamanho <button class="minibtn" type="button" data-zoom="-1" title="Diminuir">−</button><b>${Math.round(S.hist.zoom * 100)}%</b><button class="minibtn" type="button" data-zoom="1" title="Aumentar">+</button><button class="minibtn" type="button" data-zoom="0" title="Ajustar à largura da tela">↔ Ajustar</button></span><button class="minibtn" type="button" data-tree="abrir">⊞ Expandir tudo</button><button class="minibtn" type="button" data-tree="fechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="histPdf" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></span>`;
   bindHistFilters(fh, renderHistorico);
   fh.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => { const z = +b.dataset.zoom; S.hist.zoom = z ? Math.min(1.5, Math.max(0.6, Math.round((S.hist.zoom + z * 0.1) * 10) / 10)) : 1; S.hist.ajustar = !z; renderHistorico(); });
-  $('#histPdf').onclick = histPdf;
+  $('#histPdf').onclick = abrirPdfDlg;
   fh.querySelectorAll('[data-tree]').forEach(b => b.onclick = () => { S.hist.ocultos = b.dataset.tree === 'abrir' ? new Set() : new Set(HFILHOS); renderHistorico(); });
   const head = $('#headerRow'), corpo = $('#corpoTabela');
   if (!D.com) { head.innerHTML = '<th>Item</th>'; corpo.innerHTML = `<tr><td colspan="2">${emptyMsg()}</td></tr>`; $('#resumo').textContent = ''; return; }
