@@ -321,8 +321,8 @@ table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-to
 <main>
   <section class="page active" id="dre">
     <div class="panel"><h2>DRE: mês e acumulado</h2>
-      <div class="hint">O mês selecionado aparece à esquerda e o acumulado do ano até o período, à direita</div>
-      <div class="dreTopo"><div class="period" id="drePeriod"></div><span class="seg" id="dreColsSel" role="group" aria-label="Colunas"><button type="button" data-dcols="todas">Completo</button><button type="button" data-dcols="or">Só Orçado e Realizado</button></span><button class="minibtn" type="button" id="dreAbrir">⊞ Expandir tudo</button><button class="minibtn" type="button" id="dreFechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="drePdfBtn" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></div><div id="dreTable" class="tablewrap"></div></div>
+      <div class="hint">O mês selecionado aparece à esquerda e o acumulado à direita: do ano até o mês ou só dos meses preenchidos no RF</div>
+      <div class="dreTopo"><div class="period" id="drePeriod"></div><span class="seg" id="dreAcumSel" role="group" aria-label="Acumulado"><button type="button" data-dacum="ano">Acumulado do ano</button><button type="button" data-dacum="rf">Período do RF</button></span><span class="seg" id="dreColsSel" role="group" aria-label="Colunas"><button type="button" data-dcols="todas">Completo</button><button type="button" data-dcols="or">Só Orçado e Realizado</button></span><button class="minibtn" type="button" id="dreAbrir">⊞ Expandir tudo</button><button class="minibtn" type="button" id="dreFechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="drePdfBtn" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></div><div class="hint" id="dreAcumInfo" style="margin:4px 0 8px"></div><div id="dreTable" class="tablewrap"></div></div>
   </section>
 
   <section class="page" id="dremensal">
@@ -417,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V14';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-n';
+const VERSAO_BOOK = 'V15';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-o';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1020,8 +1020,28 @@ function cellsPair(p, dec, so) {
   if (so) return `<td>${fmtVal(p.b, dec)}</td><td>${fmtVal(p.a, dec)}</td>`;
   return `<td>${fmtVal(p.b, dec)}</td><td>${fmtVal(p.a, dec)}</td><td class="${diff == null ? '' : diff >= 0 ? 'pos' : 'neg'}">${diff == null ? '—' : fmtVal(diff, dec)}</td><td>${pillHtml(p.d)}</td>`;
 }
-function dreDados(m) {                       // valores de cada linha: mês e acumulado do ano
-  const ytd = monthsOfYearUpTo(m), out = new Map();
+/* meses do RF selecionado com algum valor preenchido para a superintendência atual */
+function rfMesesComValor() {
+  const rf = D.rf[S.rf]; if (!rf) return [];
+  return rf.meses.filter(ym => { const b = budgetBase(ym); return b && Object.values(b).some(v => has(v) && v !== 0); }).sort();
+}
+/* meses do acumulado: ano até o mês selecionado, ou só os meses com valor no RF */
+function dreAcum(m) {
+  if (S.dreAcum === 'rf') {
+    const l = rfMesesComValor();
+    if (l.length) {
+      const rot = l.length > 1 ? mlabel(l[0]) + '–' + mlabel(l[l.length - 1]) : mlabel(l[0]);
+      const todos = []; for (let y = +l[0].slice(0, 4), mo = +l[0].slice(5); ; ) { const k = y + '-' + String(mo).padStart(2, '0'); todos.push(k); if (k === l[l.length - 1]) break; if (++mo > 12) { mo = 1; y++; } }
+      const falta = todos.filter(x => !l.includes(x)), comReal = l.filter(x => has(actualBase(x) && actualBase(x).liq));
+      return { meses: l, titulo: 'Acumulado RF ' + rfLbl() + ' (' + rot + ')', curto: 'RF ' + rot,
+        info: `Período do RF ${rfLbl()}: ${l.length} mês(es) com valor preenchido (${rot})` + (falta.length ? ` · sem valor no RF: ${falta.map(mlabel).join(', ')}` : '') + ` · realizado disponível em ${comReal.length} deles` + (comReal.length < l.length ? ` (sem realizado: ${l.filter(x => !comReal.includes(x)).map(mlabel).join(', ')})` : '') };
+    }
+    return { meses: monthsOfYearUpTo(m), titulo: 'Acumulado até ' + mlabel(m), curto: 'Jan–' + MN[+m.slice(5) - 1] + '/' + yearOf(m), info: 'Nenhum mês com valor no RF ' + rfLbl() + ' para esta superintendência — usando o acumulado do ano.' };
+  }
+  return { meses: monthsOfYearUpTo(m), titulo: 'Acumulado até ' + mlabel(m), curto: 'Jan–' + MN[+m.slice(5) - 1] + '/' + yearOf(m), info: '' };
+}
+function dreDados(m) {                       // valores de cada linha: mês e acumulado (ano ou período do RF)
+  const ytd = dreAcum(m).meses, out = new Map();
   DTREE.forEach(([id, , key]) => { if (key) out.set(id, { pm: pair(key, [m]), pa: pair(key, ytd) }); });
   return out;
 }
@@ -1029,7 +1049,10 @@ const dreVazia = v => !v || ![v.pm.a, v.pm.b, v.pa.a, v.pa.b].some(x => has(x) &
 function renderDRE() {
   if (!S.ym) { $('#dreTable').innerHTML = emptyMsg(); $('#drePeriod').textContent = ''; return; }
   const m = S.ym, mn = mlabel(m);
-  $('#drePeriod').textContent = `${mn}  |  Acumulado Jan–${MN[+m.slice(5) - 1]}/${yearOf(m)}`;
+  const ac = dreAcum(m);
+  $('#drePeriod').textContent = `${mn}  |  Acumulado ${ac.curto}`;
+  $('#dreAcumInfo').textContent = ac.info;
+  $$('#dreAcumSel [data-dacum]').forEach(b => { b.classList.toggle('on', b.dataset.dacum === (S.dreAcum === 'rf' ? 'rf' : 'ano')); b.onclick = () => { S.dreAcum = b.dataset.dacum; persist(); renderDRE(); }; });
   $('#dreAbrir').onclick = () => { S.dreOcultos = new Set(); renderDRE(); };
   $('#dreFechar').onclick = () => { S.dreOcultos = new Set(DFILHOS); renderDRE(); };
   $('#drePdfBtn').onclick = () => abrirPdfDlg(PDF_DRE);
@@ -1037,7 +1060,7 @@ function renderDRE() {
   $$('#dreColsSel [data-dcols]').forEach(b => { b.classList.toggle('on', b.dataset.dcols === (so ? 'or' : 'todas')); b.onclick = () => { S.dreCols = b.dataset.dcols; persist(); renderDRE(); }; });
   const dados = dreDados(m), subs = so ? ['Orçado', 'Realizado'] : ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
   const th = (l, acc) => l.map((x, i) => `<th class="sub1${acc && !i ? ' accStart' : ''}">${x}</th>`).join('');
-  let h = `<table class="arv"><thead><tr><th rowspan="2" style="text-align:left">Descrição</th><th colspan="${nc}" class="gm">${mn}</th><th colspan="${nc}" class="ga">Acumulado até ${mn}</th></tr>
+  let h = `<table class="arv"><thead><tr><th rowspan="2" style="text-align:left">Descrição</th><th colspan="${nc}" class="gm">${mn}</th><th colspan="${nc}" class="ga">${esc(ac.titulo)}</th></tr>
     <tr>${th(subs)}${th(subs, 1)}</tr></thead><tbody>`;
   DTREE.forEach(([id, nome, key, estilo, , dec]) => {
     if (!dreLinhaVisivel(id)) return;
@@ -1063,12 +1086,13 @@ function drePdf(sel) {
   const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' }), W = doc.internal.pageSize.getWidth();
   doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text('DRE: mês e acumulado', 10, 12);
   doc.setFontSize(8.5); doc.setTextColor(90, 110, 125);
-  doc.text(`${mn} | Acumulado Jan–${MN[+m.slice(5) - 1]}/${yearOf(m)} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()} · Visão Auditoria: ${S.aud ? 'Sim (' + Array.from(S.audSel).join(' / ') + ')' : 'Não'}`, 10, 17);
+  const ac = dreAcum(m);
+  doc.text(`${mn} | Acumulado ${ac.curto} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()} · Visão Auditoria: ${S.aud ? 'Sim (' + Array.from(S.audSel).join(' / ') + ')' : 'Não'}`, 10, 17);
   const CORES = { top: [174, 203, 221], sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
   const prof = id => { let n = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) n++; return n; };
   const sub = so ? ['Orçado', 'Realizado'] : ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
   doc.autoTable({
-    head: [[{ content: 'Descrição', rowSpan: 2 }, { content: mn, colSpan: nc }, { content: 'Acumulado até ' + mn, colSpan: nc }], sub.concat(sub)],
+    head: [[{ content: 'Descrição', rowSpan: 2 }, { content: mn, colSpan: nc }, { content: ac.titulo, colSpan: nc }], sub.concat(sub)],
     body, startY: 22, theme: 'grid', margin: { left: 8, right: 8 },
     styles: { fontSize: 7.5, cellPadding: 1.3, halign: 'right', lineColor: [225, 231, 236], lineWidth: 0.1 },
     headStyles: { fillColor: [18, 54, 101], textColor: 255, halign: 'center', fontStyle: 'bold' },
@@ -1082,7 +1106,7 @@ function drePdf(sel) {
       if (d.column.index === 0) d.cell.styles.cellPadding = { top: 1.3, bottom: 1.3, right: 1.3, left: 2 + prof(ids[d.row.index]) * 4 };
       else if (/^-/.test(String(d.cell.raw).replace(/^-R\$/, '-').trim()) && String(d.cell.raw).trim() !== '—') d.cell.styles.textColor = [192, 57, 43];
     },
-    didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
+    didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); if (ac.info) doc.text(doc.splitTextToSize(ac.info, W - 90), 8, doc.internal.pageSize.getHeight() - 5); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
   });
   doc.save(`DRE_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${m}${S.aud ? '_Auditoria' : ''}.pdf`);
 }
@@ -1810,8 +1834,8 @@ function renderDados() {
 function emptyMsg(t) {
   return `<div class="empty">${t || '<b>Sem dados para o período.</b><br>Conecte a pasta com os arquivos (Comercial, Arrecadação e painéis RF) usando o botão <b>📁 Conectar pasta</b>.'}</div>`;
 }
-function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel), mesManual: S.mesManual, mesArquivo: S.mesArquivo, repetido: S.repetido, dreCols: S.dreCols })); } catch (e) {} }
-function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); if (o.mesManual) S.mesManual = o.mesManual; if (o.mesArquivo) S.mesArquivo = o.mesArquivo; if (o.repetido) S.repetido = o.repetido; if (o.dreCols) S.dreCols = o.dreCols; } catch (e) {} }
+function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel), mesManual: S.mesManual, mesArquivo: S.mesArquivo, repetido: S.repetido, dreCols: S.dreCols, dreAcum: S.dreAcum })); } catch (e) {} }
+function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); if (o.mesManual) S.mesManual = o.mesManual; if (o.mesArquivo) S.mesArquivo = o.mesArquivo; if (o.repetido) S.repetido = o.repetido; if (o.dreCols) S.dreCols = o.dreCols; if (o.dreAcum) S.dreAcum = o.dreAcum; } catch (e) {} }
 
 function buildHeader() {
   const sups = supList(); if (!sups.includes(S.sup)) S.sup = sups.includes('LAGOS') ? 'LAGOS' : (sups[0] || null);
