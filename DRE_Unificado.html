@@ -264,6 +264,10 @@ table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-to
 #dre table.arv tr[data-arv]{cursor:pointer}
 .dreTopo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dreTopo .period{margin-right:auto}
+.seg{display:inline-flex;border:1px solid #cfdbe5;border-radius:8px;overflow:hidden}
+.seg button{border:0;background:#fff;color:var(--blue);font-size:12px;padding:5px 10px;min-height:30px;cursor:pointer}
+.seg button+button{border-left:1px solid #cfdbe5}
+.seg button.on{background:#0d5f98;color:#fff}
 </style>
 </head>
 <body>
@@ -314,7 +318,7 @@ table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-to
   <section class="page active" id="dre">
     <div class="panel"><h2>DRE: mês e acumulado</h2>
       <div class="hint">O mês selecionado aparece à esquerda e o acumulado do ano até o período, à direita</div>
-      <div class="dreTopo"><div class="period" id="drePeriod"></div><button class="minibtn" type="button" id="dreAbrir">⊞ Expandir tudo</button><button class="minibtn" type="button" id="dreFechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="drePdfBtn" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></div><div id="dreTable" class="tablewrap"></div></div>
+      <div class="dreTopo"><div class="period" id="drePeriod"></div><span class="seg" id="dreColsSel" role="group" aria-label="Colunas"><button type="button" data-dcols="todas">Completo</button><button type="button" data-dcols="or">Só Orçado e Realizado</button></span><button class="minibtn" type="button" id="dreAbrir">⊞ Expandir tudo</button><button class="minibtn" type="button" id="dreFechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="drePdfBtn" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></div><div id="dreTable" class="tablewrap"></div></div>
   </section>
 
   <section class="page" id="dremensal">
@@ -405,8 +409,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V12';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-l';
+const VERSAO_BOOK = 'V13';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-m';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1003,8 +1007,9 @@ const DPAI = arvPai(DTREE), DFILHOS = arvComFilhos(DTREE);
 const dreLinhaVisivel = id => arvVisivel(DPAI, S.dreOcultos, id);
 const fmtVal = (v, dec) => dec === undefined ? fmtBRL(v) : fmtN(v, dec === 2 ? 2 : dec === 1 ? 1 : 0);
 const pillHtml = d => `<span class="pill ${Number.isFinite(d) ? (d < 0 ? 'red' : '') : 'na'}">${pct(d)}</span>`;
-function cellsPair(p, dec) {
+function cellsPair(p, dec, so) {
   const diff = has(p.a) && has(p.b) ? p.a - p.b : null;
+  if (so) return `<td>${fmtVal(p.b, dec)}</td><td>${fmtVal(p.a, dec)}</td>`;
   return `<td>${fmtVal(p.b, dec)}</td><td>${fmtVal(p.a, dec)}</td><td class="${diff == null ? '' : diff >= 0 ? 'pos' : 'neg'}">${diff == null ? '—' : fmtVal(diff, dec)}</td><td>${pillHtml(p.d)}</td>`;
 }
 function dreDados(m) {                       // valores de cada linha: mês e acumulado do ano
@@ -1020,15 +1025,18 @@ function renderDRE() {
   $('#dreAbrir').onclick = () => { S.dreOcultos = new Set(); renderDRE(); };
   $('#dreFechar').onclick = () => { S.dreOcultos = new Set(DFILHOS); renderDRE(); };
   $('#drePdfBtn').onclick = () => abrirPdfDlg(PDF_DRE);
-  const dados = dreDados(m);
-  let h = `<table class="arv"><thead><tr><th rowspan="2" style="text-align:left">Descrição</th><th colspan="4" class="gm">${mn}</th><th colspan="4" class="ga">Acumulado até ${mn}</th></tr>
-    <tr><th class="sub1">Orçado</th><th class="sub1">Realizado</th><th class="sub1">(-) Absoluto</th><th class="sub1">(%) Relativo</th><th class="sub1 accStart">Orçado</th><th class="sub1">Realizado</th><th class="sub1">(-) Absoluto</th><th class="sub1">(%) Relativo</th></tr></thead><tbody>`;
+  const so = S.dreCols === 'or', nc = so ? 2 : 4;                                  // só Orçado e Realizado, ou completo
+  $$('#dreColsSel [data-dcols]').forEach(b => { b.classList.toggle('on', b.dataset.dcols === (so ? 'or' : 'todas')); b.onclick = () => { S.dreCols = b.dataset.dcols; persist(); renderDRE(); }; });
+  const dados = dreDados(m), subs = so ? ['Orçado', 'Realizado'] : ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
+  const th = (l, acc) => l.map((x, i) => `<th class="sub1${acc && !i ? ' accStart' : ''}">${x}</th>`).join('');
+  let h = `<table class="arv"><thead><tr><th rowspan="2" style="text-align:left">Descrição</th><th colspan="${nc}" class="gm">${mn}</th><th colspan="${nc}" class="ga">Acumulado até ${mn}</th></tr>
+    <tr>${th(subs)}${th(subs, 1)}</tr></thead><tbody>`;
   DTREE.forEach(([id, nome, key, estilo, , dec]) => {
     if (!dreLinhaVisivel(id)) return;
     const v = dados.get(id); if (estilo === 'det' && dreVazia(v)) return;          // aberturas sem valor não aparecem
     const grupo = DFILHOS.has(id), fechado = S.dreOcultos.has(id);
     const lab = (grupo ? `<span class="toggle-btn" title="${fechado ? 'Expandir' : 'Recolher'}">${fechado ? '+' : '−'}</span>` : (estilo === 'sec' || estilo === 'sub' || estilo === 'dest' || estilo === 'top') ? '<span class="toggle-pad"></span>' : '') + esc(nome);
-    const cel = v ? cellsPair(v.pm, dec) + cellsPair(v.pa, dec).replace('<td>', '<td class="accStart">') : '<td></td><td></td><td></td><td></td><td class="accStart"></td><td></td><td></td><td></td>';
+    const cel = v ? cellsPair(v.pm, dec, so) + cellsPair(v.pa, dec, so).replace('<td>', '<td class="accStart">') : '<td></td>'.repeat(nc) + '<td class="accStart"></td>' + '<td></td>'.repeat(nc - 1);
     let prof = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) prof++;
     h += `<tr class="r-${estilo}"${grupo ? ` data-arv="${id}"` : ''}><td style="padding-left:${8 + prof * 16}px">${lab}</td>${cel}</tr>`;
   });
@@ -1037,11 +1045,11 @@ function renderDRE() {
 }
 function drePdf(sel) {
   if (!window.jspdf) { alert('Biblioteca de PDF não carregada (lib/jspdf.umd.min.js).'); return; }
-  const m = S.ym, mn = mlabel(m), dados = dreDados(m), estilos = [], body = [], ids = [];
-  const txt = (p, dec) => { const diff = has(p.a) && has(p.b) ? p.a - p.b : null; return [fmtVal(p.b, dec), fmtVal(p.a, dec), diff == null ? '—' : fmtVal(diff, dec), pct(p.d)]; };
+  const m = S.ym, mn = mlabel(m), dados = dreDados(m), estilos = [], body = [], ids = [], so = S.dreCols === 'or', nc = so ? 2 : 4;
+  const txt = (p, dec) => { const diff = has(p.a) && has(p.b) ? p.a - p.b : null; const l = [fmtVal(p.b, dec), fmtVal(p.a, dec)]; return so ? l : l.concat([diff == null ? '—' : fmtVal(diff, dec), pct(p.d)]); };
   DTREE.forEach(([id, nome, key, estilo, , dec]) => {
     if (!sel.has(id)) return; const v = dados.get(id); if (estilo === 'det' && dreVazia(v)) return;
-    estilos.push(estilo); ids.push(id); body.push([nome].concat(v ? txt(v.pm, dec).concat(txt(v.pa, dec)) : ['', '', '', '', '', '', '', '']));
+    estilos.push(estilo); ids.push(id); body.push([nome].concat(v ? txt(v.pm, dec).concat(txt(v.pa, dec)) : Array(nc * 2).fill('')));
   });
   if (!body.length) { alert('Selecione pelo menos um tópico.'); return; }
   const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' }), W = doc.internal.pageSize.getWidth();
@@ -1050,15 +1058,15 @@ function drePdf(sel) {
   doc.text(`${mn} | Acumulado Jan–${MN[+m.slice(5) - 1]}/${yearOf(m)} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()}${S.aud ? ' · Visão Auditoria: ' + Array.from(S.audSel).join(' / ') : ''}`, 10, 17);
   const CORES = { top: [174, 203, 221], sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
   const prof = id => { let n = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) n++; return n; };
-  const sub = ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
+  const sub = so ? ['Orçado', 'Realizado'] : ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
   doc.autoTable({
-    head: [[{ content: 'Descrição', rowSpan: 2 }, { content: mn, colSpan: 4 }, { content: 'Acumulado até ' + mn, colSpan: 4 }], sub.concat(sub)],
+    head: [[{ content: 'Descrição', rowSpan: 2 }, { content: mn, colSpan: nc }, { content: 'Acumulado até ' + mn, colSpan: nc }], sub.concat(sub)],
     body, startY: 22, theme: 'grid', margin: { left: 8, right: 8 },
     styles: { fontSize: 7.5, cellPadding: 1.3, halign: 'right', lineColor: [225, 231, 236], lineWidth: 0.1 },
     headStyles: { fillColor: [18, 54, 101], textColor: 255, halign: 'center', fontStyle: 'bold' },
-    columnStyles: { 0: { halign: 'left', cellWidth: 66 } },
+    columnStyles: { 0: { halign: 'left', cellWidth: so ? 90 : 66 } },
     didParseCell: d => {
-      if (d.section === 'head' && d.row.index === 0 && d.column.index >= 5) d.cell.styles.fillColor = [11, 41, 80];
+      if (d.section === 'head' && d.row.index === 0 && d.column.index >= nc + 1) d.cell.styles.fillColor = [11, 41, 80];
       if (d.section !== 'body') return;
       const est = estilos[d.row.index]; d.cell.styles.fillColor = CORES[est] || [255, 255, 255];
       if (est === 'top' || est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
@@ -1780,8 +1788,8 @@ function renderDados() {
 function emptyMsg(t) {
   return `<div class="empty">${t || '<b>Sem dados para o período.</b><br>Conecte a pasta com os arquivos (Comercial, Arrecadação e painéis RF) usando o botão <b>📁 Conectar pasta</b>.'}</div>`;
 }
-function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel), mesManual: S.mesManual, mesArquivo: S.mesArquivo, repetido: S.repetido })); } catch (e) {} }
-function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); if (o.mesManual) S.mesManual = o.mesManual; if (o.mesArquivo) S.mesArquivo = o.mesArquivo; if (o.repetido) S.repetido = o.repetido; } catch (e) {} }
+function persist() { try { localStorage.setItem('dreu', JSON.stringify({ sup: S.sup, rf: S.rf, aud: S.aud, audSel: Array.from(S.audSel), mesManual: S.mesManual, mesArquivo: S.mesArquivo, repetido: S.repetido, dreCols: S.dreCols })); } catch (e) {} }
+function restore() { try { const o = JSON.parse(localStorage.getItem('dreu') || '{}'); if (o.sup) S.sup = o.sup; if (o.rf) S.rf = o.rf; S.aud = !!o.aud; if (o.audSel) S.audSel = new Set(o.audSel); if (o.mesManual) S.mesManual = o.mesManual; if (o.mesArquivo) S.mesArquivo = o.mesArquivo; if (o.repetido) S.repetido = o.repetido; if (o.dreCols) S.dreCols = o.dreCols; } catch (e) {} }
 
 function buildHeader() {
   const sups = supList(); if (!sups.includes(S.sup)) S.sup = sups.includes('LAGOS') ? 'LAGOS' : (sups[0] || null);
