@@ -6,6 +6,8 @@
 <title>Book Executivo DRE | Águas do Rio</title>
 <script src="lib/jszip.min.js"></script>
 <script src="lib/chart.umd.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--navy:#102840;--blue:#176b9c;--cyan:#16a5b8;--green:#1f8a70;--red:#c94b4b;--amber:#d79b29;--ink:#1f2d3d;--muted:#64748b;--line:#dbe4ec;--paper:#fff;--bg:#f3f6f9}
 *{box-sizing:border-box}
@@ -148,8 +150,15 @@ th.fut{background:#fff4de;color:#9a6a0a}
 .filterbar select{font-size:12.5px;padding:6px 8px;border-radius:8px;border:1px solid #cfdbe5;background:#fff}
 .toggle-btn{cursor:pointer;color:var(--blue);font-weight:800;margin-right:6px;display:inline-block;width:16px;text-align:center}
 table.hist th{background:var(--navy);color:#fff}
-table.hist thead th:first-child{background:#1f5f7f;text-align:center;min-width:290px}
-table.hist tbody td:first-child{white-space:nowrap}
+#historico .tablewrap{max-height:calc(100vh - 230px);border:1px solid var(--line);border-radius:6px}
+table.hist{min-width:0;width:auto;font-size:calc(11px * var(--hz,1))}
+table.hist th,table.hist td{padding:calc(3px * var(--hz,1)) calc(7px * var(--hz,1))}
+table.hist th{font-size:calc(10.5px * var(--hz,1))}
+table.hist td:not(:first-child),table.hist th:not(:first-child){min-width:calc(78px * var(--hz,1))}
+table.hist thead th:first-child{background:#1f5f7f;text-align:center;left:0;z-index:4}
+table.hist tbody td:first-child{white-space:nowrap;text-align:left;position:sticky;left:0;z-index:1;box-shadow:2px 0 0 #c9d6df;min-width:calc(230px * var(--hz,1))}
+.zoomctl{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--blue)}
+.zoomctl b{min-width:38px;text-align:center}
 table.hist tr.r-sec td{font-weight:750;background:#d9d9d9;color:#1b2a36;border-top:1px solid #b9c3cb}
 table.hist tr.r-sub td{font-weight:750;background:#c9e6f5;color:#14303f}
 table.hist tr.r-sub td:first-child{padding-left:14px}
@@ -159,9 +168,9 @@ table.hist tr.r-det td{background:#fafafa;color:#5b6f80;font-size:.95em}
 table.hist tr.r-det td:first-child{padding-left:46px}
 table.hist tr.r-dest td{font-weight:750;background:#f4f4f4;color:#1b2a36}
 table.hist tr.r-dest td:first-child{padding-left:14px}
-table.hist .toggle-btn{border:1px solid #9fb6c5;border-radius:4px;background:#fff;width:15px;height:15px;line-height:13px;font-size:12px;margin-right:7px;user-select:none}
+table.hist .toggle-btn{border:1px solid #9fb6c5;border-radius:3px;background:#fff;width:calc(13px * var(--hz,1));height:calc(13px * var(--hz,1));line-height:calc(11px * var(--hz,1));font-size:calc(11px * var(--hz,1));margin-right:calc(6px * var(--hz,1));user-select:none;vertical-align:middle}
 table.hist .toggle-btn:hover{background:#e3f0f8}
-table.hist .toggle-pad{display:inline-block;width:22px}
+table.hist .toggle-pad{display:inline-block;width:calc(21px * var(--hz,1))}
 .minibtn{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #cfdbe5;background:#fff;color:var(--blue);cursor:pointer}
 .minibtn:hover{background:#f2f8fc;border-color:#4b8db5}
 table.hist td.col-total,table.hist th.col-total{font-weight:750;border-left:2px dashed #89a5bb}
@@ -550,7 +559,7 @@ const D = { com: null, arr: null, rf: {}, diag: {}, comFiles: [], arrFiles: [], 
 const RESCACHE = new Map();                       // leituras já feitas (mesmo arquivo + mesmo mês informado) — evita reler ao mudar opções
 const S = {
   mesManual: '', mesArquivo: {}, repetido: 'recente', sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
-  hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['indA', 'indE', 'outros']) },
+  hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['indA', 'indE', 'outros']), zoom: 1, ajustar: false },
   cache: new Map()
 };
 const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM SUP'; };    // usado só nos painéis de orçado
@@ -1281,10 +1290,50 @@ function histInit() {
   const lr = lastRealMonth(); if (lr && S.hist._init !== lr) { S.hist.i1 = Math.max(0, ms.indexOf(lr)); S.hist.i0 = Math.max(0, S.hist.i1 - 23); S.hist._init = lr; }
 }
 function linhaVisivel(id) { for (let p = HPAI.get(id); p; p = HPAI.get(p)) if (S.hist.ocultos.has(p)) return false; return true; }
+function histPdf() {
+  if (!window.jspdf) { alert('Biblioteca de PDF não carregada (lib/jspdf.umd.min.js).'); return; }
+  if (!D.com) { alert('Carregue os dados antes de gerar o PDF.'); return; }
+  const tb = $('#tabelaDRE'), head = [Array.from(tb.querySelectorAll('thead th')).map(th => th.textContent.trim())];
+  const CORES = { sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
+  const IND = { sec: 2, sub: 5, item: 10, det: 15, dest: 5 };
+  const estilos = [], body = Array.from(tb.querySelectorAll('tbody tr')).map(tr => {
+    const est = (tr.className.match(/r-(\w+)/) || [0, 'item'])[1]; estilos.push(est);
+    return Array.from(tr.children).map((td, i) => i ? td.textContent : td.lastChild.textContent);
+  });
+  const nCol = head[0].length, fmt = nCol > 16 ? 'a3' : 'a4';
+  const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: fmt });
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text('DRE Histórico por município', 10, 12);
+  doc.setFontSize(8); doc.setTextColor(90, 110, 125);
+  doc.text(doc.splitTextToSize($('#resumo').textContent, W - 20), 10, 17);
+  doc.autoTable({
+    head, body, startY: 24, theme: 'grid', margin: { left: 8, right: 8 },
+    horizontalPageBreak: true, horizontalPageBreakRepeat: 0,
+    styles: { fontSize: nCol > 16 ? 6.5 : 7, cellPadding: 1.2, halign: 'right', lineColor: [225, 231, 236], lineWidth: 0.1, overflow: 'visible' },
+    headStyles: { fillColor: [18, 54, 101], textColor: 255, halign: 'right', fontStyle: 'bold' },
+    columnStyles: { 0: { halign: 'left', cellWidth: 62, overflow: 'linebreak' } },
+    didParseCell: d => {
+      if (d.section === 'head' && d.column.index === 0) { d.cell.styles.fillColor = [31, 95, 127]; d.cell.styles.halign = 'center'; }
+      if (d.section === 'head' && d.column.index === nCol - 1) d.cell.styles.fillColor = [11, 41, 80];
+      if (d.section !== 'body') return;
+      const est = estilos[d.row.index]; d.cell.styles.fillColor = CORES[est] || [255, 255, 255];
+      if (est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
+      if (est === 'det') d.cell.styles.textColor = [91, 111, 128];
+      if (d.column.index === 0) d.cell.styles.cellPadding = { top: 1.2, bottom: 1.2, right: 1.2, left: IND[est] || 2 };
+      else if (String(d.cell.raw).trim().startsWith('-') && String(d.cell.raw).trim() !== '-') d.cell.styles.textColor = [192, 57, 43];
+      if (d.column.index === nCol - 1) d.cell.styles.fontStyle = 'bold';
+    },
+    didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
+  });
+  const cols = histCols().all; const per = cols.length ? cols[0] + (cols.length > 1 ? '_a_' + cols[cols.length - 1] : '') : '';
+  doc.save(`DRE_Historico_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${per}.pdf`);
+}
 function renderHistorico() {
   histInit();
-  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml() + '<span style="margin-left:auto;display:flex;gap:6px"><button class="minibtn" type="button" data-tree="abrir">⊞ Expandir tudo</button><button class="minibtn" type="button" data-tree="fechar">⊟ Recolher tudo</button></span>';
+  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml() + `<span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="zoomctl">Tamanho <button class="minibtn" type="button" data-zoom="-1" title="Diminuir">−</button><b>${Math.round(S.hist.zoom * 100)}%</b><button class="minibtn" type="button" data-zoom="1" title="Aumentar">+</button><button class="minibtn" type="button" data-zoom="0" title="Ajustar à largura da tela">↔ Ajustar</button></span><button class="minibtn" type="button" data-tree="abrir">⊞ Expandir tudo</button><button class="minibtn" type="button" data-tree="fechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="histPdf" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></span>`;
   bindHistFilters(fh, renderHistorico);
+  fh.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => { const z = +b.dataset.zoom; S.hist.zoom = z ? Math.min(1.5, Math.max(0.6, Math.round((S.hist.zoom + z * 0.1) * 10) / 10)) : 1; S.hist.ajustar = !z; renderHistorico(); });
+  $('#histPdf').onclick = histPdf;
   fh.querySelectorAll('[data-tree]').forEach(b => b.onclick = () => { S.hist.ocultos = b.dataset.tree === 'abrir' ? new Set() : new Set(HFILHOS); renderHistorico(); });
   const head = $('#headerRow'), corpo = $('#corpoTabela');
   if (!D.com) { head.innerHTML = '<th>Item</th>'; corpo.innerHTML = `<tr><td colspan="2">${emptyMsg()}</td></tr>`; $('#resumo').textContent = ''; return; }
@@ -1311,6 +1360,12 @@ function renderHistorico() {
     });
     corpo.appendChild(tr);
   });
+  const tb = $('#tabelaDRE'); tb.style.setProperty('--hz', S.hist.zoom);
+  if (S.hist.ajustar) {                                    // reduz até caber na largura (mín. 60%)
+    S.hist.ajustar = false; const w = tb.parentElement.clientWidth;
+    while (tb.scrollWidth > w && S.hist.zoom > 0.6) { S.hist.zoom = Math.round((S.hist.zoom - 0.05) * 100) / 100; tb.style.setProperty('--hz', S.hist.zoom); }
+    const zb = $('#histFilters .zoomctl b'); if (zb) zb.textContent = Math.round(S.hist.zoom * 100) + '%';
+  }
   const nC = (S.hist.cidades || histCidades()).length;
   $('#resumo').textContent = `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'} | Colunas: ${cols.length} | Visão Auditoria: ${S.aud ? 'Ativada (' + Array.from(S.audSel).join(' / ') + ')' : 'Desativada'}`;
 }
