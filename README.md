@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V5 | O painel confere ao abrir se há versão mais nova publicada e recarrega sozinho (evita ficar preso numa cópia antiga do navegador, como a lista antiga da LESTE com Rio Bonito). O link da página inicial sempre abre a versão atual. |
 | V4 | Indiretas (e diretas) passam a ser a soma das colunas em todas as classes, como a tabela dinâmica do Excel — inclui Consertos e Reparos (antes ignorado) e “Outras classes”. Nova Conferência com a tabela dinâmica na aba Dados. Aviso no DRE Histórico quando cidades repetidas entre arquivos estão sendo somadas. Rio Bonito só em LAGOS (Interior). |
 | V3 | Lê todas as abas de cada Excel (antes só a primeira) e subpastas mais fundas. Aba Dados › Varredura ganha o quadro “cidades por arquivo e mês”, mostrando as cidades de cada arquivo por superintendência e quais foram substituídas por arquivo mais recente; o log lista as cidades de cada arquivo. |
 | V2 | Todos os Excel validados pelo cabeçalho (mesmo com títulos acima da tabela). Arquivos combinados por cidade: o arquivo da LESTE não apaga mais os dados do INTERIOR no mesmo mês; vale também para Arrecadação e para o orçado (por superintendência). |
