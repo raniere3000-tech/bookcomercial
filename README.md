@@ -18,7 +18,7 @@ Vários arquivos do mesmo tipo são **combinados por cidade e mês**: arquivos c
 | Orçado `RF*T*_painel.xlsx` (um ou vários) | coluna `Rubrica` ou colunas de mês; RF pelo nome `RFnTyy` | Orçado por superintendência e mês (ex.: `RF3T25`, `RF01T26` → `RF1T26`) |
 
 ## Regras de leitura (editáveis em `CONFIG`, no topo do script de `DRE_Unificado.html`)
-- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`): 11 cidades em LAGOS (Interior, incluindo Rio Bonito) e 9 em LESTE; a coluna `Sup` do Comercial é ignorada. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
+- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`): 12 cidades em LAGOS (Interior, incluindo Rio Bonito e Cachoeiras de Macacu) e 8 em LESTE; a coluna `Sup` do Comercial é ignorada. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
 - Nos painéis de orçado, `Sup` = `Interior` é exibido como **LAGOS**.
 - Mês vem da coluna `Referência`.
 - Descartados: linhas com `IsGrandTotalRowTotal` marcado e `DSC_CLASSE = 0`.
@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V7 | Cachoeiras de Macacu passa da LESTE para LAGOS (Interior). |
 | V6 | Faturamento Direto volta a ser só CONTAS DE ÁGUA / CONTAS DE ESGOTO (na V4 passou a somar a coluna direta de todas as classes e ficava acima do Excel). A aba Dados lista as classes com valor na coluna direta fora de CONTAS. |
 | V5 | O painel confere ao abrir se há versão mais nova publicada e recarrega sozinho (evita ficar preso numa cópia antiga do navegador, como a lista antiga da LESTE com Rio Bonito). O link da página inicial sempre abre a versão atual. |
 | V4 | Indiretas (e diretas) passam a ser a soma das colunas em todas as classes, como a tabela dinâmica do Excel — inclui Consertos e Reparos (antes ignorado) e “Outras classes”. Nova Conferência com a tabela dinâmica na aba Dados. Aviso no DRE Histórico quando cidades repetidas entre arquivos estão sendo somadas. Rio Bonito só em LAGOS (Interior). |
