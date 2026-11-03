@@ -403,8 +403,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V10';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-j';
+const VERSAO_BOOK = 'V11';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-k';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -812,9 +812,14 @@ const RUBRICAS = {                       // nome normalizado (sem código/prefix
   'ECONOMIAS DE AGUA FATURADAS': 'ecoA', 'ECONOMIAS DE AGUA - FATURADAS': 'ecoA',
   'ECONOMIAS DE ESGOTO FATURADAS': 'ecoE', 'ECONOMIAS DE ESGOTO - FATURADAS': 'ecoE',
   'VOLUME DE AGUA FATURADO': 'volA', 'VOL. TOTAL FATURADO - AGUA': 'volA',
-  'VOLUME DE ESGOTO FATURADO': 'volE', 'VOL. TOTAL FATURADO - ESGOTO': 'volE'
+  'VOLUME DE ESGOTO FATURADO': 'volE', 'VOL. TOTAL FATURADO - ESGOTO': 'volE',
+  // aberturas do indireto de água (mesmas chaves do realizado)
+  'CORTE': 'F_Corte de Água', 'CORTE DE AGUA': 'F_Corte de Água',
+  'RELIGACAO': 'F_Religações', 'RELIGACOES': 'F_Religações',
+  'LNA': 'F_Ligações de Água', 'LIGACOES DE AGUA': 'F_Ligações de Água', 'LIGACAO DE AGUA': 'F_Ligações de Água',
+  'SANCAO': 'F_Sanções', 'SANCOES': 'F_Sanções'
 };
-const rubKey = s => norm(s).replace(/^\d+(\.\d+)*\.?\s*/, '').replace(/^\((?:[-+=])\)\s*/, '').trim();
+const rubKey = s => norm(s).replace(/^[^A-Z0-9(]+/, '').replace(/^\d+(\.\d+)*\.?\s*/, '').replace(/^\((?:[-+=])\)\s*/, '').trim();   // ignora marcadores (▸, •), código e (+)/(-)
 
 function rfLabel(name) {
   const m = /RF\s*0?(\d)\s*T\s*(\d{2})/i.exec(name);
