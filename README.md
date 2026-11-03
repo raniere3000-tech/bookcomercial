@@ -21,7 +21,7 @@ Identificados pelo nome ou, se o nome não ajudar, pelas colunas do cabeçalho. 
 - Mês vem da coluna `Referência`.
 - Descartados: linhas com `IsGrandTotalRowTotal` marcado e `DSC_CLASSE = 0`.
 - Direta = `CONTAS DE ÁGUA` / `CONTAS DE ESGOTO`; indireta de água = Corte, Religações, Ligações de Água, Sanções, Outros Água (+ Venda e Análise); indireta de esgoto = Ligações de Esgoto, Outros Esgoto.
-- Classes financeiras (arrecadação, impostos, juros, multa, acréscimo judicial, financiamentos, taxa de repasse, receita/despesa financeira, atualização monetária, abatimentos, descontos) são ignoradas; cancelamento vem da coluna `R__Cancelamento_total`.
+- Classes financeiras (arrecadação, impostos, juros, multa, acréscimo judicial, financiamentos, taxa de repasse, receita/despesa financeira, atualização monetária, abatimentos, descontos) são ignoradas; cancelamento vem da coluna `R__Cancelamento_total`. Na aba **DRE Histórico** o cancelamento é aberto pela `DSC_CLASSE` da linha: Contas de Água/Esgoto → direto de água/esgoto; classes indiretas → indireto de água/esgoto; classes com "Resíduo"/"Reúso" → resíduos/reúso; demais → outros.
 - Tarifa média = faturamento ÷ volume; volume médio = volume ÷ economias. Economias em totais/acumulados = média mensal.
 - **Visão Auditoria** (cabeçalho) filtra por `BASEINATIVACAO.SITUACAO_FINAL` (padrão: Ativa Faturando + Cortada).
 - Filtros de **cidade** e **curva de cliente** ficam no DRE Histórico.

@@ -6,6 +6,8 @@
 <title>Book Executivo DRE | Águas do Rio</title>
 <script src="lib/jszip.min.js"></script>
 <script src="lib/chart.umd.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--navy:#102840;--blue:#176b9c;--cyan:#16a5b8;--green:#1f8a70;--red:#c94b4b;--amber:#d79b29;--ink:#1f2d3d;--muted:#64748b;--line:#dbe4ec;--paper:#fff;--bg:#f3f6f9}
 *{box-sizing:border-box}
@@ -148,11 +150,32 @@ th.fut{background:#fff4de;color:#9a6a0a}
 .filterbar select{font-size:12.5px;padding:6px 8px;border-radius:8px;border:1px solid #cfdbe5;background:#fff}
 .toggle-btn{cursor:pointer;color:var(--blue);font-weight:800;margin-right:6px;display:inline-block;width:16px;text-align:center}
 table.hist th{background:var(--navy);color:#fff}
-table.hist tr.subtotal td{font-weight:700;font-style:italic;background:#f2f7fb;color:#33485a}
-table.hist tr.nivel1 td:first-child{padding-left:28px;color:#4d6375;font-weight:normal}
+#historico .tablewrap{max-height:calc(100vh - 230px);border:1px solid var(--line);border-radius:6px}
+table.hist{min-width:0;width:auto;font-size:calc(11px * var(--hz,1))}
+table.hist th,table.hist td{padding:calc(3px * var(--hz,1)) calc(7px * var(--hz,1))}
+table.hist th{font-size:calc(10.5px * var(--hz,1))}
+table.hist td:not(:first-child),table.hist th:not(:first-child){min-width:calc(78px * var(--hz,1))}
+table.hist thead th:first-child{background:#1f5f7f;text-align:center;left:0;z-index:4}
+table.hist tbody td:first-child{white-space:nowrap;text-align:left;position:sticky;left:0;z-index:1;box-shadow:2px 0 0 #c9d6df;min-width:calc(230px * var(--hz,1))}
+.zoomctl{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--blue)}
+.zoomctl b{min-width:38px;text-align:center}
+table.hist tr.r-sec td{font-weight:750;background:#d9d9d9;color:#1b2a36;border-top:1px solid #b9c3cb}
+table.hist tr.r-sub td{font-weight:750;background:#c9e6f5;color:#14303f}
+table.hist tr.r-sub td:first-child{padding-left:14px}
+table.hist tr.r-item td{background:#f4f4f4;color:#33485a}
+table.hist tr.r-item td:first-child{padding-left:30px}
+table.hist tr.r-det td{background:#fafafa;color:#5b6f80;font-size:.95em}
+table.hist tr.r-det td:first-child{padding-left:46px}
+table.hist tr.r-dest td{font-weight:750;background:#f4f4f4;color:#1b2a36}
+table.hist tr.r-dest td:first-child{padding-left:14px}
+table.hist .toggle-btn{border:1px solid #9fb6c5;border-radius:3px;background:#fff;width:calc(13px * var(--hz,1));height:calc(13px * var(--hz,1));line-height:calc(11px * var(--hz,1));font-size:calc(11px * var(--hz,1));margin-right:calc(6px * var(--hz,1));user-select:none;vertical-align:middle}
+table.hist .toggle-btn:hover{background:#e3f0f8}
+table.hist .toggle-pad{display:inline-block;width:calc(21px * var(--hz,1))}
+.minibtn{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #cfdbe5;background:#fff;color:var(--blue);cursor:pointer}
+.minibtn:hover{background:#f2f8fc;border-color:#4b8db5}
 table.hist td.col-total,table.hist th.col-total{font-weight:750;border-left:2px dashed #89a5bb}
 table.hist td.col-total{background:#f2f7fb}
-table.hist tr.total td.col-total{background:#dcebf4}
+table.hist tr.r-sec td.col-total,table.hist tr.r-sub td.col-total{filter:brightness(.96)}
 .negativo{color:var(--red)}
 #resumo{margin-top:12px;font-size:11.5px;color:var(--muted)}
 .note{background:#fff7e7;border:1px solid #f1d49b;padding:13px;border-radius:9px;color:#664d18}
@@ -536,7 +559,7 @@ const D = { com: null, arr: null, rf: {}, diag: {}, comFiles: [], arrFiles: [], 
 const RESCACHE = new Map();                       // leituras já feitas (mesmo arquivo + mesmo mês informado) — evita reler ao mudar opções
 const S = {
   mesManual: '', mesArquivo: {}, repetido: 'recente', sup: null, rf: null, ym: null, aud: false, audSel: new Set(), tab: 'dre', indicador: 'liq', rfYear: null, rfInd: 'liq',
-  hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['ind_agua_extra']) },
+  hist: { cidades: null, curvas: null, modo: 'mensal', i0: 0, i1: 0, ocultos: new Set(['indA', 'indE', 'outros']), zoom: 1, ajustar: false },
   cache: new Map()
 };
 const normSup = s => { const n = norm(s); return CONFIG.supAlias[n] || n || 'SEM SUP'; };    // usado só nos painéis de orçado
@@ -552,6 +575,16 @@ const MEAS = ['faturamento_bruto_direta_agua', 'faturamento_bruto_direta_esgoto'
   'faturamento_bruto_indiretas_total', 'qtd_eco_fat_agua', 'qtd_eco_fat_esgoto', 'vol_faturado_agua_direto_m', 'vol_faturado_esgoto_direto_m',
   'volume_medido_de_agua_m', 'r_cancelamento_total', 'r_faturamento_total_liquido', 'qtd_ligacoes'];
 
+/* abertura do cancelamento pela DSC_CLASSE da linha (a soma das aberturas = R__Cancelamento_total) */
+function cancCampo(cls) {
+  if (cls === 'CONTAS DE AGUA') return 'cDA';
+  if (cls === 'CONTAS DE ESGOTO') return 'cDE';
+  if (CONFIG.classeIndAgua[cls]) return 'cIA';
+  if (CONFIG.classeIndEsgoto[cls]) return 'cIE';
+  if (/RESIDUO/.test(cls)) return 'cRes';
+  if (/REUSO/.test(cls)) return 'cReu';
+  return 'cOut';
+}
 async function ingestComercial(file) {
   const dClsD = new Set(CONFIG.classeDireta), dIA = CONFIG.classeIndAgua, dIE = CONFIG.classeIndEsgoto, dIg = new Set(CONFIG.classeIgnorar), dZ = new Set(CONFIG.classeZero);
   let col = null, mesCol = null, semMes = false; const map = new Map();
@@ -585,7 +618,7 @@ async function ingestComercial(file) {
     let sit = String(g('baseinativacao_situacao_final') == null ? '-' : g('baseinativacao_situacao_final')).trim(); if (sit === '0' || sit === '') sit = '-';
     const key = cid + '|' + cur + '|' + sit + '|' + ym;
     let e = map.get(key);
-    if (!e) { e = { sups, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {} }; map.set(key, e); }
+    if (!e) { e = { sups, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {}, cDA: 0, cDE: 0, cIA: 0, cIE: 0, cRes: 0, cReu: 0, cOut: 0 }; map.set(key, e); }
     const num = k => { const v = g(k); return typeof v === 'number' ? v : 0; };
     if (dClsD.has(cls)) {
       e.dA += num('faturamento_bruto_direta_agua'); e.dE += num('faturamento_bruto_direta_esgoto');
@@ -596,7 +629,8 @@ async function ingestComercial(file) {
     } else if (dIE[cls]) {
       const v = num('faturamento_bruto_indireta_esgoto'); e.iE += v; e.fr['E_' + dIE[cls]] = (e.fr['E_' + dIE[cls]] || 0) + v;
     } else if (!dIg.has(cls)) diag.naoMapeadas.add(cls);
-    e.canc += num('r_cancelamento_total'); e.liq += num('r_faturamento_total_liquido');
+    const cv = num('r_cancelamento_total'); e.canc += cv; e.liq += num('r_faturamento_total_liquido');
+    if (cv) e[cancCampo(cls)] += cv;
     return true;
   }, { progress: c => { msg.innerHTML = 'Lendo <b>' + esc(file.name) + '</b>… ' + c.toLocaleString('pt-BR') + ' linhas'; } });
   if (!col) throw new Error('Comercial: arquivo sem dados');
@@ -1109,45 +1143,58 @@ function renderRF() {
 /* =====================================================================
    ABAS: DRE Histórico e Gráficos (por município)
    ===================================================================== */
-const HLINES = [
-  ['FATURAMENTO BRUTO', 'bruto', 0, true, false, 'moeda', null],
-  ['DIRETAS TOTAIS', 'direto', 0, true, false, 'moeda', 'bruto'],
-  ['Diretas Água', 'dA', 1, false, false, 'moeda', 'diretas|bruto'],
-  ['Diretas Esgoto', 'dE', 1, false, false, 'moeda', 'diretas|bruto'],
-  ['INDIRETAS TOTAIS', 'indireto', 0, true, false, 'moeda', 'bruto'],
-  ['INDIRETA ÁGUA', 'iA', 0, true, true, 'moeda', 'indiretas_sub|bruto'],
-  ['Corte de Água', 'F_Corte de Água', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
-  ['Religações', 'F_Religações', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
-  ['Ligações de Água', 'F_Ligações de Água', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
-  ['Sanções', 'F_Sanções', 1, false, false, 'moeda', 'ind_agua|indiretas_sub|bruto'],
-  ['Outros Água', 'F_Outros Água', 1, false, false, 'moeda', 'ind_agua_extra|indiretas_sub|bruto'],
-  ['Venda e Análise de Água', 'F_Venda e Análise de Água', 1, false, false, 'moeda', 'ind_agua_extra|indiretas_sub|bruto'],
-  ['INDIRETA ESGOTO', 'iE', 0, true, true, 'moeda', 'indiretas_sub|bruto'],
-  ['Ligações de Esgoto', 'E_Ligações de Esgoto', 1, false, false, 'moeda', 'ind_esgoto|indiretas_sub|bruto'],
-  ['Outros Esgoto', 'E_Outros Esgoto', 1, false, false, 'moeda', 'ind_esgoto|indiretas_sub|bruto'],
-  ['FAT ECONOMIAS ÁGUA (qtd)', 'ecoA', 0, true, false, 'num', 'extras'],
-  ['FAT ECONOMIAS ESGOTO (qtd)', 'ecoE', 0, true, false, 'num', 'extras'],
-  ['VOL. FAT. ÁGUA (m³)', 'volA', 0, true, false, 'num', 'extras'],
-  ['VOL. FAT. ESGOTO (m³)', 'volE', 0, true, false, 'num', 'extras'],
-  ['VOLUME MEDIDO DE ÁGUA (m³)', 'volM', 0, true, false, 'num', 'extras'],
-  ['TARIFA MÉDIA DE ÁGUA (R$/m³)', 'tarA', 0, true, false, 'moeda4', 'extras'],
-  ['TARIFA MÉDIA DE ESGOTO (R$/m³)', 'tarE', 0, true, false, 'moeda4', 'extras'],
-  ['CANCELAMENTO', 'canc', 0, true, false, 'moeda', null],
-  ['FATURAMENTO LÍQUIDO C/ REAJUSTE', 'liq', 0, true, false, 'moeda', null],
-  ['ARRECADAÇÃO REAL (Arrecadação + Desconto)', 'arrecReal', 0, true, false, 'moeda', null],
-  ['DESCONTO', 'desc', 0, true, false, 'moeda', null],
-  ['ARRECADAÇÃO (Sem Desconto)', 'arrec', 0, true, false, 'moeda', null],
-  ['ARRECADAÇÃO / FATURAMENTO LÍQUIDO (%)', 'pct', 0, true, false, 'pct', 'indicador'],
-  ['QTD. CLIENTES PAGANTES', 'cli', 0, true, false, 'num', null],
-  ['QTD. CONTAS PAGAS', 'contas', 0, true, false, 'num', null],
-  ['TICKET MÉDIO (R$/cliente)', 'ticket', 0, true, false, 'moeda2', null]
+/* Estrutura do DRE Histórico: [id, rótulo, chave, estilo, pai, tipo]
+   estilos: sec (cinza, nível 0) · sub (azul, nível 1) · item (nível 2) · det (abertura, nível 3) · dest (destaque) */
+const HTREE = [
+  ['fatA', '(+) Faturamento de Água', 'fatA', 'sec', null, 'moeda'],
+  ['dirA', 'Faturamento Direto de Água', 'dA', 'sub', 'fatA', 'moeda'],
+  ['ecoA', 'Economias Faturadas de Água', 'ecoA', 'item', 'dirA', 'num'],
+  ['volA', 'Volume Faturado de Água', 'volA', 'item', 'dirA', 'num'],
+  ['vmeA', 'Volume Médio por Economia de Água', 'vmeA', 'item', 'dirA', 'num2'],
+  ['tarA', 'Tarifa Média de Água', 'tarA', 'item', 'dirA', 'moeda4'],
+  ['indA', 'Faturamento Indireto de Água', 'iA', 'sub', 'fatA', 'moeda'],
+  ['iA1', 'Corte de Água', 'F_Corte de Água', 'det', 'indA', 'moeda'],
+  ['iA2', 'Religações', 'F_Religações', 'det', 'indA', 'moeda'],
+  ['iA3', 'Ligações de Água', 'F_Ligações de Água', 'det', 'indA', 'moeda'],
+  ['iA4', 'Sanções', 'F_Sanções', 'det', 'indA', 'moeda'],
+  ['iA5', 'Outros Água', 'F_Outros Água', 'det', 'indA', 'moeda'],
+  ['iA6', 'Venda e Análise de Água', 'F_Venda e Análise de Água', 'det', 'indA', 'moeda'],
+  ['fatE', '(+) Faturamento de Esgoto', 'fatE', 'sec', null, 'moeda'],
+  ['dirE', 'Faturamento Direto de Esgoto', 'dE', 'sub', 'fatE', 'moeda'],
+  ['ecoE', 'Economias Faturadas de Esgoto', 'ecoE', 'item', 'dirE', 'num'],
+  ['volE', 'Volume Faturado de Esgoto', 'volE', 'item', 'dirE', 'num'],
+  ['indE', 'Faturamento Indireto de Esgoto', 'iE', 'sub', 'fatE', 'moeda'],
+  ['iE1', 'Ligações de Esgoto', 'E_Ligações de Esgoto', 'det', 'indE', 'moeda'],
+  ['iE2', 'Outros Esgoto', 'E_Outros Esgoto', 'det', 'indE', 'moeda'],
+  ['canc', '(-) Cancelamentos', 'canc', 'sec', null, 'moeda'],
+  ['cDA', 'Cancelamento Direto de Água', 'cDA', 'item', 'canc', 'moeda'],
+  ['cIA', 'Cancelamento Indireto de Água', 'cIA', 'item', 'canc', 'moeda'],
+  ['cDE', 'Cancelamento Direto de Esgoto', 'cDE', 'item', 'canc', 'moeda'],
+  ['cIE', 'Cancelamento Indireto de Esgoto', 'cIE', 'item', 'canc', 'moeda'],
+  ['cRes', 'Cancelamento Resíduos', 'cRes', 'item', 'canc', 'moeda'],
+  ['cReu', 'Cancelamento Reúso', 'cReu', 'item', 'canc', 'moeda'],
+  ['cOut', 'Cancelamento Outros', 'cOut', 'item', 'canc', 'moeda'],
+  ['liq', '(=) Faturamento Líquido', 'liq', 'sec', null, 'moeda'],
+  ['arrecG', 'Arrecadação', 'arrecReal', 'dest', null, 'moeda'],
+  ['arrecReal', 'Arrecadação Real (Arrecadação + Desconto)', 'arrecReal', 'item', 'arrecG', 'moeda'],
+  ['desc', 'Desconto', 'desc', 'item', 'arrecG', 'moeda'],
+  ['arrec', 'Arrecadação (Sem Desconto)', 'arrec', 'item', 'arrecG', 'moeda'],
+  ['pct', 'Arrecadação / Faturamento Líquido (%)', 'pct', 'item', 'arrecG', 'pct'],
+  ['cli', 'Qtd. Clientes Pagantes', 'cli', 'item', 'arrecG', 'num'],
+  ['contas', 'Qtd. Contas Pagas', 'contas', 'item', 'arrecG', 'num'],
+  ['ticket', 'Ticket Médio (R$/cliente)', 'ticket', 'item', 'arrecG', 'moeda2'],
+  ['outros', 'Outros indicadores', null, 'sec', null, null],
+  ['volM', 'Volume Medido de Água (m³)', 'volM', 'item', 'outros', 'num'],
+  ['tarE', 'Tarifa Média de Esgoto (R$/m³)', 'tarE', 'item', 'outros', 'moeda4']
 ];
-const GRUPOS_TOGGLE = { diretas: 'DIRETAS TOTAIS', ind_agua: 'INDIRETA ÁGUA', ind_esgoto: 'INDIRETA ESGOTO' };
-const GRUPO_COMBO = { 'INDIRETAS TOTAIS': ['ind_agua', 'ind_esgoto', 'indiretas_sub'], 'FATURAMENTO BRUTO': ['bruto'] };
+const HPAI = new Map(HTREE.map(l => [l[0], l[4]]));
+const HFILHOS = new Set(HTREE.map(l => l[4]).filter(Boolean));
+
 function fmtH(v, tipo) {
   if (v === undefined || v === null || Number.isNaN(v)) return '-';
   if (tipo === 'moeda' || tipo === 'moeda2') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (tipo === 'moeda4') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  if (tipo === 'num2') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (tipo === 'pct') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
   return v.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 }
@@ -1160,14 +1207,14 @@ function histMonths() { return allMonths().filter(m => !D.com || D.com.realMonth
 function histAcc(months) {
   const cids = new Set(S.hist.cidades || histCidades()); const curSet = S.hist.curvas ? new Set(S.hist.curvas) : null;
   const lista = histCidades().filter(c => cids.has(c)); const cset = new Set(lista);
-  const acc = { dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {}, arr: { arrec: 0, cli: 0, contas: 0, desc: 0 }, nEco: 0 };
+  const acc = { dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, cDA: 0, cDE: 0, cIA: 0, cIE: 0, cRes: 0, cReu: 0, cOut: 0, fr: {}, arr: { arrec: 0, cli: 0, contas: 0, desc: 0 }, nEco: 0 };
   months.forEach(m => {
     let anyEco = false;
     (D.com ? D.com.byYm.get(m) || [] : []).forEach(e => {
       if (!supOk(e, S.sup) || !cset.has(e.cid)) return;
       if (curSet && !curSet.has(e.cur)) return;
       if (S.aud && !S.audSel.has(e.sit)) return;
-      ['dA', 'dE', 'iA', 'iE', 'ecoA', 'ecoE', 'volA', 'volE', 'volM', 'canc', 'liq'].forEach(f => acc[f] += e[f]);
+      ['dA', 'dE', 'iA', 'iE', 'ecoA', 'ecoE', 'volA', 'volE', 'volM', 'canc', 'liq', 'cDA', 'cDE', 'cIA', 'cIE', 'cRes', 'cReu', 'cOut'].forEach(f => acc[f] += e[f] || 0);
       for (const k in e.fr) acc.fr[k] = (acc.fr[k] || 0) + e.fr[k];
       if (e.ecoA || e.ecoE) anyEco = true;
     });
@@ -1179,6 +1226,7 @@ function histAcc(months) {
 function histVal(a, k) {
   const n = a.nEco || 1;
   switch (k) {
+    case 'fatA': return a.dA + a.iA; case 'fatE': return a.dE + a.iE; case 'vmeA': return a.ecoA ? a.volA / a.ecoA : 0;
     case 'direto': return a.dA + a.dE; case 'indireto': return a.iA + a.iE; case 'bruto': return a.dA + a.dE + a.iA + a.iE;
     case 'ecoA': return a.ecoA / n; case 'ecoE': return a.ecoE / n;
     case 'tarA': return a.volA ? a.dA / a.volA : 0; case 'tarE': return a.volE ? a.dE / a.volE : 0;
@@ -1241,32 +1289,83 @@ function histInit() {
   if (S.hist.i1 >= ms.length || S.hist.i1 === 0 && S.hist.i0 === 0) { S.hist.i0 = 0; S.hist.i1 = ms.length - 1; }
   const lr = lastRealMonth(); if (lr && S.hist._init !== lr) { S.hist.i1 = Math.max(0, ms.indexOf(lr)); S.hist.i0 = Math.max(0, S.hist.i1 - 23); S.hist._init = lr; }
 }
-function grupoVisivel(g) { if (g === null) return true; return !g.split('|').some(x => S.hist.ocultos.has(x)); }
-const comboOculto = l => l.every(g => S.hist.ocultos.has(g));
+function linhaVisivel(id) { for (let p = HPAI.get(id); p; p = HPAI.get(p)) if (S.hist.ocultos.has(p)) return false; return true; }
+function histPdf() {
+  if (!window.jspdf) { alert('Biblioteca de PDF não carregada (lib/jspdf.umd.min.js).'); return; }
+  if (!D.com) { alert('Carregue os dados antes de gerar o PDF.'); return; }
+  const tb = $('#tabelaDRE'), head = [Array.from(tb.querySelectorAll('thead th')).map(th => th.textContent.trim())];
+  const CORES = { sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
+  const IND = { sec: 2, sub: 5, item: 10, det: 15, dest: 5 };
+  const estilos = [], body = Array.from(tb.querySelectorAll('tbody tr')).map(tr => {
+    const est = (tr.className.match(/r-(\w+)/) || [0, 'item'])[1]; estilos.push(est);
+    return Array.from(tr.children).map((td, i) => i ? td.textContent : td.lastChild.textContent);
+  });
+  const nCol = head[0].length, fmt = nCol > 16 ? 'a3' : 'a4';
+  const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: fmt });
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text('DRE Histórico por município', 10, 12);
+  doc.setFontSize(8); doc.setTextColor(90, 110, 125);
+  doc.text(doc.splitTextToSize($('#resumo').textContent, W - 20), 10, 17);
+  doc.autoTable({
+    head, body, startY: 24, theme: 'grid', margin: { left: 8, right: 8 },
+    horizontalPageBreak: true, horizontalPageBreakRepeat: 0,
+    styles: { fontSize: nCol > 16 ? 6.5 : 7, cellPadding: 1.2, halign: 'right', lineColor: [225, 231, 236], lineWidth: 0.1, overflow: 'visible' },
+    headStyles: { fillColor: [18, 54, 101], textColor: 255, halign: 'right', fontStyle: 'bold' },
+    columnStyles: { 0: { halign: 'left', cellWidth: 62, overflow: 'linebreak' } },
+    didParseCell: d => {
+      if (d.section === 'head' && d.column.index === 0) { d.cell.styles.fillColor = [31, 95, 127]; d.cell.styles.halign = 'center'; }
+      if (d.section === 'head' && d.column.index === nCol - 1) d.cell.styles.fillColor = [11, 41, 80];
+      if (d.section !== 'body') return;
+      const est = estilos[d.row.index]; d.cell.styles.fillColor = CORES[est] || [255, 255, 255];
+      if (est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
+      if (est === 'det') d.cell.styles.textColor = [91, 111, 128];
+      if (d.column.index === 0) d.cell.styles.cellPadding = { top: 1.2, bottom: 1.2, right: 1.2, left: IND[est] || 2 };
+      else if (String(d.cell.raw).trim().startsWith('-') && String(d.cell.raw).trim() !== '-') d.cell.styles.textColor = [192, 57, 43];
+      if (d.column.index === nCol - 1) d.cell.styles.fontStyle = 'bold';
+    },
+    didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
+  });
+  const cols = histCols().all; const per = cols.length ? cols[0] + (cols.length > 1 ? '_a_' + cols[cols.length - 1] : '') : '';
+  doc.save(`DRE_Historico_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${per}.pdf`);
+}
 function renderHistorico() {
   histInit();
-  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml(); bindHistFilters(fh, renderHistorico);
+  const fh = $('#histFilters'); fh.innerHTML = histFiltersHtml() + `<span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="zoomctl">Tamanho <button class="minibtn" type="button" data-zoom="-1" title="Diminuir">−</button><b>${Math.round(S.hist.zoom * 100)}%</b><button class="minibtn" type="button" data-zoom="1" title="Aumentar">+</button><button class="minibtn" type="button" data-zoom="0" title="Ajustar à largura da tela">↔ Ajustar</button></span><button class="minibtn" type="button" data-tree="abrir">⊞ Expandir tudo</button><button class="minibtn" type="button" data-tree="fechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="histPdf" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></span>`;
+  bindHistFilters(fh, renderHistorico);
+  fh.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => { const z = +b.dataset.zoom; S.hist.zoom = z ? Math.min(1.5, Math.max(0.6, Math.round((S.hist.zoom + z * 0.1) * 10) / 10)) : 1; S.hist.ajustar = !z; renderHistorico(); });
+  $('#histPdf').onclick = histPdf;
+  fh.querySelectorAll('[data-tree]').forEach(b => b.onclick = () => { S.hist.ocultos = b.dataset.tree === 'abrir' ? new Set() : new Set(HFILHOS); renderHistorico(); });
   const head = $('#headerRow'), corpo = $('#corpoTabela');
   if (!D.com) { head.innerHTML = '<th>Item</th>'; corpo.innerHTML = `<tr><td colspan="2">${emptyMsg()}</td></tr>`; $('#resumo').textContent = ''; return; }
   const { cols, all } = histCols();
-  head.innerHTML = '<th>Item</th>' + cols.map(c => `<th>${c.label}</th>`).join('') + '<th class="col-total">Total Geral</th>';
+  head.innerHTML = '<th>Econômico</th>' + cols.map(c => `<th>${c.label}</th>`).join('') + '<th class="col-total">Total Geral</th>';
   const accs = cols.map(c => histAcc(c.months)), accTot = histAcc(all);
   corpo.innerHTML = '';
-  HLINES.forEach(([nome, chave, nivel, isTotal, isSub, tipo, grupo]) => {
-    if (!grupoVisivel(grupo)) return;
-    const tr = document.createElement('tr'); tr.className = (isTotal ? 'total ' : '') + (isSub ? 'subtotal ' : '') + (nivel === 1 ? 'nivel1 ' : '');
-    const td = document.createElement('td'); let btn = null;
-    if (GRUPO_COMBO[nome]) { const gl = GRUPO_COMBO[nome]; btn = document.createElement('span'); btn.className = 'toggle-btn'; btn.textContent = comboOculto(gl) ? '+' : '−';
-      btn.onclick = e => { e.stopPropagation(); comboOculto(gl) ? gl.forEach(g => S.hist.ocultos.delete(g)) : gl.forEach(g => S.hist.ocultos.add(g)); renderHistorico(); }; }
-    for (const g in GRUPOS_TOGGLE) if (GRUPOS_TOGGLE[g] === nome) { btn = document.createElement('span'); btn.className = 'toggle-btn'; btn.textContent = S.hist.ocultos.has(g) ? '+' : '−';
-      btn.onclick = e => { e.stopPropagation(); S.hist.ocultos.has(g) ? S.hist.ocultos.delete(g) : S.hist.ocultos.add(g); renderHistorico(); }; }
-    if (btn) td.appendChild(btn); const sp = document.createElement('span'); sp.textContent = nome; td.appendChild(sp); tr.appendChild(td);
+  HTREE.forEach(([id, nome, chave, estilo, , tipo]) => {
+    if (!linhaVisivel(id)) return;
+    const tr = document.createElement('tr'); tr.className = 'r-' + estilo;
+    const td = document.createElement('td');
+    if (HFILHOS.has(id)) {
+      const fechado = S.hist.ocultos.has(id), btn = document.createElement('span');
+      btn.className = 'toggle-btn'; btn.textContent = fechado ? '+' : '−'; btn.title = fechado ? 'Expandir' : 'Recolher';
+      tr.style.cursor = 'pointer';
+      tr.onclick = () => { fechado ? S.hist.ocultos.delete(id) : S.hist.ocultos.add(id); renderHistorico(); };
+      td.appendChild(btn);
+    } else if (estilo !== 'item' && estilo !== 'det') { const pad = document.createElement('span'); pad.className = 'toggle-pad'; td.appendChild(pad); }
+    const sp = document.createElement('span'); sp.textContent = nome; td.appendChild(sp); tr.appendChild(td);
     accs.concat([accTot]).forEach((a, i) => {
-      const v = histVal(a, chave), c = document.createElement('td'); c.textContent = fmtH(v, tipo);
-      if (i === accs.length) c.className = 'col-total'; if (v < 0) c.classList.add('negativo'); tr.appendChild(c);
+      const c = document.createElement('td');
+      if (chave) { const v = histVal(a, chave); c.textContent = fmtH(v, tipo); if (v < 0) c.classList.add('negativo'); }
+      if (i === accs.length) c.classList.add('col-total'); tr.appendChild(c);
     });
     corpo.appendChild(tr);
   });
+  const tb = $('#tabelaDRE'); tb.style.setProperty('--hz', S.hist.zoom);
+  if (S.hist.ajustar) {                                    // reduz até caber na largura (mín. 60%)
+    S.hist.ajustar = false; const w = tb.parentElement.clientWidth;
+    while (tb.scrollWidth > w && S.hist.zoom > 0.6) { S.hist.zoom = Math.round((S.hist.zoom - 0.05) * 100) / 100; tb.style.setProperty('--hz', S.hist.zoom); }
+    const zb = $('#histFilters .zoomctl b'); if (zb) zb.textContent = Math.round(S.hist.zoom * 100) + '%';
+  }
   const nC = (S.hist.cidades || histCidades()).length;
   $('#resumo').textContent = `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'} | Colunas: ${cols.length} | Visão Auditoria: ${S.aud ? 'Ativada (' + Array.from(S.audSel).join(' / ') + ')' : 'Desativada'}`;
 }
