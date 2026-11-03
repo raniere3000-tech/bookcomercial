@@ -7,16 +7,18 @@ Resumo anual dos principais KPIs — Águas do Rio.
 3. A leitura roda toda no navegador (nada é enviado a servidor). Funciona offline: as bibliotecas ficam em `lib/`.
 
 ## Arquivos reconhecidos na pasta
-Identificados pelo nome ou, se o nome não ajudar, pelas colunas do cabeçalho. Datas no nome são ignoradas.
+Todos os `.xlsx` da pasta são validados e identificados pelo **cabeçalho da tabela** (procurado nas primeiras 30 linhas, então títulos acima da tabela não atrapalham). O nome do arquivo só é usado se o cabeçalho não for reconhecido. Datas no nome são ignoradas.
+
+Vários arquivos do mesmo tipo são **combinados por cidade e mês**: arquivos com cidades diferentes (ex.: um da LESTE e outro do INTERIOR) sempre se somam. Se a mesma cidade aparecer no mesmo mês em mais de um arquivo, vale o arquivo mais recente (ou a soma, conforme a opção na aba Dados › Varredura) — as cidades repetidas são listadas no log. No orçado (RF), arquivos do mesmo RF são juntados por superintendência.
 
 | Arquivo | Reconhecido por | Uso |
 |---|---|---|
-| `Comercial*.xlsx` (um ou vários) | coluna `DSC_CLASSE` | Realizado: faturamento, economias, volumes, cancelamento, por Sup/cidade/curva/situação |
-| `Arrec*.xlsx` (um ou vários) | coluna `Arrecadacao_Acumulada` | Arrecadação, clientes e contas por cidade/mês |
-| `RF*T*_painel.xlsx` | nome `RFnTyy` ou coluna `Rubrica` | Orçado por superintendência e mês (ex.: `RF3T25`, `RF01T26` → `RF1T26`) |
+| Comercial (um ou vários) | coluna `DSC_CLASSE` | Realizado: faturamento, economias, volumes, cancelamento, por Sup/cidade/curva/situação |
+| Arrecadação (um ou vários) | coluna `Arrecadacao_Acumulada` | Arrecadação, clientes e contas por cidade/mês |
+| Orçado `RF*T*_painel.xlsx` (um ou vários) | coluna `Rubrica` ou colunas de mês; RF pelo nome `RFnTyy` | Orçado por superintendência e mês (ex.: `RF3T25`, `RF01T26` → `RF1T26`) |
 
 ## Regras de leitura (editáveis em `CONFIG`, no topo do script de `DRE_Unificado.html`)
-- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`): 12 cidades em LAGOS e 5 em LESTE; a coluna `Sup` do Comercial é ignorada. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
+- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`): 11 cidades em LAGOS e 10 em LESTE (Rio Bonito nas duas); a coluna `Sup` do Comercial é ignorada. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
 - Nos painéis de orçado, `Sup` = `Interior` é exibido como **LAGOS**.
 - Mês vem da coluna `Referência`.
 - Descartados: linhas com `IsGrandTotalRowTotal` marcado e `DSC_CLASSE = 0`.
@@ -35,6 +37,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V2 | Todos os Excel validados pelo cabeçalho (mesmo com títulos acima da tabela). Arquivos combinados por cidade: o arquivo da LESTE não apaga mais os dados do INTERIOR no mesmo mês; vale também para Arrecadação e para o orçado (por superintendência). |
 | V1 | Numeração reiniciada. Estado atual: DRE Histórico na estrutura "Econômico" recolhível (Faturamento de Água/Esgoto, Cancelamentos abertos, Faturamento Líquido, Arrecadação com aberturas), tabela compacta com tamanho ajustável, botão Baixar PDF e superintendências LESTE/LAGOS atualizadas. |
 
 Histórico anterior à renumeração:
