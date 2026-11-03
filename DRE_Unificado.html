@@ -417,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V17';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-q';
+const VERSAO_BOOK = 'V18';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-r';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1028,15 +1028,15 @@ function rfMesesComValor() {
 /* meses do acumulado: ano até o mês selecionado, ou só os meses com valor no RF */
 function dreAcum(m) {
   if (S.dreAcum === 'rf') {
-    const l = rfMesesComValor();
+    const todosRf = rfMesesComValor(), l = todosRf.filter(x => x <= m), futuros = todosRf.length - l.length;   // só até o mês vigente
     if (l.length) {
       const rot = l.length > 1 ? mlabel(l[0]) + '–' + mlabel(l[l.length - 1]) : mlabel(l[0]);
       const todos = []; for (let y = +l[0].slice(0, 4), mo = +l[0].slice(5); ; ) { const k = y + '-' + String(mo).padStart(2, '0'); todos.push(k); if (k === l[l.length - 1]) break; if (++mo > 12) { mo = 1; y++; } }
       const falta = todos.filter(x => !l.includes(x)), comReal = l.filter(x => has(actualBase(x) && actualBase(x).liq));
       return { meses: l, titulo: 'Acumulado RF ' + rfLbl() + ' (' + rot + ')', curto: 'RF ' + rot,
-        info: `Período do RF ${rfLbl()}: ${l.length} mês(es) com valor preenchido (${rot})` + (falta.length ? ` · sem valor no RF: ${falta.map(mlabel).join(', ')}` : '') + ` · realizado disponível em ${comReal.length} deles` + (comReal.length < l.length ? ` (sem realizado: ${l.filter(x => !comReal.includes(x)).map(mlabel).join(', ')})` : '') };
+        info: `Período do RF ${rfLbl()} até ${mlabel(m)}: ${l.length} mês(es) com valor preenchido (${rot})` + (futuros ? ` · ${futuros} mês(es) do RF depois de ${mlabel(m)} ficam de fora` : '') + (falta.length ? ` · sem valor no RF: ${falta.map(mlabel).join(', ')}` : '') + ` · realizado disponível em ${comReal.length} deles` + (comReal.length < l.length ? ` (sem realizado: ${l.filter(x => !comReal.includes(x)).map(mlabel).join(', ')})` : '') };
     }
-    return { meses: monthsOfYearUpTo(m), titulo: 'Acumulado até ' + mlabel(m), curto: 'Jan–' + MN[+m.slice(5) - 1] + '/' + yearOf(m), info: 'Nenhum mês com valor no RF ' + rfLbl() + ' para esta superintendência — usando o acumulado do ano.' };
+    return { meses: monthsOfYearUpTo(m), titulo: 'Acumulado até ' + mlabel(m), curto: 'Jan–' + MN[+m.slice(5) - 1] + '/' + yearOf(m), info: 'Nenhum mês com valor no RF ' + rfLbl() + ' até ' + mlabel(m) + ' para esta superintendência — usando o acumulado do ano.' };
   }
   return { meses: monthsOfYearUpTo(m), titulo: 'Acumulado até ' + mlabel(m), curto: 'Jan–' + MN[+m.slice(5) - 1] + '/' + yearOf(m), info: '' };
 }
