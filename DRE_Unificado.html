@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Book Executivo DRE | Águas do Rio</title>
 <script src="lib/jszip.min.js"></script>
 <script src="lib/chart.umd.js"></script>
@@ -371,8 +374,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V4';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-d';
+const VERSAO_BOOK = 'V5';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-e';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1806,6 +1809,19 @@ async function loadFilesOnce(files) {
 }
 
 /* ---------- inicialização ---------- */
+/* O navegador pode guardar uma cópia antiga da página. Ao abrir, confere a versão publicada e recarrega se houver uma mais nova. */
+async function conferirVersaoPublicada() {
+  if (!/^https?:$/.test(location.protocol)) return;                 // arquivo aberto do computador: nada a conferir
+  try {
+    const r = await fetch(location.pathname + '?nc=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const m = /const VERSAO_BOOK = '([^']+)'/.exec(await r.text()); if (!m || m[1] === VERSAO_BOOK) return;
+    const k = 'dreu_recarga_' + m[1];
+    if (sessionStorage.getItem(k)) { log('Versão publicada ' + m[1] + ' ainda não carregou (aberta: ' + VERSAO_BOOK + '). Use Ctrl+F5.', 'aviso'); return; }
+    sessionStorage.setItem(k, '1'); log('Nova versão publicada (' + m[1] + ') — recarregando a página');
+    location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]) + location.hash);
+  } catch (e) {}
+}
+conferirVersaoPublicada();
 (async function init() {
   restore(); fullRender();
   $('#verBadge').textContent = VERSAO_BOOK; document.title = 'Book Executivo DRE ' + VERSAO_BOOK + ' | Águas do Rio';
