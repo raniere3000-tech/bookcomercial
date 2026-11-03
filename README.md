@@ -18,11 +18,12 @@ Vários arquivos do mesmo tipo são **combinados por cidade e mês**: arquivos c
 | Orçado `RF*T*_painel.xlsx` (um ou vários) | coluna `Rubrica` ou colunas de mês; RF pelo nome `RFnTyy` | Orçado por superintendência e mês (ex.: `RF3T25`, `RF01T26` → `RF1T26`) |
 
 ## Regras de leitura (editáveis em `CONFIG`, no topo do script de `DRE_Unificado.html`)
-- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`): 11 cidades em LAGOS e 10 em LESTE (Rio Bonito nas duas); a coluna `Sup` do Comercial é ignorada. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
+- A superintendência vem **só da relação SUP FINAL × cidade** (`CONFIG.supCidades`): 11 cidades em LAGOS (Interior, incluindo Rio Bonito) e 9 em LESTE; a coluna `Sup` do Comercial é ignorada. Cidades fora da relação ficam em `SEM SUP` e são listadas na aba Dados.
 - Nos painéis de orçado, `Sup` = `Interior` é exibido como **LAGOS**.
 - Mês vem da coluna `Referência`.
 - Descartados: linhas com `IsGrandTotalRowTotal` marcado e `DSC_CLASSE = 0`.
-- Direta = `CONTAS DE ÁGUA` / `CONTAS DE ESGOTO`; indireta de água = Corte, Religações, Ligações de Água, Sanções, Outros Água (+ Venda e Análise); indireta de esgoto = Ligações de Esgoto, Outros Esgoto.
+- Faturamento direto e indireto = **soma das colunas** `Faturamento_bruto_*` em todas as classes, igual a uma tabela dinâmica do Excel. A `DSC_CLASSE` só define a abertura: indireta de água = Corte, Religações, Ligações de Água, Sanções, Outros Água, Venda e Análise, Consertos e Reparos; indireta de esgoto = Ligações de Esgoto, Outros Esgoto; qualquer outra classe com valor aparece como "Outras classes". Economias e volumes vêm das classes `CONTAS DE ÁGUA` / `CONTAS DE ESGOTO`.
+- Aba Dados › **Conferência com a tabela dinâmica**: soma de uma coluna por DSC_CLASSE no mês, por arquivo e no painel, para comparar com o Excel.
 - Classes financeiras (arrecadação, impostos, juros, multa, acréscimo judicial, financiamentos, taxa de repasse, receita/despesa financeira, atualização monetária, abatimentos, descontos) são ignoradas; cancelamento vem da coluna `R__Cancelamento_total`. Na aba **DRE Histórico** o cancelamento é aberto pela `DSC_CLASSE` da linha: Contas de Água/Esgoto → direto de água/esgoto; classes indiretas → indireto de água/esgoto; classes com "Resíduo"/"Reúso" → resíduos/reúso; demais → outros.
 - Tarifa média = faturamento ÷ volume; volume médio = volume ÷ economias. Economias em totais/acumulados = média mensal.
 - **Visão Auditoria** (cabeçalho) filtra por `BASEINATIVACAO.SITUACAO_FINAL` (padrão: Ativa Faturando + Cortada).
@@ -37,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V4 | Indiretas (e diretas) passam a ser a soma das colunas em todas as classes, como a tabela dinâmica do Excel — inclui Consertos e Reparos (antes ignorado) e “Outras classes”. Nova Conferência com a tabela dinâmica na aba Dados. Aviso no DRE Histórico quando cidades repetidas entre arquivos estão sendo somadas. Rio Bonito só em LAGOS (Interior). |
 | V3 | Lê todas as abas de cada Excel (antes só a primeira) e subpastas mais fundas. Aba Dados › Varredura ganha o quadro “cidades por arquivo e mês”, mostrando as cidades de cada arquivo por superintendência e quais foram substituídas por arquivo mais recente; o log lista as cidades de cada arquivo. |
 | V2 | Todos os Excel validados pelo cabeçalho (mesmo com títulos acima da tabela). Arquivos combinados por cidade: o arquivo da LESTE não apaga mais os dados do INTERIOR no mesmo mês; vale também para Arrecadação e para o orçado (por superintendência). |
 | V1 | Numeração reiniciada. Estado atual: DRE Histórico na estrutura "Econômico" recolhível (Faturamento de Água/Esgoto, Cancelamentos abertos, Faturamento Líquido, Arrecadação com aberturas), tabela compacta com tamanho ajustável, botão Baixar PDF e superintendências LESTE/LAGOS atualizadas. |
