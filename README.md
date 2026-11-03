@@ -7,7 +7,7 @@ Resumo anual dos principais KPIs — Águas do Rio.
 3. A leitura roda toda no navegador (nada é enviado a servidor). Funciona offline: as bibliotecas ficam em `lib/`.
 
 ## Arquivos reconhecidos na pasta
-Todos os `.xlsx` da pasta são validados e identificados pelo **cabeçalho da tabela** (procurado nas primeiras 30 linhas, então títulos acima da tabela não atrapalham). O nome do arquivo só é usado se o cabeçalho não for reconhecido. Datas no nome são ignoradas.
+Todos os `.xlsx` da pasta (e de subpastas) são validados **aba por aba** e identificados pelo **cabeçalho da tabela** (procurado nas primeiras 30 linhas, então títulos acima da tabela não atrapalham). Cada aba reconhecida entra como uma fonte (ex.: `Arquivo.xlsx › LAGOS`). O nome do arquivo só é usado se o cabeçalho não for reconhecido. Datas no nome são ignoradas.
 
 Vários arquivos do mesmo tipo são **combinados por cidade e mês**: arquivos com cidades diferentes (ex.: um da LESTE e outro do INTERIOR) sempre se somam. Se a mesma cidade aparecer no mesmo mês em mais de um arquivo, vale o arquivo mais recente (ou a soma, conforme a opção na aba Dados › Varredura) — as cidades repetidas são listadas no log. No orçado (RF), arquivos do mesmo RF são juntados por superintendência.
 
@@ -37,6 +37,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V3 | Lê todas as abas de cada Excel (antes só a primeira) e subpastas mais fundas. Aba Dados › Varredura ganha o quadro “cidades por arquivo e mês”, mostrando as cidades de cada arquivo por superintendência e quais foram substituídas por arquivo mais recente; o log lista as cidades de cada arquivo. |
 | V2 | Todos os Excel validados pelo cabeçalho (mesmo com títulos acima da tabela). Arquivos combinados por cidade: o arquivo da LESTE não apaga mais os dados do INTERIOR no mesmo mês; vale também para Arrecadação e para o orçado (por superintendência). |
 | V1 | Numeração reiniciada. Estado atual: DRE Histórico na estrutura "Econômico" recolhível (Faturamento de Água/Esgoto, Cancelamentos abertos, Faturamento Líquido, Arrecadação com aberturas), tabela compacta com tamanho ajustável, botão Baixar PDF e superintendências LESTE/LAGOS atualizadas. |
 
