@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V12 | Aba DRE: Faturamento Bruto passa a ser o grupo principal, com (+) Faturamento de Água e (+) Faturamento de Esgoto e todas as aberturas dentro, e o valor é a soma delas. Volume Médio por Economia de Esgoto e Tarifa Média de Esgoto vão para dentro de Faturamento Direto de Esgoto. |
 | V11 | Orçado (RF): rubricas CORTE, RELIGAÇÃO, LNA e SANÇÃO passam a alimentar o orçado das aberturas de Faturamento Indireto de Água na aba DRE (Corte de Água, Religações, Ligações de Água, Sanções). Marcadores como “▸” antes do nome da rubrica são ignorados. |
 | V10 | Aba DRE: corrige as aberturas de indireta e de cancelamento, que apareciam vazias (só Corte de Água aparecia) por erro na soma do realizado do mês. |
 | V9 | Aba DRE (mês e acumulado) no mesmo modelo do DRE Histórico: (+) Faturamento de Água e de Esgoto com direto e indireto, (-) Cancelamentos abertos, (=) Faturamento Líquido, Arrecadação e Outros indicadores (Faturamento Bruto, volume médio e tarifa de esgoto, Cut-Off), em árvore recolhível. Botão Baixar PDF com escolha de tópicos também na aba DRE. |

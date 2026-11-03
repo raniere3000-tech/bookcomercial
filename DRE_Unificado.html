@@ -258,6 +258,8 @@ td{padding:3px 8px}
 #pdfDlg footer .minibtn{min-height:40px;padding:0 16px;font-size:13px}
 #pdfDlg .primario{background:#0d5f98;color:#fff;border-color:#0d5f98}
 #dre table.arv tbody td:first-child{text-align:left;white-space:nowrap}
+table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-top:2px solid #7fa3bb}
+#dre table.arv tr.r-top td:not(:first-child){font-weight:800}
 #dre table.arv tr.r-sec td:not(:first-child),#dre table.arv tr.r-sub td:not(:first-child),#dre table.arv tr.r-dest td:not(:first-child){font-weight:750}
 #dre table.arv tr[data-arv]{cursor:pointer}
 .dreTopo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -403,8 +405,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V11';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-k';
+const VERSAO_BOOK = 'V12';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-l';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -902,6 +904,7 @@ function derive(b) {
   if (has(b.iA) || has(b.iE)) o.indireto = (b.iA || 0) + (b.iE || 0);
   if (has(b.dA) || has(b.iA)) o.fatA = (b.dA || 0) + (b.iA || 0);
   if (has(b.dE) || has(b.iE)) o.fatE = (b.dE || 0) + (b.iE || 0);
+  if (has(o.fatA) || has(o.fatE)) o.brutoSoma = (o.fatA || 0) + (o.fatE || 0);   // Faturamento Bruto da aba DRE = soma das aberturas
   if (!has(b.bruto)) { if (has(o.direto) || has(o.indireto)) o.bruto = (o.direto || 0) + (o.indireto || 0); }
   if (!b.liq) { if (has(o.bruto)) o.liq = o.bruto + (b.canc || 0); }
   o.ecoA_sum = b.ecoA; o.ecoE_sum = b.ecoE;
@@ -953,7 +956,8 @@ Chart.defaults.font.family = '"Segoe UI",Arial,sans-serif'; Chart.defaults.color
    ===================================================================== */
 /* Estrutura da aba DRE (mesmo modelo do DRE Histórico): [id, rótulo, chave, estilo, pai, casas decimais (vazio = R$)] */
 const DTREE = [
-  ['fatA', '(+) Faturamento de Água', 'fatA', 'sec', null],
+  ['bruto', 'Faturamento Bruto', 'brutoSoma', 'top', null],
+  ['fatA', '(+) Faturamento de Água', 'fatA', 'sec', 'bruto'],
   ['dirA', 'Faturamento Direto de Água', 'dA', 'sub', 'fatA'],
   ['ecoA', 'Economias Faturadas de Água', 'ecoA', 'item', 'dirA', 0],
   ['volA', 'Volume Faturado de Água', 'volA', 'item', 'dirA', 0],
@@ -968,10 +972,12 @@ const DTREE = [
   ['iA6', 'Venda e Análise de Água', 'F_Venda e Análise de Água', 'det', 'indA'],
   ['iA7', 'Consertos e Reparos', 'F_Consertos e Reparos', 'det', 'indA'],
   ['iA8', 'Outras classes', 'F_Outras classes', 'det', 'indA'],
-  ['fatE', '(+) Faturamento de Esgoto', 'fatE', 'sec', null],
+  ['fatE', '(+) Faturamento de Esgoto', 'fatE', 'sec', 'bruto'],
   ['dirE', 'Faturamento Direto de Esgoto', 'dE', 'sub', 'fatE'],
   ['ecoE', 'Economias Faturadas de Esgoto', 'ecoE', 'item', 'dirE', 0],
   ['volE', 'Volume Faturado de Esgoto', 'volE', 'item', 'dirE', 0],
+  ['vmeE', 'Volume Médio por Economia de Esgoto', 'volME', 'item', 'dirE', 1],
+  ['tarE', 'Tarifa Média de Esgoto', 'tarE', 'item', 'dirE', 2],
   ['indE', 'Faturamento Indireto de Esgoto', 'iE', 'sub', 'fatE'],
   ['iE1', 'Ligações de Esgoto', 'E_Ligações de Esgoto', 'det', 'indE'],
   ['iE2', 'Outros Esgoto', 'E_Outros Esgoto', 'det', 'indE'],
@@ -987,9 +993,6 @@ const DTREE = [
   ['liq', '(=) Faturamento Líquido', 'liq', 'sec', null],
   ['arrec', 'Arrecadação', 'arrec', 'dest', null],
   ['outros', 'Outros indicadores', null, 'sec', null],
-  ['bruto', 'Faturamento Bruto', 'bruto', 'item', 'outros'],
-  ['vmeE', 'Volume Médio por Economia de Esgoto', 'volME', 'item', 'outros', 1],
-  ['tarE', 'Tarifa Média de Esgoto', 'tarE', 'item', 'outros', 2],
   ['cutoff', 'Cut-Off', 'cutoff', 'item', 'outros']
 ];
 /* utilidades de árvore (DRE e DRE Histórico) */
@@ -1024,27 +1027,29 @@ function renderDRE() {
     if (!dreLinhaVisivel(id)) return;
     const v = dados.get(id); if (estilo === 'det' && dreVazia(v)) return;          // aberturas sem valor não aparecem
     const grupo = DFILHOS.has(id), fechado = S.dreOcultos.has(id);
-    const lab = (grupo ? `<span class="toggle-btn" title="${fechado ? 'Expandir' : 'Recolher'}">${fechado ? '+' : '−'}</span>` : (estilo === 'sec' || estilo === 'sub' || estilo === 'dest') ? '<span class="toggle-pad"></span>' : '') + esc(nome);
+    const lab = (grupo ? `<span class="toggle-btn" title="${fechado ? 'Expandir' : 'Recolher'}">${fechado ? '+' : '−'}</span>` : (estilo === 'sec' || estilo === 'sub' || estilo === 'dest' || estilo === 'top') ? '<span class="toggle-pad"></span>' : '') + esc(nome);
     const cel = v ? cellsPair(v.pm, dec) + cellsPair(v.pa, dec).replace('<td>', '<td class="accStart">') : '<td></td><td></td><td></td><td></td><td class="accStart"></td><td></td><td></td><td></td>';
-    h += `<tr class="r-${estilo}"${grupo ? ` data-arv="${id}"` : ''}><td>${lab}</td>${cel}</tr>`;
+    let prof = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) prof++;
+    h += `<tr class="r-${estilo}"${grupo ? ` data-arv="${id}"` : ''}><td style="padding-left:${8 + prof * 16}px">${lab}</td>${cel}</tr>`;
   });
   $('#dreTable').innerHTML = h + '</tbody></table>';
   $$('#dreTable tr[data-arv]').forEach(tr => tr.onclick = () => { const id = tr.dataset.arv; S.dreOcultos.has(id) ? S.dreOcultos.delete(id) : S.dreOcultos.add(id); renderDRE(); });
 }
 function drePdf(sel) {
   if (!window.jspdf) { alert('Biblioteca de PDF não carregada (lib/jspdf.umd.min.js).'); return; }
-  const m = S.ym, mn = mlabel(m), dados = dreDados(m), estilos = [], body = [];
+  const m = S.ym, mn = mlabel(m), dados = dreDados(m), estilos = [], body = [], ids = [];
   const txt = (p, dec) => { const diff = has(p.a) && has(p.b) ? p.a - p.b : null; return [fmtVal(p.b, dec), fmtVal(p.a, dec), diff == null ? '—' : fmtVal(diff, dec), pct(p.d)]; };
   DTREE.forEach(([id, nome, key, estilo, , dec]) => {
     if (!sel.has(id)) return; const v = dados.get(id); if (estilo === 'det' && dreVazia(v)) return;
-    estilos.push(estilo); body.push([nome].concat(v ? txt(v.pm, dec).concat(txt(v.pa, dec)) : ['', '', '', '', '', '', '', '']));
+    estilos.push(estilo); ids.push(id); body.push([nome].concat(v ? txt(v.pm, dec).concat(txt(v.pa, dec)) : ['', '', '', '', '', '', '', '']));
   });
   if (!body.length) { alert('Selecione pelo menos um tópico.'); return; }
   const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' }), W = doc.internal.pageSize.getWidth();
   doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text('DRE: mês e acumulado', 10, 12);
   doc.setFontSize(8.5); doc.setTextColor(90, 110, 125);
   doc.text(`${mn} | Acumulado Jan–${MN[+m.slice(5) - 1]}/${yearOf(m)} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()}${S.aud ? ' · Visão Auditoria: ' + Array.from(S.audSel).join(' / ') : ''}`, 10, 17);
-  const CORES = { sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] }, IND = { sec: 2, sub: 5, item: 10, det: 15, dest: 5 };
+  const CORES = { top: [174, 203, 221], sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
+  const prof = id => { let n = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) n++; return n; };
   const sub = ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
   doc.autoTable({
     head: [[{ content: 'Descrição', rowSpan: 2 }, { content: mn, colSpan: 4 }, { content: 'Acumulado até ' + mn, colSpan: 4 }], sub.concat(sub)],
@@ -1056,9 +1061,9 @@ function drePdf(sel) {
       if (d.section === 'head' && d.row.index === 0 && d.column.index >= 5) d.cell.styles.fillColor = [11, 41, 80];
       if (d.section !== 'body') return;
       const est = estilos[d.row.index]; d.cell.styles.fillColor = CORES[est] || [255, 255, 255];
-      if (est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
+      if (est === 'top' || est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
       if (est === 'det') d.cell.styles.textColor = [91, 111, 128];
-      if (d.column.index === 0) d.cell.styles.cellPadding = { top: 1.3, bottom: 1.3, right: 1.3, left: IND[est] || 2 };
+      if (d.column.index === 0) d.cell.styles.cellPadding = { top: 1.3, bottom: 1.3, right: 1.3, left: 2 + prof(ids[d.row.index]) * 4 };
       else if (/^-/.test(String(d.cell.raw).replace(/^-R\$/, '-').trim()) && String(d.cell.raw).trim() !== '—') d.cell.styles.textColor = [192, 57, 43];
     },
     didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
@@ -1482,7 +1487,7 @@ function abrirPdfDlg(cfg) {
   };
   dlg.querySelectorAll('[data-pdfsel]').forEach(b => b.onclick = () => {
     const t = b.dataset.pdfsel;
-    S[cfg.chave] = new Set(t === 'tudo' ? T.map(l => l[0]) : t === 'nada' ? [] : t === 'tela' ? T.filter(l => cfg.visivel(l[0])).map(l => l[0]) : T.filter(l => l[3] === 'sec' || l[3] === 'sub' || l[3] === 'dest').map(l => l[0]));
+    S[cfg.chave] = new Set(t === 'tudo' ? T.map(l => l[0]) : t === 'nada' ? [] : t === 'tela' ? T.filter(l => cfg.visivel(l[0])).map(l => l[0]) : T.filter(l => l[3] === 'top' || l[3] === 'sec' || l[3] === 'sub' || l[3] === 'dest').map(l => l[0]));
     desenhar();
   });
   $('#pdfGerar').onclick = () => { if (!sel().size) { alert('Selecione pelo menos um tópico.'); return; } dlg.close(); cfg.gerar(new Set(sel())); };
