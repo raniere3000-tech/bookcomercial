@@ -417,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V16';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-p';
+const VERSAO_BOOK = 'V17';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-q';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1816,7 +1816,7 @@ function quadroCanvas(m, aud) {
       c.fillStyle = neg ? '#9c0006' : '#000'; c.font = F(negrito ? 'bold' : 'normal', itx); c.textAlign = 'center'; c.fillText(txt, x0 + W[col] / 2, cy);
     };
     cel(n(l.o, l.dec), 1, false, bold, it); cel(n(l.r, l.dec), 2, false, bold, it);
-    cel(n(l.dif, 0), 3, l.dif < -0.5, true); cel(l.pc == null ? '' : n(l.pc * 100, 2) + '%', 4, l.pc != null && l.pc < 0, true);
+    cel(n(l.dif, l.dec), 3, l.dif < -0.5 / Math.pow(10, l.dec), true); cel(l.pc == null ? '' : n(l.pc * 100, 2) + '%', 4, l.pc != null && l.pc < 0, true);
   });
   return cv;
 }
@@ -1829,7 +1829,7 @@ function quadroHtml(m, aud) {
     if (l.est === 'B') { h += '<tr>' + td('', '') + td('', '') + td('', '') + td('', '') + td('', '') + '</tr>'; return; }
     const b = l.est === 'T' || l.est === 'S' ? 'font-weight:bold;' : '', i = l.est === 'S' ? 'font-style:italic;' : '', neg = 'background:#ffc7ce;color:#9c0006;';
     h += '<tr>' + td(esc(l.lab), b + i + (l.est === 'D' ? 'text-align:right;' : '')) + td(n(l.o, l.dec), b + i + 'text-align:center') + td(n(l.r, l.dec), b + i + 'text-align:center')
-      + td(n(l.dif, 0), 'font-weight:bold;text-align:center;' + (l.dif < -0.5 ? neg : '')) + td(l.pc == null ? '' : n(l.pc * 100, 2) + '%', 'font-weight:bold;text-align:center;' + (l.pc != null && l.pc < 0 ? neg : '')) + '</tr>';
+      + td(n(l.dif, l.dec), 'font-weight:bold;text-align:center;' + (l.dif < -0.5 / Math.pow(10, l.dec) ? neg : '')) + td(l.pc == null ? '' : n(l.pc * 100, 2) + '%', 'font-weight:bold;text-align:center;' + (l.pc != null && l.pc < 0 ? neg : '')) + '</tr>';
   });
   return h + '</table>';
 }
