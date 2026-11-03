@@ -354,24 +354,25 @@ const CONFIG = {
   // DSC_CLASSE (sem acento / maiúsculas)
   classeDireta:   ['CONTAS DE AGUA', 'CONTAS DE ESGOTO'],
   classeIndAgua:  { 'CORTE DE AGUA': 'Corte de Água', 'RELIGACOES': 'Religações', 'LIGACOES DE AGUA': 'Ligações de Água',
-                    'SANCOES': 'Sanções', 'OUTROS AGUA': 'Outros Água', 'VENDA E ANALISE DE AGUA': 'Venda e Análise de Água' },
+                    'SANCOES': 'Sanções', 'OUTROS AGUA': 'Outros Água', 'VENDA E ANALISE DE AGUA': 'Venda e Análise de Água',
+                    'CONSERTOS E REPAROS': 'Consertos e Reparos' },
   classeIndEsgoto:{ 'LIGACOES DE ESGOTO': 'Ligações de Esgoto', 'OUTROS ESGOTO': 'Outros Esgoto' },
   classeIgnorar:  ['ARRECADACAO','IMPOSTOS','JUROS POR IMPONTUALIDADE','MULTA POR IMPONTUALIDADE','ACRESCIMO JUDICIAL',
                    'FINANCIAMENTOS','TAXA DE REPASSE','RECEITA/DESPESA FINANCEIRA','ATUALIZACAO MONETARIA',
-                   'ABATIMENTO DE AGUA','ABATIMENTO DE SERVICO DE AGUA','DESCONTOS','CONSERTOS E REPAROS'],
+                   'ABATIMENTO DE AGUA','ABATIMENTO DE SERVICO DE AGUA','DESCONTOS'],
   classeZero: ['0',''],                                    // linhas de total sem abertura: descartadas
   // Relação SUP FINAL × CIDADE. A superintendência vem SÓ daqui (a coluna Sup do arquivo é ignorada).
   // Cidade que não estiver na relação vai para 'SEM SUP' (listada na aba Dados).
   supCidades: {
     'LAGOS': ['APERIBE', 'CAMBUCI', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS', 'ITAOCARA',
               'MIRACEMA', 'RIO BONITO', 'S.FCO.DO ITABAPOANA', 'S.SEBASTIAO DO ALTO'],
-    'LESTE': ['CACHOEIRAS DE MACACU', 'ITABORAI', 'MAGE', 'MARICA', 'RIO BONITO', 'RIO DE JANEIRO - A', 'RIO DE JANEIRO - B',
+    'LESTE': ['CACHOEIRAS DE MACACU', 'ITABORAI', 'MAGE', 'MARICA', 'RIO DE JANEIRO - A', 'RIO DE JANEIRO - B',
               'SAO GONCALO', 'SAQUAREMA', 'TANGUA']
   }
 };
 
-const VERSAO_BOOK = 'V3';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-c';
+const VERSAO_BOOK = 'V4';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-d';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -638,15 +639,18 @@ async function ingestComercial(file) {
     let e = map.get(key);
     if (!e) { e = { sups, cid, cur, sit, ym, dA: 0, dE: 0, iA: 0, iE: 0, ecoA: 0, ecoE: 0, volA: 0, volE: 0, volM: 0, canc: 0, liq: 0, fr: {}, cDA: 0, cDE: 0, cIA: 0, cIE: 0, cRes: 0, cReu: 0, cOut: 0 }; map.set(key, e); }
     const num = k => { const v = g(k); return typeof v === 'number' ? v : 0; };
+    // faturamento: soma das COLUNAS em todas as classes (igual a uma tabela dinâmica do Excel); a classe só define a abertura
+    const vdA = num('faturamento_bruto_direta_agua'), vdE = num('faturamento_bruto_direta_esgoto'), viA = num('faturamento_bruto_indireta_agua'), viE = num('faturamento_bruto_indireta_esgoto');
+    e.dA += vdA; e.dE += vdE; e.iA += viA; e.iE += viE;
+    if (viA) { const k = 'F_' + (dIA[cls] || 'Outras classes'); e.fr[k] = (e.fr[k] || 0) + viA; }
+    if (viE) { const k = 'E_' + (dIE[cls] || 'Outras classes'); e.fr[k] = (e.fr[k] || 0) + viE; }
     if (dClsD.has(cls)) {
-      e.dA += num('faturamento_bruto_direta_agua'); e.dE += num('faturamento_bruto_direta_esgoto');
       e.ecoA += num('qtd_eco_fat_agua'); e.ecoE += num('qtd_eco_fat_esgoto');
       e.volA += num('vol_faturado_agua_direto_m'); e.volE += num('vol_faturado_esgoto_direto_m'); e.volM += num('volume_medido_de_agua_m');
-    } else if (dIA[cls]) {
-      const v = num('faturamento_bruto_indireta_agua'); e.iA += v; e.fr['F_' + dIA[cls]] = (e.fr['F_' + dIA[cls]] || 0) + v;
-    } else if (dIE[cls]) {
-      const v = num('faturamento_bruto_indireta_esgoto'); e.iE += v; e.fr['E_' + dIE[cls]] = (e.fr['E_' + dIE[cls]] || 0) + v;
-    } else if (!dIg.has(cls)) diag.naoMapeadas.add(cls);
+    } else if (!dIA[cls] && !dIE[cls] && !dIg.has(cls)) diag.naoMapeadas.add(cls);
+    if ((vdA || vdE || viA || viE) && dIg.has(cls)) diag.ignoradaComValor = (diag.ignoradaComValor || new Set()).add(cls);
+    { const pc = e.pc || (e.pc = {}), c = pc[cls] || (pc[cls] = { dA: 0, dE: 0, iA: 0, iE: 0, canc: 0, liq: 0 });   // por classe, para a conferência
+      c.dA += vdA; c.dE += vdE; c.iA += viA; c.iE += viE; c.canc += num('r_cancelamento_total'); c.liq += num('r_faturamento_total_liquido'); }
     const cv = num('r_cancelamento_total'); e.canc += cv; e.liq += num('r_faturamento_total_liquido');
     if (cv) e[cancCampo(cls)] += cv;
     return true;
@@ -1198,6 +1202,8 @@ const HTREE = [
   ['iA4', 'Sanções', 'F_Sanções', 'det', 'indA', 'moeda'],
   ['iA5', 'Outros Água', 'F_Outros Água', 'det', 'indA', 'moeda'],
   ['iA6', 'Venda e Análise de Água', 'F_Venda e Análise de Água', 'det', 'indA', 'moeda'],
+  ['iA7', 'Consertos e Reparos', 'F_Consertos e Reparos', 'det', 'indA', 'moeda'],
+  ['iA8', 'Outras classes', 'F_Outras classes', 'det', 'indA', 'moeda'],
   ['fatE', '(+) Faturamento de Esgoto', 'fatE', 'sec', null, 'moeda'],
   ['dirE', 'Faturamento Direto de Esgoto', 'dE', 'sub', 'fatE', 'moeda'],
   ['ecoE', 'Economias Faturadas de Esgoto', 'ecoE', 'item', 'dirE', 'num'],
@@ -1205,6 +1211,7 @@ const HTREE = [
   ['indE', 'Faturamento Indireto de Esgoto', 'iE', 'sub', 'fatE', 'moeda'],
   ['iE1', 'Ligações de Esgoto', 'E_Ligações de Esgoto', 'det', 'indE', 'moeda'],
   ['iE2', 'Outros Esgoto', 'E_Outros Esgoto', 'det', 'indE', 'moeda'],
+  ['iE3', 'Outras classes', 'E_Outras classes', 'det', 'indE', 'moeda'],
   ['canc', '(-) Cancelamentos', 'canc', 'sec', null, 'moeda'],
   ['cDA', 'Cancelamento Direto de Água', 'cDA', 'item', 'canc', 'moeda'],
   ['cIA', 'Cancelamento Indireto de Água', 'cIA', 'item', 'canc', 'moeda'],
@@ -1382,6 +1389,7 @@ function renderHistorico() {
   corpo.innerHTML = '';
   HTREE.forEach(([id, nome, chave, estilo, , tipo]) => {
     if (!linhaVisivel(id)) return;
+    if ((id === 'iA8' || id === 'iE3' || id === 'iA7') && !histVal(accTot, chave)) return;      // aberturas eventuais: só se tiverem valor
     const tr = document.createElement('tr'); tr.className = 'r-' + estilo;
     const td = document.createElement('td');
     if (HFILHOS.has(id)) {
@@ -1407,6 +1415,8 @@ function renderHistorico() {
   }
   const nC = (S.hist.cidades || histCidades()).length;
   $('#resumo').textContent = `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'} | Colunas: ${cols.length} | Visão Auditoria: ${S.aud ? 'Ativada (' + Array.from(S.audSel).join(' / ') + ')' : 'Desativada'}`;
+  { const sob = new Set(); D.uso.com.forEach((u, ym) => { if (all.includes(ym) && u.sobrepostas) u.sobrepostas.forEach(c => sob.add(c)); });
+    if (sob.size && S.repetido === 'somar') $('#resumo').innerHTML = `<span class="tag bad">Atenção: ${sob.size} cidade(s) aparecem em mais de um arquivo no mesmo mês e estão sendo SOMADAS (${esc(Array.from(sob).sort().join(', '))}). Para usar só o arquivo mais recente, mude a opção em Dados › Varredura.</span><br>` + esc($('#resumo').textContent); }
 }
 /* =====================================================================
    ABA: Dados (diagnóstico)
@@ -1503,7 +1513,34 @@ function cidadesPorArquivoHtml() {
   });
   return h;
 }
+/* Conferência com a tabela dinâmica do Excel: soma de uma coluna por DSC_CLASSE no mês, por arquivo e no painel */
+const CONF_MED = [['iA', 'Faturamento_bruto_indireta_agua'], ['iE', 'Faturamento_bruto_indireta_esgoto'], ['dA', 'Faturamento_bruto_direta_agua'], ['dE', 'Faturamento_bruto_direta_esgoto'], ['canc', 'R__Cancelamento_total'], ['liq', 'R__Faturamento_total_liquido']];
+function conferenciaHtml() {
+  if (!D.com) return '';
+  const meses = Array.from(D.com.byYm.keys()).sort(); if (!meses.length) return '';
+  if (!S.conf) S.conf = {}; if (!meses.includes(S.conf.ym)) S.conf.ym = lastRealMonth() || meses[meses.length - 1]; if (!S.conf.med) S.conf.med = 'iA';
+  const ym = S.conf.ym, med = S.conf.med, oks = D.comFiles.filter(f => f.status === 'ok');
+  const soma = (lista, filtro) => { const m = new Map(); lista.forEach(e => { if (e.ym !== ym || filtro && !filtro(e) || !e.pc) return; for (const c in e.pc) m.set(c, (m.get(c) || 0) + e.pc[c][med]); }); return m; };
+  const cols = oks.map(f => ({ nome: f.name, m: soma(f.entries) }));
+  const filt = e => supOk(e, S.sup) && (!S.aud || S.audSel.has(e.sit));
+  cols.push({ nome: 'PAINEL — ' + (S.sup || '') + (S.aud ? ' · Visão Auditoria' : ''), m: soma(D.com.byYm.get(ym) || [], filt), painel: true });
+  const classes = new Set(); cols.forEach(c => c.m.forEach((v, k) => { if (v) classes.add(k); }));
+  const lin = Array.from(classes).sort(), tot = cols.map(c => Array.from(c.m.values()).reduce((a, b) => a + b, 0));
+  const cel = v => v ? fmtN(v, 2) : '';
+  const u = D.uso.com.get(ym), rep = u && u.sobrepostas && u.sobrepostas.size;
+  return `<div class="panel" style="margin-bottom:16px"><h2>Conferência com a tabela dinâmica (por DSC_CLASSE)</h2>
+    <div class="hint">Mesma conta de uma tabela dinâmica do Excel: soma da coluna escolhida por DSC_CLASSE, no mês. Cada arquivo aparece com todas as suas cidades (linhas de total e DSC_CLASSE = 0 já descartadas); a última coluna é o que o painel usa na superintendência selecionada, depois de combinar os arquivos.</div>
+    <div class="filterbar" style="padding-bottom:10px"><span class="lbl">Mês</span><select id="confYm">${meses.map(m => `<option value="${m}" ${m === ym ? 'selected' : ''}>${mlabel(m)}</option>`).join('')}</select>
+    <span class="lbl">Coluna</span><select id="confMed">${CONF_MED.map(([k, n]) => `<option value="${k}" ${k === med ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    ${rep ? `<span class="tag warn">${u.sobrepostas.size} cidade(s) em mais de um arquivo neste mês: ${esc(Array.from(u.sobrepostas).sort().join(', '))} — ${S.repetido === 'somar' ? '<b>SOMADAS</b>' : 'usado o arquivo mais recente'}</span>` : ''}</div>
+    <div class="tablewrap" style="max-height:60vh"><table class="dx dxn"><thead><tr><th>Rótulos de linha (DSC_CLASSE)</th>${cols.map(c => `<th${c.painel ? ' style="background:#dcebf4"' : ''}>${esc(c.nome)}</th>`).join('')}</tr></thead>
+    <tbody>${lin.map(k => `<tr><td>${esc(k)}</td>${cols.map(c => `<td${c.painel ? ' style="font-weight:700"' : ''}>${cel(c.m.get(k))}</td>`).join('')}</tr>`).join('')}
+    <tr class="total"><td>Total Geral</td>${tot.map(v => `<td>${fmtN(v, 2)}</td>`).join('')}</tr></tbody></table></div></div>`;
+}
 function bindVarredura() {
+  const cy = $('#confYm'), cm = $('#confMed');
+  if (cy) cy.onchange = () => { S.conf.ym = cy.value; renderDados(); };
+  if (cm) cm.onchange = () => { S.conf.med = cm.value; renderDados(); };
   const sel = $('#selRepetido'); if (sel) sel.onchange = () => { S.repetido = sel.value; persist(); S.cache.clear(); montarComercial(); montarArrec(); S.ym = null; fullRender(); log('Meses repetidos: ' + (S.repetido === 'somar' ? 'somar os arquivos' : 'usar o arquivo mais recente')); };
   $$('[data-mesfile]').forEach(i => i.onchange = () => { S.mesArquivo[i.dataset.mesfile] = i.value; persist(); if (LAST_FILES) loadFiles(LAST_FILES); });
 }
@@ -1513,6 +1550,7 @@ function renderDados() {
   const dc = D.diag.com, da = D.diag.arr;
   h += '<div class="panel" style="margin-bottom:16px;padding:12px 18px"><button class="filterpill" type="button" onclick="const x=document.getElementById(\'loadInfo\');x.hidden=!x.hidden;if(!x.hidden)window.scrollTo(0,0)">Mostrar / ocultar detalhes da leitura no topo</button></div>';
   h += varreduraHtml();
+  h += conferenciaHtml();
   h += resumoMensalHtml();
   {
     const cv = new Set(D.com ? D.com.entries.map(e => e.cid) : []), av = D.arr ? new Set(D.arr.byCid.keys()) : new Set();
