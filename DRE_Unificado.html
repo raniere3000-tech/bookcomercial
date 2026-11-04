@@ -357,11 +357,11 @@ table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-to
   </section>
 
   <dialog id="pdfDlg"><form method="dialog" class="dlg">
-    <header><h3>Tópicos do PDF</h3><div class="hint">Marque o que deve sair no PDF. Itens recolhidos na tela também podem ser incluídos.</div></header>
+    <header><h3>Tópicos do PDF</h3><div class="hint">Marque o que deve sair no PDF. Itens recolhidos na tela também podem ser incluídos. Cada visão sai inteira em uma página.</div></header>
     <div class="acoes"><button class="minibtn" type="button" data-pdfsel="tudo">Marcar tudo</button><button class="minibtn" type="button" data-pdfsel="nada">Desmarcar tudo</button><button class="minibtn" type="button" data-pdfsel="tela">Igual à tela</button><button class="minibtn" type="button" data-pdfsel="principais">Só os totais</button></div>
     <div class="pdfOpc">
       <div id="pdfColsBox"><span class="lbl">Versão</span><span class="seg" id="pdfCols"><button type="button" data-v="todas">Completo</button><button type="button" data-v="or">Só Orçado e Realizado</button></span></div>
-      <div><span class="lbl">Arquivos</span><span class="seg" id="pdfAud"><button type="button" data-v="ambas">As duas versões</button><button type="button" data-v="nao">Só Visão Normal</button><button type="button" data-v="sim">Só Visão Auditoria</button></span><span class="hint" id="pdfAudSit" style="margin:0"></span></div>
+      <div><span class="lbl">Arquivos</span><span class="seg" id="pdfAud"><button type="button" data-v="junto">Um arquivo: Normal + Auditoria</button><button type="button" data-v="ambas">Dois arquivos</button><button type="button" data-v="nao">Só Normal</button><button type="button" data-v="sim">Só Auditoria</button></span><span class="hint" id="pdfAudSit" style="margin:0"></span></div>
     </div>
     <div class="lista" id="pdfLista"></div>
     <footer><span id="pdfConta" class="hint" style="margin:0 auto 0 0;align-self:center"></span><button class="minibtn" value="cancel" type="submit">Cancelar</button><button class="minibtn primario" type="button" id="pdfGerar">Baixar PDF</button></footer>
@@ -417,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V20';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.04-a';
+const VERSAO_BOOK = 'V21';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.04-b';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1074,42 +1074,39 @@ function renderDRE() {
   $('#dreTable').innerHTML = h + '</tbody></table>';
   $$('#dreTable tr[data-arv]').forEach(tr => tr.onclick = () => { const id = tr.dataset.arv; S.dreOcultos.has(id) ? S.dreOcultos.delete(id) : S.dreOcultos.add(id); renderDRE(); });
 }
-function drePdf(sel) {
-  if (!window.jspdf) { alert('Biblioteca de PDF não carregada (lib/jspdf.umd.min.js).'); return; }
+/* especificação de uma página do PDF da aba DRE (para a visão atual: S.aud) */
+function dreSpec(sel) {
   const m = S.ym, mn = mlabel(m), dados = dreDados(m), estilos = [], body = [], ids = [], so = S.dreCols === 'or', nc = so ? 2 : 4;
   const txt = (p, dec) => { const diff = has(p.a) && has(p.b) ? p.a - p.b : null; const l = [fmtVal(p.b, dec), fmtVal(p.a, dec)]; return so ? l : l.concat([diff == null ? '—' : fmtVal(diff, dec), pct(p.d)]); };
   DTREE.forEach(([id, nome, key, estilo, , dec]) => {
     if (!sel.has(id)) return; const v = dados.get(id); if (estilo === 'det' && dreVazia(v)) return;
     estilos.push(estilo); ids.push(id); body.push([nome].concat(v ? txt(v.pm, dec).concat(txt(v.pa, dec)) : Array(nc * 2).fill('')));
   });
-  if (!body.length) { alert('Selecione pelo menos um tópico.'); return; }
-  const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' }), W = doc.internal.pageSize.getWidth();
-  doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text('DRE: mês e acumulado', 10, 12);
-  doc.setFontSize(8.5); doc.setTextColor(90, 110, 125);
-  const ac = dreAcum(m);
-  doc.text(`${mn} | Acumulado ${ac.curto} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()} · Visão Auditoria: ${S.aud ? 'Sim (' + Array.from(S.audSel).join(' / ') + ')' : 'Não'}`, 10, 17);
+  const ac = dreAcum(m), prof = id => { let n = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) n++; return n; };
   const CORES = { top: [174, 203, 221], sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
-  const prof = id => { let n = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) n++; return n; };
   const sub = so ? ['Orçado', 'Realizado'] : ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
-  doc.autoTable({
-    head: [[{ content: 'Descrição', rowSpan: 2 }, { content: mn, colSpan: nc }, { content: ac.titulo, colSpan: nc }], sub.concat(sub)],
-    body, startY: 22, theme: 'grid', margin: { left: 8, right: 8 },
-    styles: { fontSize: 7.5, cellPadding: 1.3, halign: 'right', lineColor: [225, 231, 236], lineWidth: 0.1 },
-    headStyles: { fillColor: [18, 54, 101], textColor: 255, halign: 'center', fontStyle: 'bold' },
-    columnStyles: { 0: { halign: 'left', cellWidth: so ? 90 : 66 } },
-    didParseCell: d => {
-      if (d.section === 'head' && d.row.index === 0 && d.column.index >= nc + 1) d.cell.styles.fillColor = [11, 41, 80];
-      if (d.section !== 'body') return;
-      const est = estilos[d.row.index]; d.cell.styles.fillColor = CORES[est] || [255, 255, 255];
-      if (est === 'top' || est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
-      if (est === 'det') d.cell.styles.textColor = [91, 111, 128];
-      if (d.column.index === 0) d.cell.styles.cellPadding = { top: 1.3, bottom: 1.3, right: 1.3, left: 2 + prof(ids[d.row.index]) * 4 };
-      else if (/^-/.test(String(d.cell.raw).replace(/^-R\$/, '-').trim()) && String(d.cell.raw).trim() !== '—') d.cell.styles.textColor = [192, 57, 43];
-    },
-    didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); if (ac.info) doc.text(doc.splitTextToSize(ac.info, W - 90), 8, doc.internal.pageSize.getHeight() - 5); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
-  });
-  doc.save(pdfNome('DRE', m, [S.dreAcum === 'rf' ? 'Acum_RF_' + rfLbl() : null, so ? 'Orcado_Realizado' : null].filter(Boolean)));
+  return {
+    titulo: 'DRE: mês e acumulado', formatos: ['a4', 'a3'], rodape: ac.info,
+    subt: `${mn} | Acumulado ${ac.curto} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()}`, visao: pdfVisaoTxt(), aud: S.aud,
+    nome: { base: 'DRE', per: m, extra: [S.dreAcum === 'rf' ? 'Acum_RF_' + rfLbl() : null, so ? 'Orcado_Realizado' : null].filter(Boolean) },
+    vazio: !body.length,
+    tabela: fs => ({
+      head: [[{ content: 'Descrição', rowSpan: 2 }, { content: mn, colSpan: nc }, { content: ac.titulo, colSpan: nc }], sub.concat(sub)], body,
+      headStyles: { fillColor: [18, 54, 101], textColor: 255, halign: 'center', fontStyle: 'bold' },
+      columnStyles: { 0: { halign: 'left', cellWidth: fs * (so ? 12 : 9.5) } },
+      didParseCell: d => {
+        if (d.section === 'head' && d.row.index === 0 && d.column.index >= nc + 1) d.cell.styles.fillColor = [11, 41, 80];
+        if (d.section !== 'body') return;
+        const est = estilos[d.row.index]; d.cell.styles.fillColor = CORES[est] || [255, 255, 255];
+        if (est === 'top' || est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
+        if (est === 'det') d.cell.styles.textColor = [91, 111, 128];
+        if (d.column.index === 0) d.cell.styles.cellPadding = { top: fs * 0.17, bottom: fs * 0.17, right: fs * 0.17, left: fs * 0.25 + prof(ids[d.row.index]) * fs * 0.5 };
+        else if (/^-/.test(String(d.cell.raw).replace(/^-R\$/, '-').trim()) && String(d.cell.raw).trim() !== '—') d.cell.styles.textColor = [192, 57, 43];
+      }
+    })
+  };
 }
+function drePdf(sel) { pdfGerarArquivos([{ aud: S.aud }], () => dreSpec(sel), 'separado'); }
 
 /* =====================================================================
    ABA: DRE mês a mês
@@ -1506,10 +1503,10 @@ function histInit() {
 }
 function linhaVisivel(id) { for (let p = HPAI.get(id); p; p = HPAI.get(p)) if (S.hist.ocultos.has(p)) return false; return true; }
 /* Janela "Tópicos do PDF", usada pela aba DRE e pelo DRE Histórico */
-const PDF_HIST = { tree: HTREE, pai: HPAI, chave: 'pdfHist', visivel: id => linhaVisivel(id), gerar: sel => histPdf(sel) };
-const PDF_DRE = { tree: DTREE, pai: DPAI, chave: 'pdfDre', visivel: id => dreLinhaVisivel(id), gerar: sel => drePdf(sel), versao: true };
+const PDF_HIST = { tree: HTREE, pai: HPAI, chave: 'pdfHist', visivel: id => linhaVisivel(id), spec: sel => histSpec(sel) };
+const PDF_DRE = { tree: DTREE, pai: DPAI, chave: 'pdfDre', visivel: id => dreLinhaVisivel(id), spec: sel => dreSpec(sel), versao: true };
 /* nome dos arquivos: Tipo_Sup_Período[_Versão]_Visao_Normal|Auditoria */
-const pdfNome = (base, per, extra) => [base, String(S.sup || 'SEM_SUP').replace(/[^\w]+/g, '_'), per].concat(extra || [], S.aud ? 'Visao_Auditoria' : 'Visao_Normal').join('_') + '.pdf';
+const pdfNome = (base, per, extra, visao) => [base, String(S.sup || 'SEM_SUP').replace(/[^\w]+/g, '_'), per].concat(extra || [], visao || (S.aud ? 'Visao_Auditoria' : 'Visao_Normal')).filter(Boolean).join('_') + '.pdf';
 function abrirPdfDlg(cfg) {
   if (!D.com) { alert('Carregue os dados antes de gerar o PDF.'); return; }
   const dlg = $('#pdfDlg'), lista = $('#pdfLista'), T = cfg.tree, P = cfg.pai;
@@ -1533,67 +1530,106 @@ function abrirPdfDlg(cfg) {
     desenhar();
   });
   // perguntas: versão (só na aba DRE) e Visão Auditoria; começam iguais à tela
-  const op = { cols: S.dreCols === 'or' ? 'or' : 'todas', aud: 'ambas' };
+  const op = { cols: S.dreCols === 'or' ? 'or' : 'todas', aud: 'junto' };
   const seg = (id, k) => $$('#' + id + ' [data-v]').forEach(b => { b.classList.toggle('on', b.dataset.v === op[k]); b.onclick = () => { op[k] = b.dataset.v; seg(id, k); }; });
   $('#pdfColsBox').style.display = cfg.versao ? '' : 'none'; seg('pdfCols', 'cols'); seg('pdfAud', 'aud');
   $('#pdfAudSit').textContent = S.audSel.size ? 'situações: ' + Array.from(S.audSel).join(' / ') : '';
   $('#pdfGerar').onclick = () => {
     if (!sel().size) { alert('Selecione pelo menos um tópico.'); return; }
     dlg.close();
-    if (!S.audSel.size && D.com) CONFIG.auditoriaPadrao.forEach(x => { const f = Array.from(D.com.sits).find(s => norm(s) === norm(x)); if (f) S.audSel.add(f); });
-    const versoes = op.aud === 'ambas' ? [false, true] : [op.aud === 'sim'], ids = new Set(sel());
-    // um arquivo por versão; as respostas valem só para o PDF (a tela não muda)
-    versoes.forEach((aud, i) => setTimeout(() => {
-      const antes = { aud: S.aud, cols: S.dreCols }; S.aud = aud; S.dreCols = op.cols;
-      try { cfg.gerar(ids); } finally { S.aud = antes.aud; S.dreCols = antes.cols; }
-    }, i * 700));                                                                   // intervalo para o navegador aceitar os dois downloads
+    const ids = new Set(sel()), duas = op.aud === 'junto' || op.aud === 'ambas';
+    const versoes = duas ? [{ aud: false }, { aud: true }] : [{ aud: op.aud === 'sim' }];
+    // as respostas valem só para o PDF (a tela não muda); cada visão ocupa uma página
+    pdfGerarArquivos(versoes, () => cfg.spec(ids), op.aud === 'junto' ? 'junto' : 'separado', { cols: op.cols });
   };
   desenhar(); dlg.showModal();
 }
-function histPdf(ids) {
-  if (!window.jspdf) { alert('Biblioteca de PDF não carregada (lib/jspdf.umd.min.js).'); return; }
-  if (!D.com) { alert('Carregue os dados antes de gerar o PDF.'); return; }
+/* especificação de uma página do PDF do DRE Histórico (para a visão atual: S.aud) */
+function histSpec(ids) {
   const sel = ids || new Set(HTREE.filter(l => linhaVisivel(l[0])).map(l => l[0]));
   const { cols, all } = histCols(), accs = cols.map(c => histAcc(c.months)).concat([histAcc(all)]);
-  const head = [['Econômico'].concat(cols.map(c => c.label), ['Total Geral'])];
+  const head = [['Econômico'].concat(cols.map(c => c.label), ['Total Geral'])], nCol = head[0].length;
   const CORES = { sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
-  const IND = { sec: 2, sub: 5, item: 10, det: 15, dest: 5 };
-  const estilos = [], body = [];
+  const prof = id => { let n = 0; for (let p = HPAI.get(id); p; p = HPAI.get(p)) n++; return n; };
+  const estilos = [], idsL = [], body = [];
   HTREE.forEach(([id, nome, chave, estilo, , tipo]) => {
     if (!sel.has(id)) return;
     if ((id === 'iA8' || id === 'iE3' || id === 'iA7') && !histVal(accs[accs.length - 1], chave)) return;
-    estilos.push(estilo); body.push([nome].concat(accs.map(a => chave ? fmtH(histVal(a, chave), tipo) : '')));
+    estilos.push(estilo); idsL.push(id); body.push([nome].concat(accs.map(a => chave ? fmtH(histVal(a, chave), tipo) : '')));
   });
-  if (!body.length) { alert('Selecione pelo menos um tópico.'); return; }
-  const nCol = head[0].length, fmt = nCol > 16 ? 'a3' : 'a4';
-  const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: fmt });
-  const W = doc.internal.pageSize.getWidth();
-  doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text('DRE Histórico por município', 10, 12);
-  doc.setFontSize(8); doc.setTextColor(90, 110, 125);
   const nC = (S.hist.cidades || histCidades()).length;
-  const subt = `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'} | Visão Auditoria: ${S.aud ? 'Sim (' + Array.from(S.audSel).join(' / ') + ')' : 'Não'}`;
-  doc.text(doc.splitTextToSize(subt, W - 20), 10, 17);
-  doc.autoTable({
-    head, body, startY: 24, theme: 'grid', margin: { left: 8, right: 8 },
-    horizontalPageBreak: true, horizontalPageBreakRepeat: 0,
-    styles: { fontSize: nCol > 16 ? 6.5 : 7, cellPadding: 1.2, halign: 'right', lineColor: [225, 231, 236], lineWidth: 0.1, overflow: 'visible' },
-    headStyles: { fillColor: [18, 54, 101], textColor: 255, halign: 'right', fontStyle: 'bold' },
-    columnStyles: { 0: { halign: 'left', cellWidth: 62, overflow: 'linebreak' } },
-    didParseCell: d => {
-      if (d.section === 'head' && d.column.index === 0) { d.cell.styles.fillColor = [31, 95, 127]; d.cell.styles.halign = 'center'; }
-      if (d.section === 'head' && d.column.index === nCol - 1) d.cell.styles.fillColor = [11, 41, 80];
-      if (d.section !== 'body') return;
-      const est = estilos[d.row.index]; d.cell.styles.fillColor = CORES[est] || [255, 255, 255];
-      if (est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
-      if (est === 'det') d.cell.styles.textColor = [91, 111, 128];
-      if (d.column.index === 0) d.cell.styles.cellPadding = { top: 1.2, bottom: 1.2, right: 1.2, left: IND[est] || 2 };
-      else if (String(d.cell.raw).trim().startsWith('-') && String(d.cell.raw).trim() !== '-') d.cell.styles.textColor = [192, 57, 43];
-      if (d.column.index === nCol - 1) d.cell.styles.fontStyle = 'bold';
-    },
-    didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
-  });
-  const per = all.length ? all[0] + (all.length > 1 ? '_a_' + all[all.length - 1] : '') : '';
-  doc.save(pdfNome('DRE_Historico', per));
+  return {
+    titulo: 'DRE Histórico por município', formatos: ['a4', 'a3'],
+    subt: `Superintendência: ${S.sup} | Cidades: ${nC} de ${histCidades().length} | Modo: ${S.hist.modo === 'mensal' ? 'Mensal' : 'Anual'} | Período: ${all.length ? mlabel(all[0]) + ' até ' + mlabel(all[all.length - 1]) : '—'}`, visao: pdfVisaoTxt(), aud: S.aud,
+    nome: { base: 'DRE_Historico', per: all.length ? all[0] + (all.length > 1 ? '_a_' + all[all.length - 1] : '') : '', extra: [] },
+    vazio: !body.length,
+    tabela: fs => ({
+      head, body,
+      headStyles: { fillColor: [18, 54, 101], textColor: 255, halign: 'right', fontStyle: 'bold' },
+      columnStyles: { 0: { halign: 'left', cellWidth: fs * 9 } },
+      didParseCell: d => {
+        if (d.section === 'head' && d.column.index === 0) { d.cell.styles.fillColor = [31, 95, 127]; d.cell.styles.halign = 'center'; }
+        if (d.section === 'head' && d.column.index === nCol - 1) d.cell.styles.fillColor = [11, 41, 80];
+        if (d.section !== 'body') return;
+        const est = estilos[d.row.index]; d.cell.styles.fillColor = CORES[est] || [255, 255, 255];
+        if (est === 'sec' || est === 'sub' || est === 'dest') d.cell.styles.fontStyle = 'bold';
+        if (est === 'det') d.cell.styles.textColor = [91, 111, 128];
+        if (d.column.index === 0) d.cell.styles.cellPadding = { top: fs * 0.17, bottom: fs * 0.17, right: fs * 0.17, left: fs * 0.25 + prof(idsL[d.row.index]) * fs * 0.5 };
+        else if (String(d.cell.raw).trim().startsWith('-') && String(d.cell.raw).trim() !== '-') d.cell.styles.textColor = [192, 57, 43];
+        if (d.column.index === nCol - 1) d.cell.styles.fontStyle = 'bold';
+      }
+    })
+  };
+}
+function histPdf(ids) { pdfGerarArquivos([{ aud: S.aud }], () => histSpec(ids), 'separado'); }
+
+/* ---------- PDF: cada visão em UMA página (a letra diminui até a tabela caber) ---------- */
+const pdfVisaoTxt = () => S.aud ? 'Visão Auditoria: Sim (' + Array.from(S.audSel).join(' / ') + ')' : 'Visão Auditoria: Não';
+function pdfDesenhar(doc, spec, fs, pag) {
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFontSize(13); doc.setTextColor(13, 43, 69); doc.text(spec.titulo, 8, 11);
+  doc.setFontSize(8); doc.setTextColor(90, 110, 125); const sl = doc.splitTextToSize(spec.subt, W - 16); doc.text(sl, 8, 16);
+  // linha da visão; a Visão Auditoria fica destacada em amarelo
+  const yv = 16 + sl.length * 3.6; doc.setFontSize(9); doc.setFont(undefined, 'bold');
+  const tw = doc.getTextWidth(spec.visao);
+  if (spec.aud) { doc.setFillColor(255, 235, 59); doc.rect(7, yv - 3.3, tw + 2, 4.6, 'F'); doc.setTextColor(30, 30, 30); } else doc.setTextColor(13, 43, 69);
+  doc.text(spec.visao, 8, yv); doc.setFont(undefined, 'normal');
+  const t = spec.tabela(fs);
+  doc.autoTable(Object.assign({
+    startY: yv + 3, theme: 'grid', margin: { left: 8, right: 8, top: 8, bottom: 10 }, pageBreak: 'avoid', rowPageBreak: 'avoid',
+    styles: { fontSize: fs, cellPadding: fs * 0.17, halign: 'right', lineColor: [225, 231, 236], lineWidth: 0.1, overflow: 'visible', cellWidth: 'wrap' }
+  }, t, { columnStyles: Object.assign({}, t.columnStyles, { 0: Object.assign({ overflow: 'linebreak' }, t.columnStyles[0]) }) }));
+  return doc.lastAutoTable;
+}
+function pdfCabe(spec, formato, fs) {                        // desenha num rascunho e confere se coube em 1 página
+  const d = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: formato });
+  const t = pdfDesenhar(d, spec, fs), W = d.internal.pageSize.getWidth(), H = d.internal.pageSize.getHeight();
+  const larg = t.columns.reduce((a, c) => a + c.width, 0);
+  return d.internal.getNumberOfPages() === 1 && larg <= W - 15.9 && t.finalY <= H - 9;
+}
+function pdfAjuste(spec) {
+  for (const f of spec.formatos) for (let fs = 8.5; fs >= 4.5; fs -= 0.25) if (pdfCabe(spec, f, fs)) return { formato: f, fs };
+  const f = spec.formatos[spec.formatos.length - 1]; return { formato: f, fs: 4.5 };
+}
+const audPadrao = () => { if (!S.audSel.size && D.com) CONFIG.auditoriaPadrao.forEach(x => { const f = Array.from(D.com.sits).find(s => norm(s) === norm(x)); if (f) S.audSel.add(f); }); };
+/* modo: 'junto' = um arquivo com uma página por visão; 'separado' = um arquivo por visão */
+function pdfGerarArquivos(versoes, fazSpec, modo, extras) {
+  if (!window.jspdf) { alert('Biblioteca de PDF não carregada (lib/jspdf.umd.min.js).'); return; }
+  audPadrao();
+  const antes = { aud: S.aud, cols: S.dreCols }, paginas = [];
+  try {
+    versoes.forEach(v => { S.aud = v.aud; if (extras && extras.cols) S.dreCols = extras.cols; const spec = fazSpec(); if (!spec.vazio) paginas.push({ aud: v.aud, spec, aj: pdfAjuste(spec) }); });
+  } finally { S.aud = antes.aud; S.dreCols = antes.cols; }
+  if (!paginas.length) { alert('Selecione pelo menos um tópico.'); return; }
+  const rodapes = doc => { const n = doc.internal.getNumberOfPages(), quando = new Date().toLocaleString('pt-BR');
+    for (let i = 1; i <= n; i++) { doc.setPage(i); const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), r = doc.__rod[i - 1];
+      doc.setFontSize(6.5); doc.setTextColor(140); if (r) doc.text(doc.splitTextToSize(r, W - 90), 8, H - 5); doc.text('Gerado em ' + quando + ' · página ' + i + ' de ' + n, W - 8, H - 5, { align: 'right' }); } };
+  const novo = (pg, doc) => { if (!doc) { doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: pg.aj.formato }); doc.__rod = []; } else doc.addPage(pg.aj.formato, 'landscape');
+    pdfDesenhar(doc, pg.spec, pg.aj.fs); doc.__rod.push(pg.spec.rodape || ''); return doc; };
+  const nomeDe = (pg, visao) => pdfNome(pg.spec.nome.base, pg.spec.nome.per, pg.spec.nome.extra, visao);
+  if (modo === 'junto' && paginas.length > 1) {
+    let doc = null; paginas.forEach(pg => { doc = novo(pg, doc); }); rodapes(doc); doc.save(nomeDe(paginas[0], 'Visao_Normal_e_Auditoria'));
+  } else paginas.forEach((pg, i) => setTimeout(() => { const doc = novo(pg); rodapes(doc); doc.save(nomeDe(pg, pg.aud ? 'Visao_Auditoria' : 'Visao_Normal')); }, i * 700));
 }
 function renderHistorico() {
   histInit();
