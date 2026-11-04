@@ -322,12 +322,12 @@ table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-to
   <section class="page active" id="dre">
     <div class="panel"><h2>DRE: mês e acumulado</h2>
       <div class="hint">O mês selecionado aparece à esquerda e o acumulado à direita: do ano até o mês ou só dos meses preenchidos no RF</div>
-      <div class="dreTopo"><div class="period" id="drePeriod"></div><span class="seg" id="dreAcumSel" role="group" aria-label="Acumulado"><button type="button" data-dacum="ano">Acumulado do ano</button><button type="button" data-dacum="rf">Período do RF</button></span><span class="seg" id="dreColsSel" role="group" aria-label="Colunas"><button type="button" data-dcols="todas">Completo</button><button type="button" data-dcols="or">Só Orçado e Realizado</button></span><button class="minibtn" type="button" id="dreAbrir">⊞ Expandir tudo</button><button class="minibtn" type="button" id="dreFechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="drePdfBtn" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></div><div class="hint" id="dreAcumInfo" style="margin:4px 0 8px"></div><div id="dreTable" class="tablewrap"></div></div>
+      <div class="dreTopo"><div class="period" id="drePeriod"></div><span class="seg" id="dreAcumSel" role="group" aria-label="Acumulado"><button type="button" data-dacum="ano">Acumulado do ano</button><button type="button" data-dacum="rf">Período do RF</button></span><span class="seg" id="dreColsSel" role="group" aria-label="Colunas"><button type="button" data-dcols="todas">Completo</button><button type="button" data-dcols="or">Só Realizado e Orçado</button></span><button class="minibtn" type="button" id="dreAbrir">⊞ Expandir tudo</button><button class="minibtn" type="button" id="dreFechar">⊟ Recolher tudo</button><button class="minibtn" type="button" id="drePdfBtn" style="background:#0d5f98;color:#fff;border-color:#0d5f98">⬇ Baixar PDF</button></div><div class="hint" id="dreAcumInfo" style="margin:4px 0 8px"></div><div id="dreTable" class="tablewrap"></div></div>
   </section>
 
   <section class="page" id="dremensal">
     <div class="panel"><h2>DRE Mensais</h2>
-      <div class="hint">Selecione um indicador para exibir Orçado, Realizado e desvios de cada mês (inclui os meses futuros do orçado)</div>
+      <div class="hint">Selecione um indicador para exibir Realizado, Orçado e desvios de cada mês (inclui os meses futuros do orçado)</div>
       <div id="dreFilters" class="filterstrip"></div>
       <div id="monthlyTitle" class="period"></div><div id="monthlyTable" class="tablewrap"></div></div>
   </section>
@@ -360,7 +360,7 @@ table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-to
     <header><h3>Tópicos do PDF</h3><div class="hint">Marque o que deve sair no PDF. Itens recolhidos na tela também podem ser incluídos. Cada visão sai inteira em uma página.</div></header>
     <div class="acoes"><button class="minibtn" type="button" data-pdfsel="tudo">Marcar tudo</button><button class="minibtn" type="button" data-pdfsel="nada">Desmarcar tudo</button><button class="minibtn" type="button" data-pdfsel="tela">Igual à tela</button><button class="minibtn" type="button" data-pdfsel="principais">Só os totais</button></div>
     <div class="pdfOpc">
-      <div id="pdfColsBox"><span class="lbl">Versão</span><span class="seg" id="pdfCols"><button type="button" data-v="todas">Completo</button><button type="button" data-v="or">Só Orçado e Realizado</button></span></div>
+      <div id="pdfColsBox"><span class="lbl">Versão</span><span class="seg" id="pdfCols"><button type="button" data-v="todas">Completo</button><button type="button" data-v="or">Só Realizado e Orçado</button></span></div>
       <div><span class="lbl">Arquivos</span><span class="seg" id="pdfAud"><button type="button" data-v="junto">Um arquivo: Normal + Auditoria</button><button type="button" data-v="ambas">Dois arquivos</button><button type="button" data-v="nao">Só Normal</button><button type="button" data-v="sim">Só Auditoria</button></span><span class="hint" id="pdfAudSit" style="margin:0"></span></div>
     </div>
     <div class="lista" id="pdfLista"></div>
@@ -417,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V21';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.04-b';
+const VERSAO_BOOK = 'V22';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.04-c';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1017,8 +1017,8 @@ const fmtVal = (v, dec) => dec === undefined ? fmtBRL(v) : fmtN(v, dec === 2 ? 2
 const pillHtml = d => `<span class="pill ${Number.isFinite(d) ? (d < 0 ? 'red' : '') : 'na'}">${pct(d)}</span>`;
 function cellsPair(p, dec, so) {
   const diff = has(p.a) && has(p.b) ? p.a - p.b : null;
-  if (so) return `<td>${fmtVal(p.b, dec)}</td><td>${fmtVal(p.a, dec)}</td>`;
-  return `<td>${fmtVal(p.b, dec)}</td><td>${fmtVal(p.a, dec)}</td><td class="${diff == null ? '' : diff >= 0 ? 'pos' : 'neg'}">${diff == null ? '—' : fmtVal(diff, dec)}</td><td>${pillHtml(p.d)}</td>`;
+  if (so) return `<td>${fmtVal(p.a, dec)}</td><td>${fmtVal(p.b, dec)}</td>`;
+  return `<td>${fmtVal(p.a, dec)}</td><td>${fmtVal(p.b, dec)}</td><td class="${diff == null ? '' : diff >= 0 ? 'pos' : 'neg'}">${diff == null ? '—' : fmtVal(diff, dec)}</td><td>${pillHtml(p.d)}</td>`;
 }
 /* meses do RF selecionado com algum valor preenchido para a superintendência atual */
 function rfMesesComValor() {
@@ -1056,9 +1056,9 @@ function renderDRE() {
   $('#dreAbrir').onclick = () => { S.dreOcultos = new Set(); renderDRE(); };
   $('#dreFechar').onclick = () => { S.dreOcultos = new Set(DFILHOS); renderDRE(); };
   $('#drePdfBtn').onclick = () => abrirPdfDlg(PDF_DRE);
-  const so = S.dreCols === 'or', nc = so ? 2 : 4;                                  // só Orçado e Realizado, ou completo
+  const so = S.dreCols === 'or', nc = so ? 2 : 4;                                  // só Realizado e Orçado, ou completo
   $$('#dreColsSel [data-dcols]').forEach(b => { b.classList.toggle('on', b.dataset.dcols === (so ? 'or' : 'todas')); b.onclick = () => { S.dreCols = b.dataset.dcols; persist(); renderDRE(); }; });
-  const dados = dreDados(m), subs = so ? ['Orçado', 'Realizado'] : ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
+  const dados = dreDados(m), subs = so ? ['Realizado', 'Orçado'] : ['Realizado', 'Orçado', '(-) Absoluto', '(%) Relativo'];
   const th = (l, acc) => l.map((x, i) => `<th class="sub1${acc && !i ? ' accStart' : ''}">${x}</th>`).join('');
   let h = `<table class="arv"><thead><tr><th rowspan="2" style="text-align:left">Descrição</th><th colspan="${nc}" class="gm">${mn}</th><th colspan="${nc}" class="ga">${esc(ac.titulo)}</th></tr>
     <tr>${th(subs)}${th(subs, 1)}</tr></thead><tbody>`;
@@ -1077,18 +1077,18 @@ function renderDRE() {
 /* especificação de uma página do PDF da aba DRE (para a visão atual: S.aud) */
 function dreSpec(sel) {
   const m = S.ym, mn = mlabel(m), dados = dreDados(m), estilos = [], body = [], ids = [], so = S.dreCols === 'or', nc = so ? 2 : 4;
-  const txt = (p, dec) => { const diff = has(p.a) && has(p.b) ? p.a - p.b : null; const l = [fmtVal(p.b, dec), fmtVal(p.a, dec)]; return so ? l : l.concat([diff == null ? '—' : fmtVal(diff, dec), pct(p.d)]); };
+  const txt = (p, dec) => { const diff = has(p.a) && has(p.b) ? p.a - p.b : null; const l = [fmtVal(p.a, dec), fmtVal(p.b, dec)]; return so ? l : l.concat([diff == null ? '—' : fmtVal(diff, dec), pct(p.d)]); };
   DTREE.forEach(([id, nome, key, estilo, , dec]) => {
     if (!sel.has(id)) return; const v = dados.get(id); if (estilo === 'det' && dreVazia(v)) return;
     estilos.push(estilo); ids.push(id); body.push([nome].concat(v ? txt(v.pm, dec).concat(txt(v.pa, dec)) : Array(nc * 2).fill('')));
   });
   const ac = dreAcum(m), prof = id => { let n = 0; for (let p = DPAI.get(id); p; p = DPAI.get(p)) n++; return n; };
   const CORES = { top: [174, 203, 221], sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
-  const sub = so ? ['Orçado', 'Realizado'] : ['Orçado', 'Realizado', '(-) Absoluto', '(%) Relativo'];
+  const sub = so ? ['Realizado', 'Orçado'] : ['Realizado', 'Orçado', '(-) Absoluto', '(%) Relativo'];
   return {
     titulo: 'DRE: mês e acumulado', formatos: ['a4', 'a3'], rodape: ac.info,
     subt: `${mn} | Acumulado ${ac.curto} · Superintendência: ${S.sup || '—'} · Orçado: ${rfLbl()}`, visao: pdfVisaoTxt(), aud: S.aud,
-    nome: { base: 'DRE', per: m, extra: [S.dreAcum === 'rf' ? 'Acum_RF_' + rfLbl() : null, so ? 'Orcado_Realizado' : null].filter(Boolean) },
+    nome: { base: 'DRE', per: m, extra: [S.dreAcum === 'rf' ? 'Acum_RF_' + rfLbl() : null, so ? 'Realizado_Orcado' : null].filter(Boolean) },
     vazio: !body.length,
     tabela: fs => ({
       head: [[{ content: 'Descrição', rowSpan: 2 }, { content: mn, colSpan: nc }, { content: ac.titulo, colSpan: nc }], sub.concat(sub)], body,
@@ -1121,20 +1121,20 @@ function renderMonthly() {
   $('#monthlyTitle').textContent = nome;
   const meses = monthsForYear('mensalYear');
   if (!meses.length) { $('#monthlyTable').innerHTML = emptyMsg(); return; }
-  let h = `<table><thead><tr><th>Mês</th><th>Orçado ${esc(rfLbl())}</th><th>Realizado</th><th>Desvio</th><th>Desvio %</th><th>Atingimento</th></tr></thead><tbody>`;
+  let h = `<table><thead><tr><th>Mês</th><th>Realizado</th><th>Orçado ${esc(rfLbl())}</th><th>Desvio</th><th>Desvio %</th><th>Atingimento</th></tr></thead><tbody>`;
   let sb = 0, sa = 0, nb = 0, na = 0;
   meses.forEach(m => {
     const p = pair(S.indicador, [m]); const fut = !has(p.a);
     if (has(p.b)) { sb += p.b; nb++; } if (has(p.a)) { sa += p.a; na++; }
     const at = has(p.a) && has(p.b) && p.b ? p.a / p.b : NaN;
-    h += `<tr class="${fut ? 'future' : ''}"><td>${mlabel(m)}${fut ? ' <span class="tag warn">orçado</span>' : ''}</td><td>${fmtBRL(p.b)}</td><td>${fmtBRL(p.a)}</td>
+    h += `<tr class="${fut ? 'future' : ''}"><td>${mlabel(m)}${fut ? ' <span class="tag warn">orçado</span>' : ''}</td><td>${fmtBRL(p.a)}</td><td>${fmtBRL(p.b)}</td>
       <td class="${has(p.a) && has(p.b) ? (p.a - p.b >= 0 ? 'pos' : 'neg') : ''}">${has(p.a) && has(p.b) ? fmtBRL(p.a - p.b) : '—'}</td><td>${pillHtml(p.d)}</td>
       <td><span class="barMini"><i style="width:${Number.isFinite(at) ? Math.max(0, Math.min(100, at * 100)) : 0}%;background:${at >= 1 ? 'var(--green)' : 'var(--cyan)'}"></i></span> ${pct(at)}</td></tr>`;
   });
   // acumulado: orçado somente dos meses com realizado
   let ab = 0, aa = 0, any = false;
   meses.forEach(m => { const p = pair(S.indicador, [m]); if (has(p.a)) { aa += p.a; any = true; if (has(p.b)) ab += p.b; } });
-  h += `<tr class="total"><td>Acumulado (meses com realizado)</td><td>${any ? fmtBRL(ab) : '—'}</td><td>${any ? fmtBRL(aa) : '—'}</td><td>${any ? fmtBRL(aa - ab) : '—'}</td><td>${any ? pct(dev(aa, ab)) : '—'}</td><td>${any ? pct(ab ? aa / ab : NaN) : '—'}</td></tr></tbody></table>`;
+  h += `<tr class="total"><td>Acumulado (meses com realizado)</td><td>${any ? fmtBRL(aa) : '—'}</td><td>${any ? fmtBRL(ab) : '—'}</td><td>${any ? fmtBRL(aa - ab) : '—'}</td><td>${any ? pct(dev(aa, ab)) : '—'}</td><td>${any ? pct(ab ? aa / ab : NaN) : '—'}</td></tr></tbody></table>`;
   $('#monthlyTable').innerHTML = h;
 }
 const yearSel = {};
@@ -1249,14 +1249,14 @@ function renderCaixa() {
     + card('Desvio acumulado', fmtM2(rA != null && bA != null ? rA - bA : null), pct(attA - 1) + ' versus ' + esc(rfLbl()), rA >= bA ? 'good' : 'bad');
   $('#cashPeriod').textContent = `Jan a ${mn}/${y}  |  Acumulado progressivo por mês`;
   let h = `<table><thead><tr><th rowspan="2" style="text-align:left">Mês</th><th colspan="4" class="gm">Mês</th><th colspan="4" class="ga">Acumulado até o mês</th></tr>
-    <tr>${['Orçado', 'Realizado', 'Desvio R$', 'Desvio %'].map(t => `<th class="sub1">${t === 'Orçado' ? esc(rfLbl()) : t}</th>`).join('')}${['Orçado', 'Realizado', 'Desvio R$', 'Desvio %'].map((t, i) => `<th class="sub1 ${i ? '' : 'accStart'}">${t === 'Orçado' ? esc(rfLbl()) : t}</th>`).join('')}</tr></thead><tbody><tr class="sectionrow"><td colspan="9">ARRECADAÇÃO</td></tr>`;
+    <tr>${['Realizado', 'Orçado', 'Desvio R$', 'Desvio %'].map(t => `<th class="sub1">${t === 'Orçado' ? esc(rfLbl()) : t}</th>`).join('')}${['Realizado', 'Orçado', 'Desvio R$', 'Desvio %'].map((t, i) => `<th class="sub1 ${i ? '' : 'accStart'}">${t === 'Orçado' ? esc(rfLbl()) : t}</th>`).join('')}</tr></thead><tbody><tr class="sectionrow"><td colspan="9">ARRECADAÇÃO</td></tr>`;
   let ar = 0, ab = 0, anyR = false;
   meses.forEach(m => {
     const r = real(m), b = orc(m), fut = !has(r);
     if (has(r)) { ar += r; anyR = true; } if (has(b) && !fut) ab += b;
     const d = has(r) && has(b) ? r - b : null, dp = dev(r, b);
-    h += `<tr class="${m === lastReal ? 'total' : ''}${fut ? ' future' : ''}"><td>${mlabel(m)}</td><td>${fmtM2(b)}</td><td>${fmtM2(r)}</td><td class="${d == null ? '' : d >= 0 ? 'pos' : 'neg'}">${fmtM2(d)}</td><td>${pillHtml(dp)}</td>
-      <td class="accStart">${fut ? '—' : fmtM2(ab)}</td><td>${fut ? '—' : fmtM2(ar)}</td><td class="${fut ? '' : ar - ab >= 0 ? 'pos' : 'neg'}">${fut ? '—' : fmtM2(ar - ab)}</td><td>${fut ? pillHtml(NaN) : pillHtml(dev(ar, ab))}</td></tr>`;
+    h += `<tr class="${m === lastReal ? 'total' : ''}${fut ? ' future' : ''}"><td>${mlabel(m)}</td><td>${fmtM2(r)}</td><td>${fmtM2(b)}</td><td class="${d == null ? '' : d >= 0 ? 'pos' : 'neg'}">${fmtM2(d)}</td><td>${pillHtml(dp)}</td>
+      <td class="accStart">${fut ? '—' : fmtM2(ar)}</td><td>${fut ? '—' : fmtM2(ab)}</td><td class="${fut ? '' : ar - ab >= 0 ? 'pos' : 'neg'}">${fut ? '—' : fmtM2(ar - ab)}</td><td>${fut ? pillHtml(NaN) : pillHtml(dev(ar, ab))}</td></tr>`;
   });
   $('#cashTable').innerHTML = h + '</tbody></table>';
 }
@@ -1340,9 +1340,10 @@ function renderRF() {
     const pp = meses.map(m => rfPair(kk, m));
     if (pp.every(p => !has(p.a) && !has(p.b))) return;
     h += `<tr class="sectionrow"><td colspan="${meses.length + 2}">${lab}</td></tr>`;
+    const temReal = pp.some(p => has(p.a));
+    if (temReal) h += `<tr><td>Realizado</td><td></td>${pp.map(p => `<td>${has(p.a) ? (d ? fmtN(p.a, d) : fmtBRL(p.a)) : ''}</td>`).join('')}</tr>`;
     h += `<tr><td>Orçado</td><td></td>${pp.map(p => `<td class="${has(p.a) ? '' : 'future'}">${d ? fmtN(p.b, d) : fmtBRL(p.b)}</td>`).join('')}</tr>`;
-    if (pp.some(p => has(p.a))) {
-      h += `<tr><td>Realizado</td><td></td>${pp.map(p => `<td>${has(p.a) ? (d ? fmtN(p.a, d) : fmtBRL(p.a)) : ''}</td>`).join('')}</tr>`;
+    if (temReal) {
       h += `<tr><td>Desvio %</td><td></td>${pp.map(p => `<td>${has(p.a) && has(p.b) ? pillHtml(dev(p.a, p.b)) : ''}</td>`).join('')}</tr>`;
     }
   });
@@ -1802,7 +1803,7 @@ function bindVarredura() {
   $$('[data-mesfile]').forEach(i => i.onchange = () => { S.mesArquivo[i.dataset.mesfile] = i.value; persist(); if (LAST_FILES) loadFiles(LAST_FILES); });
 }
 /* =====================================================================
-   QUADRO PARA APRESENTAÇÃO (aba Dados): DRE | Orçado | mês | Dif | %
+   QUADRO PARA APRESENTAÇÃO (aba Dados): DRE | mês (realizado) | Orçado | Dif | %
    ===================================================================== */
 // [rótulo, chave, estilo, casas decimais]  estilo: T = total (negrito), S = subtotal (negrito itálico), D = detalhe (rótulo à direita), I = indicador, B = linha em branco
 const QUADRO = [
@@ -1841,7 +1842,7 @@ function quadroCanvas(m, aud) {
   const n = (v, d) => v == null ? '' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
   c.fillStyle = '#fff'; c.fillRect(0, 0, tw, th);
   c.fillStyle = '#0f2742'; c.fillRect(0, 0, tw, HH);
-  const cab = ['DRE', 'Orçado', '01/' + m.slice(5) + '/' + m.slice(0, 4), 'Dif', '%'];
+  const cab = ['DRE', '01/' + m.slice(5) + '/' + m.slice(0, 4), 'Orçado', 'Dif', '%'];
   c.fillStyle = '#fff'; c.font = F('bold'); c.textBaseline = 'middle'; c.textAlign = 'center';
   let x = 0; cab.forEach((t, i) => { c.fillText(t, x + W[i] / 2, HH / 2 + 1); x += W[i]; });
   L.forEach((l, i) => {
@@ -1856,7 +1857,7 @@ function quadroCanvas(m, aud) {
       if (neg) { c.fillStyle = '#ffc7ce'; c.fillRect(x0 + 1, y + 1, W[col] - 2, H - 2); }
       c.fillStyle = neg ? '#9c0006' : '#000'; c.font = F(negrito ? 'bold' : 'normal', itx); c.textAlign = 'center'; c.fillText(txt, x0 + W[col] / 2, cy);
     };
-    cel(n(l.o, l.dec), 1, false, bold, it); cel(n(l.r, l.dec), 2, false, bold, it);
+    cel(n(l.r, l.dec), 1, false, bold, it); cel(n(l.o, l.dec), 2, false, bold, it);
     cel(n(l.dif, l.dec), 3, l.dif < -0.5 / Math.pow(10, l.dec), true); cel(l.pc == null ? '' : n(l.pc * 100, 2) + '%', 4, l.pc != null && l.pc < 0, true);
   });
   return cv;
@@ -1865,11 +1866,11 @@ function quadroCanvas(m, aud) {
 function quadroHtml(m, aud) {
   const L = quadroLinhas(m, aud), n = (v, d) => v == null ? '' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
   const td = (t, st) => `<td style="font-family:Aptos,Calibri,Arial;font-size:12pt;padding:3px 8px;border-bottom:1px solid #e3e7eb;${st}">${t}</td>`;
-  let h = '<table style="border-collapse:collapse"><tr>' + ['DRE', 'Orçado', '01/' + m.slice(5) + '/' + m.slice(0, 4), 'Dif', '%'].map(t => `<th style="background:#0f2742;color:#fff;font-family:Aptos,Calibri,Arial;font-size:12pt;padding:4px 10px">${t}</th>`).join('') + '</tr>';
+  let h = '<table style="border-collapse:collapse"><tr>' + ['DRE', '01/' + m.slice(5) + '/' + m.slice(0, 4), 'Orçado', 'Dif', '%'].map(t => `<th style="background:#0f2742;color:#fff;font-family:Aptos,Calibri,Arial;font-size:12pt;padding:4px 10px">${t}</th>`).join('') + '</tr>';
   L.forEach(l => {
     if (l.est === 'B') { h += '<tr>' + td('', '') + td('', '') + td('', '') + td('', '') + td('', '') + '</tr>'; return; }
     const b = l.est === 'T' || l.est === 'S' ? 'font-weight:bold;' : '', i = l.est === 'S' ? 'font-style:italic;' : '', neg = 'background:#ffc7ce;color:#9c0006;';
-    h += '<tr>' + td(esc(l.lab), b + i + (l.est === 'D' ? 'text-align:right;' : '')) + td(n(l.o, l.dec), b + i + 'text-align:center') + td(n(l.r, l.dec), b + i + 'text-align:center')
+    h += '<tr>' + td(esc(l.lab), b + i + (l.est === 'D' ? 'text-align:right;' : '')) + td(n(l.r, l.dec), b + i + 'text-align:center') + td(n(l.o, l.dec), b + i + 'text-align:center')
       + td(n(l.dif, l.dec), 'font-weight:bold;text-align:center;' + (l.dif < -0.5 / Math.pow(10, l.dec) ? neg : '')) + td(l.pc == null ? '' : n(l.pc * 100, 2) + '%', 'font-weight:bold;text-align:center;' + (l.pc != null && l.pc < 0 ? neg : '')) + '</tr>';
   });
   return h + '</table>';
@@ -1883,7 +1884,7 @@ function quadroPainelHtml() {
       <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="minibtn" type="button" data-qcopy="${aud}">Copiar imagem</button><button class="minibtn" type="button" data-qtab="${aud}">Copiar tabela</button><button class="minibtn primario" type="button" data-qpng="${aud}" style="background:#0d5f98;color:#fff;border-color:#0d5f98">Baixar PNG</button></span></div>
       <div id="quadroImg${aud}" style="border:1px solid var(--line);border-radius:6px;overflow:auto;background:#fff"></div></div>`;
   return `<div class="panel" style="margin-bottom:16px"><h2>Quadro para apresentação</h2>
-    <div class="hint">Formato DRE | Orçado | mês | Dif | %, da superintendência selecionada (${esc(S.sup || '—')}) e do orçado ${esc(rfLbl())}. “Copiar imagem” cola direto no PowerPoint; “Copiar tabela” cola como tabela editável (Excel ou PowerPoint).</div>
+    <div class="hint">Formato DRE | mês (realizado) | Orçado | Dif | %, da superintendência selecionada (${esc(S.sup || '—')}) e do orçado ${esc(rfLbl())}. “Copiar imagem” cola direto no PowerPoint; “Copiar tabela” cola como tabela editável (Excel ou PowerPoint).</div>
     <div class="filterbar" style="padding-bottom:10px"><span class="lbl">Mês</span><select id="quadroYm">${meses.map(x => `<option value="${x}" ${x === S.quadro.ym ? 'selected' : ''}>${mlabel(x)}</option>`).join('')}</select><span class="hint" id="quadroMsg" style="margin:0"></span></div>
     <div style="display:flex;gap:18px;flex-wrap:wrap">${bloco(0, 'Visão Auditoria: Não')}${bloco(1, 'Visão Auditoria: Sim (' + esc(sit) + ')')}</div></div>`;
 }
@@ -1901,7 +1902,7 @@ function bindQuadro() {
       .then(() => msg('Imagem copiada — cole na apresentação (Ctrl+V).')).catch(() => msg('Não foi possível copiar a imagem — use “Baixar PNG”.'));
   });
   $$('[data-qtab]').forEach(b => b.onclick = () => {
-    const a = +b.dataset.qtab, html = quadroHtml(m, !!a), txt = quadroLinhas(m, !!a).map(l => l.est === 'B' ? '' : [l.lab, l.o, l.r, l.dif, l.pc == null ? '' : l.pc].join('\t')).join('\n');
+    const a = +b.dataset.qtab, html = quadroHtml(m, !!a), txt = quadroLinhas(m, !!a).map(l => l.est === 'B' ? '' : [l.lab, l.r, l.o, l.dif, l.pc == null ? '' : l.pc].join('\t')).join('\n');
     const ok = () => msg('Tabela copiada — cole no Excel ou no PowerPoint (Ctrl+V).');
     if (navigator.clipboard && window.ClipboardItem) navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([txt], { type: 'text/plain' }) })]).then(ok).catch(() => fallback());
     else fallback();
