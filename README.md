@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V22 | Realizado antes do Orçado em todos os quadros: aba DRE (tela e PDF), DRE Mensais, Arrecadação, tabela do Orçado RF e Quadro para apresentação (imagem e tabela). Opção e nome de arquivo passam a “Só Realizado e Orçado” / `_Realizado_Orcado`. |
 | V21 | PDF com cada visão inteira em uma página (a letra diminui até caber; A4 deitado, ou A3 quando não couber). Padrão: um arquivo só com a Visão Normal na página 1 e a Visão Auditoria na página 2 (`..._Visao_Normal_e_Auditoria.pdf`); continua dando para gerar dois arquivos ou uma visão só. No topo de cada página, “Visão Auditoria: Sim (situações)” sai destacado em amarelo. |
 | V20 | Baixar PDF gera dois arquivos, Visão Normal e Visão Auditoria (padrão “As duas versões”; dá para escolher só uma). Nomes: `DRE_<Sup>_<AAAA-MM>[_Acum_RF_<RF>][_Orcado_Realizado]_Visao_Normal.pdf` / `_Visao_Auditoria.pdf` e `DRE_Historico_<Sup>_<início>_a_<fim>_Visao_...pdf`; o PNG do quadro segue o mesmo padrão. |
 | V19 | DRE Histórico: Tarifa Média de Esgoto passa para dentro de Faturamento Direto de Esgoto; tarifas médias com 2 casas decimais (antes até 4). |
