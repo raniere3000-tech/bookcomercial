@@ -361,7 +361,7 @@ table.arv tr.r-top td{font-weight:800;background:#aecbdd;color:#0d2b45;border-to
     <div class="acoes"><button class="minibtn" type="button" data-pdfsel="tudo">Marcar tudo</button><button class="minibtn" type="button" data-pdfsel="nada">Desmarcar tudo</button><button class="minibtn" type="button" data-pdfsel="tela">Igual à tela</button><button class="minibtn" type="button" data-pdfsel="principais">Só os totais</button></div>
     <div class="pdfOpc">
       <div id="pdfColsBox"><span class="lbl">Versão</span><span class="seg" id="pdfCols"><button type="button" data-v="todas">Completo</button><button type="button" data-v="or">Só Orçado e Realizado</button></span></div>
-      <div><span class="lbl">Visão Auditoria</span><span class="seg" id="pdfAud"><button type="button" data-v="nao">Não</button><button type="button" data-v="sim">Sim</button></span><span class="hint" id="pdfAudSit" style="margin:0"></span></div>
+      <div><span class="lbl">Arquivos</span><span class="seg" id="pdfAud"><button type="button" data-v="ambas">As duas versões</button><button type="button" data-v="nao">Só Visão Normal</button><button type="button" data-v="sim">Só Visão Auditoria</button></span><span class="hint" id="pdfAudSit" style="margin:0"></span></div>
     </div>
     <div class="lista" id="pdfLista"></div>
     <footer><span id="pdfConta" class="hint" style="margin:0 auto 0 0;align-self:center"></span><button class="minibtn" value="cancel" type="submit">Cancelar</button><button class="minibtn primario" type="button" id="pdfGerar">Baixar PDF</button></footer>
@@ -417,8 +417,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V19';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.03-s';
+const VERSAO_BOOK = 'V20';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.04-a';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1108,7 +1108,7 @@ function drePdf(sel) {
     },
     didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); if (ac.info) doc.text(doc.splitTextToSize(ac.info, W - 90), 8, doc.internal.pageSize.getHeight() - 5); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
   });
-  doc.save(`DRE_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${m}${S.aud ? '_Auditoria' : ''}.pdf`);
+  doc.save(pdfNome('DRE', m, [S.dreAcum === 'rf' ? 'Acum_RF_' + rfLbl() : null, so ? 'Orcado_Realizado' : null].filter(Boolean)));
 }
 
 /* =====================================================================
@@ -1508,6 +1508,8 @@ function linhaVisivel(id) { for (let p = HPAI.get(id); p; p = HPAI.get(p)) if (S
 /* Janela "Tópicos do PDF", usada pela aba DRE e pelo DRE Histórico */
 const PDF_HIST = { tree: HTREE, pai: HPAI, chave: 'pdfHist', visivel: id => linhaVisivel(id), gerar: sel => histPdf(sel) };
 const PDF_DRE = { tree: DTREE, pai: DPAI, chave: 'pdfDre', visivel: id => dreLinhaVisivel(id), gerar: sel => drePdf(sel), versao: true };
+/* nome dos arquivos: Tipo_Sup_Período[_Versão]_Visao_Normal|Auditoria */
+const pdfNome = (base, per, extra) => [base, String(S.sup || 'SEM_SUP').replace(/[^\w]+/g, '_'), per].concat(extra || [], S.aud ? 'Visao_Auditoria' : 'Visao_Normal').join('_') + '.pdf';
 function abrirPdfDlg(cfg) {
   if (!D.com) { alert('Carregue os dados antes de gerar o PDF.'); return; }
   const dlg = $('#pdfDlg'), lista = $('#pdfLista'), T = cfg.tree, P = cfg.pai;
@@ -1531,17 +1533,20 @@ function abrirPdfDlg(cfg) {
     desenhar();
   });
   // perguntas: versão (só na aba DRE) e Visão Auditoria; começam iguais à tela
-  const op = { cols: S.dreCols === 'or' ? 'or' : 'todas', aud: S.aud ? 'sim' : 'nao' };
+  const op = { cols: S.dreCols === 'or' ? 'or' : 'todas', aud: 'ambas' };
   const seg = (id, k) => $$('#' + id + ' [data-v]').forEach(b => { b.classList.toggle('on', b.dataset.v === op[k]); b.onclick = () => { op[k] = b.dataset.v; seg(id, k); }; });
   $('#pdfColsBox').style.display = cfg.versao ? '' : 'none'; seg('pdfCols', 'cols'); seg('pdfAud', 'aud');
   $('#pdfAudSit').textContent = S.audSel.size ? 'situações: ' + Array.from(S.audSel).join(' / ') : '';
   $('#pdfGerar').onclick = () => {
     if (!sel().size) { alert('Selecione pelo menos um tópico.'); return; }
     dlg.close();
-    const antes = { aud: S.aud, cols: S.dreCols };                                   // aplica as respostas só para gerar o PDF
-    S.aud = op.aud === 'sim'; if (S.aud && !S.audSel.size && D.com) CONFIG.auditoriaPadrao.forEach(x => { const f = Array.from(D.com.sits).find(s => norm(s) === norm(x)); if (f) S.audSel.add(f); });
-    S.dreCols = op.cols;
-    try { cfg.gerar(new Set(sel())); } finally { S.aud = antes.aud; S.dreCols = antes.cols; }
+    if (!S.audSel.size && D.com) CONFIG.auditoriaPadrao.forEach(x => { const f = Array.from(D.com.sits).find(s => norm(s) === norm(x)); if (f) S.audSel.add(f); });
+    const versoes = op.aud === 'ambas' ? [false, true] : [op.aud === 'sim'], ids = new Set(sel());
+    // um arquivo por versão; as respostas valem só para o PDF (a tela não muda)
+    versoes.forEach((aud, i) => setTimeout(() => {
+      const antes = { aud: S.aud, cols: S.dreCols }; S.aud = aud; S.dreCols = op.cols;
+      try { cfg.gerar(ids); } finally { S.aud = antes.aud; S.dreCols = antes.cols; }
+    }, i * 700));                                                                   // intervalo para o navegador aceitar os dois downloads
   };
   desenhar(); dlg.showModal();
 }
@@ -1588,7 +1593,7 @@ function histPdf(ids) {
     didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(140); doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · página ' + doc.internal.getNumberOfPages(), W - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' }); }
   });
   const per = all.length ? all[0] + (all.length > 1 ? '_a_' + all[all.length - 1] : '') : '';
-  doc.save(`DRE_Historico_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${per}${S.aud ? '_Auditoria' : ''}.pdf`);
+  doc.save(pdfNome('DRE_Historico', per));
 }
 function renderHistorico() {
   histInit();
@@ -1851,7 +1856,7 @@ function bindQuadro() {
   const m = S.quadro.ym, msg = t => { const e = $('#quadroMsg'); if (e) { e.textContent = t; setTimeout(() => { if (e.textContent === t) e.textContent = ''; }, 4000); } };
   [0, 1].forEach(a => { const cv = quadroCanvas(m, !!a); cv.style.width = '100%'; cv.style.maxWidth = (cv.width / 2) + 'px'; cv.style.display = 'block'; $('#quadroImg' + a).appendChild(cv); });
   sel.onchange = () => { S.quadro.ym = sel.value; renderDados(); };
-  const nome = a => `Quadro_DRE_${String(S.sup || '').replace(/[^\w]+/g, '_')}_${m}_Auditoria_${a ? 'Sim' : 'Nao'}.png`;
+  const nome = a => `Quadro_DRE_${String(S.sup || 'SEM_SUP').replace(/[^\w]+/g, '_')}_${m}_${a ? 'Visao_Auditoria' : 'Visao_Normal'}.png`;
   $$('[data-qpng]').forEach(b => b.onclick = () => { const a = +b.dataset.qpng; quadroCanvas(m, !!a).toBlob(bl => { const u = URL.createObjectURL(bl), l = document.createElement('a'); l.href = u; l.download = nome(a); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 1500); }, 'image/png'); });
   $$('[data-qcopy]').forEach(b => b.onclick = () => {
     const a = +b.dataset.qcopy;
