@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V20 | Baixar PDF gera dois arquivos, Visão Normal e Visão Auditoria (padrão “As duas versões”; dá para escolher só uma). Nomes: `DRE_<Sup>_<AAAA-MM>[_Acum_RF_<RF>][_Orcado_Realizado]_Visao_Normal.pdf` / `_Visao_Auditoria.pdf` e `DRE_Historico_<Sup>_<início>_a_<fim>_Visao_...pdf`; o PNG do quadro segue o mesmo padrão. |
 | V19 | DRE Histórico: Tarifa Média de Esgoto passa para dentro de Faturamento Direto de Esgoto; tarifas médias com 2 casas decimais (antes até 4). |
 | V18 | Aba DRE, acumulado “Período do RF”: soma só os meses com valor no RF até o mês selecionado (mês vigente); meses futuros do RF ficam de fora e são informados. |
 | V17 | Quadro para apresentação: diferença do volume médio e da tarifa média com duas casas decimais (ex.: 0,35; -0,66). |
