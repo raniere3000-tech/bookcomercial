@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v7</title>
+<title>Águas do Rio | SAC v8</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -48,6 +48,11 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .card-titulo { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .nota-secao { margin:-4px 0 8px; font-size:11.5px; line-height:1.35; color:var(--azul-claro); }
 .card.alerta { border-color:var(--laranja); } .card.alerta h2 { color:var(--laranja-texto); }
+.kpis.c5 { grid-template-columns:repeat(5, minmax(0,1fr)); }
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+.seg button { border:0; background:#fff; color:var(--marinho); font:600 12.5px var(--fonte); padding:5px 14px; cursor:pointer; }
+.seg button + button { border-left:1px solid var(--line); }
+.seg button.ativo { background:var(--marinho); color:#fff; }
 .kpis { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:1px; background:var(--line); border-radius:8px; overflow:hidden; border:1px solid var(--line); }
 .kpi { background:#fff; border-top:3px solid var(--marinho); padding:8px 10px; }
 .kpi.neg { border-top-color:var(--laranja); }
@@ -85,16 +90,16 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 .drill-busca input { flex:1; min-height:34px; padding:0 10px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:12.5px; }
 .drill-corpo { flex:1; overflow:auto; padding:0 16px; }
 #drill .mais { margin:8px auto 12px; }
-@media (max-width:1100px) { .kpis { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+@media (max-width:1100px) { .kpis, .kpis.c5 { grid-template-columns:repeat(3, minmax(0,1fr)); } }
 @media (max-width:900px) { .top, .nav { padding-left:16px; padding-right:16px; } .top-linha { flex-wrap:wrap; } .top h1 { white-space:normal; } }
-@media (max-width:560px) { .kpis { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+@media (max-width:560px) { .kpis, .kpis.c5 { grid-template-columns:repeat(2, minmax(0,1fr)); } }
 </style>
 </head>
 <body>
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v7</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v8</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -115,6 +120,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <input type="file" id="fileArquivos" accept=".xlsx,.xlsm,.csv" multiple style="display:none">
 <nav class="nav" aria-label="Páginas do painel">
   <button class="tab active" data-view="resumo" type="button">Resumo</button>
+  <button class="tab" data-view="fat" type="button">Faturamento</button>
   <button class="tab" data-view="lista" type="button">Fora do SAC</button>
   <button class="tab" data-view="dados" type="button">Dados</button>
 </nav>
@@ -128,6 +134,24 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     <div class="card" id="vazio"><h2>Resumo</h2><p class="nota-secao">Conecte a pasta para ver a análise.</p></div>
     <div class="card oculto" id="boxMes"><h2>Resumo por mês de implantação</h2><div class="tabela-wrap"><table id="tabMes"></table></div></div>
     <div class="card oculto" id="boxSup"><h2>Resumo por superintendência</h2><div class="tabela-wrap"><table id="tabSup"></table></div></div>
+  </section>
+  <section class="view" id="view-fat">
+    <div class="card oculto" id="boxFat">
+      <div class="card-titulo">
+        <h2>Resumo de faturamento por mês</h2>
+        <div class="seg" role="group" aria-label="Medida"><button type="button" id="medL" class="ativo" aria-pressed="true">Líquido</button><button type="button" id="medB" aria-pressed="false">Bruto</button></div>
+      </div>
+      <p class="nota-secao" id="notaFat"></p>
+      <div class="kpis c5" id="kpisFat"></div>
+      <div class="tabela-wrap" style="margin-top:12px"><table id="tabFat"></table></div>
+      <ul class="regras">
+        <li>Faturamento geral: tudo o que foi faturado no mês na base de faturamento, de todas as matrículas.</li>
+        <li>Visão auditoria hoje: só as linhas com situação final Ativa Faturando ou Cortada.</li>
+        <li>Ajuste do SAC: faturamento das matrículas implantadas que já pagaram e, do mês do primeiro pagamento em diante, estão fora de Ativa Faturando e Cortada.</li>
+        <li>Visão auditoria corrigida: visão auditoria hoje mais o ajuste do SAC. O Mês do cabeçalho filtra o mês do faturamento, e Superintendência e Cidade filtram pela cidade.</li>
+      </ul>
+    </div>
+    <div class="card" id="vazio3"><h2>Faturamento</h2><p class="nota-secao">Conecte a pasta para ver o resumo.</p></div>
   </section>
   <section class="view" id="view-lista">
     <div class="card alerta oculto" id="boxLista">
@@ -181,7 +205,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v7';
+const VERSAO_SAC = 'v8';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -199,6 +223,7 @@ const fPct = (a, b) => b ? (a / b * 100).toLocaleString('pt-BR', { maximumFracti
    ===================================================================== */
 const CONFIG = {
   situacoesSac: ['ativa faturando', 'cortada'],   // situação final que entra no SAC
+  classeDireta: ['contas de agua', 'contas de esgoto'],   // classes em que a coluna direta conta (mesma regra do DRE)
   classeLigacaoAgua: 'ligacoes de agua'           // DSC_CLASSE das linhas de implantação de ligação de água
 };
 
@@ -209,7 +234,7 @@ const TIPOS = {
     cols: { mat: ['matricula'], mes: ['mes_ano'], arr: ['arrecadacao_acumulada'], dias: ['dias_com_pagamento'], pagou: ['pagou_mes_anterior'], cidade: ['cidade'], sup: ['superintendencia'] },
     req: ['mat', 'mes', 'arr'] },
   fat: { nome: 'Faturamento', chave: ['dsc_classe', 'baseinativacao_situacao_final'],
-    cols: { mat: ['num_ligacao'], ym: ['anomes'], classe: ['dsc_classe'], sit: ['baseinativacao_situacao_final'], indAgua: ['faturamento_bruto_indireta_agua'], cidade: ['cidade'], total: ['isgrandtotalrowtotal'] },
+    cols: { mat: ['num_ligacao'], ym: ['anomes'], classe: ['dsc_classe'], sit: ['baseinativacao_situacao_final'], indAgua: ['faturamento_bruto_indireta_agua'], indEsg: ['faturamento_bruto_indireta_esgoto'], dirA: ['faturamento_bruto_direta_agua'], dirE: ['faturamento_bruto_direta_esgoto'], liq: ['r_faturamento_total_liquido'], cidade: ['cidade'], total: ['isgrandtotalrowtotal'] },
     req: ['mat', 'ym', 'classe', 'sit', 'indAgua'] },
   impl: { nome: 'Implantações', chave: ['id_da_os', 'data_da_os'],
     cols: { mat: ['matricula'], data: ['data_da_os'], mes: ['mes'], os: ['id_da_os'], servico: ['servico'], sup: ['sup'], cidade: ['cidade'], eco: ['economias'] },
@@ -423,7 +448,7 @@ async function inspecionarAba(x, aba) {
    LEITURA E CRUZAMENTO
    ===================================================================== */
 const DIAG = { impl: {}, fat: {}, arr: {} };
-const ESTADO = { impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
+const ESTADO = { agg: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
 let dirHandle = null, ARQUIVOS = null;
 
 function setStatus(t, erro) { $('#status').innerHTML = erro ? '<span class="tag erro">Erro</span> ' + esc(t) : t; }
@@ -436,7 +461,7 @@ function aviso(texto, erro) {
 async function processar(files) {
   ARQUIVOS = files;
   DIAG.impl = {}; DIAG.fat = {}; DIAG.arr = {};
-  Object.assign(ESTADO, { impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
+  Object.assign(ESTADO, { agg: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
   if (!files.length) { setStatus('Nenhum arquivo .xlsx ou .csv encontrado na pasta.', true); return; }
   const lista = [];
   for (let i = 0; i < files.length; i++) {
@@ -465,7 +490,7 @@ async function processar(files) {
     } catch (e) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Falha na leitura: ' + e.message }); }
   }
   for (const k of ['impl', 'fat', 'arr']) if (!ESTADO.val.some(v => v.tipo === k && v.status !== 'erro')) ESTADO.avisos.push('Falta a planilha de ' + TIPOS[k].nome.toLowerCase() + ' na pasta.');
-  cruzar(); renderValidacao(); renderDiag(); renderAnalise(); setProg(null);
+  supDaCidade.mapa = null; cruzar(); renderValidacao(); renderDiag(); renderAnalise(); renderFat(); setProg(null);
   setStatus('Pasta lida: ' + files.length + ' arquivo(s) · ' + fInt(ESTADO.impl.size) + ' matrículas implantadas · atualizado em ' + new Date().toLocaleString('pt-BR'));
   const erros = ESTADO.val.filter(v => v.status === 'erro').length + ESTADO.avisos.length;
   aviso(erros ? 'Pasta lida com ' + erros + ' ponto(s) de atenção. Veja a aba Dados.' : 'Pasta lida e analisada.', !!erros);
@@ -514,25 +539,36 @@ const LEITORES = {
   },
   async fat(l) {
     const m = l.d.map, st = { lidas: 0, obs: [] }, c = novoC(); let ligNova = 0;
+    const direta = new Set(CONFIG.classeDireta), sac = new Set(CONFIG.situacoesSac);
+    if (m.liq != null) ESTADO.temLiq = true;
+    const num = (r, k) => m[k] != null ? toNum(r[m[k]]) : 0;
     await lerAba(l.x, l.aba.path, (r, n) => {
       if (n <= l.d.hdr) return true;
       if (m.total != null && (r[m.total] === true || norm(r[m.total]) === 'true')) return true;   // linha de total geral
+      const cls = norm(r[m.classe]); if (cls === '' || cls === '0') return true;                    // total sem abertura
+      const cid = m.cidade != null ? norm(r[m.cidade]) : ''; if (m.cidade != null && (!cid || cid === '0')) return true;
+      const ym = toYm(r[m.ym]); if (!ym) { c.semMes++; return true; }
+      const sit = String(r[m.sit] ?? '').trim(), ok = sac.has(norm(sit));
+      const bm = (direta.has(cls) ? num(r, 'dirA') + num(r, 'dirE') : 0) + num(r, 'indAgua') + num(r, 'indEsg'), lm = num(r, 'liq');
+      const key = ym + '|' + cid; let g = ESTADO.agg.get(key);
+      if (!g) { g = { ym, cid, gb: 0, gl: 0, ab: 0, al: 0 }; ESTADO.agg.set(key, g); }
+      g.gb += bm; g.gl += lm; if (ok) { g.ab += bm; g.al += lm; }
       const mat = lerMat(r[m.mat], c); if (!mat) return true;
       st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
       c.casam.add(mat);
-      const ym = toYm(r[m.ym]); if (!ym) { c.semMes++; return true; }
-      let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, st: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
-      const sit = String(r[m.sit] ?? '').trim();
+      let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, st: new Map(), nok: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
       if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
-      if (norm(r[m.classe]) === CONFIG.classeLigacaoAgua) {
+      if (!ok) { let q = F.nok.get(ym); if (!q) { q = { b: 0, l: 0, sit: '' }; F.nok.set(ym, q); } q.b += bm; q.l += lm; q.sit = sit; }
+      if (cls === CONFIG.classeLigacaoAgua) {
         ligNova++;
-        const v = toNum(r[m.indAgua]);
+        const v = num(r, 'indAgua');
         if (v > 0) { F.bill = true; F.valor += v; if (!F.billYm || ym < F.billYm) F.billYm = ym; }
       }
       return true;
     });
     const ex = [];
+    if (m.liq == null) ex.push('Coluna R__Faturamento_total_liquido ausente: a visão líquida do faturamento fica indisponível');
     if (ESTADO.impl.size && !c.casam.size) ex.push('Nenhuma matrícula implantada foi encontrada neste arquivo');
     else if (ESTADO.impl.size && !ligNova) ex.push('Nenhuma linha de matrícula implantada com DSC_CLASSE Ligações de Água');
     st.obs = obsLeitura(c, ex); somar('fat', c); return st;
@@ -558,7 +594,7 @@ const LEITORES = {
 };
 
 function cruzar() {
-  const sac = new Set(CONFIG.situacoesSac);
+  const sac = new Set(CONFIG.situacoesSac); ESTADO.AJ = [];
   ESTADO.LIN = [...ESTADO.impl.values()].map(o => {
     const F = ESTADO.fat.get(o.mat), A = ESTADO.arr.get(o.mat);
     const payYm = A ? A.payYm : null;
@@ -570,6 +606,7 @@ function cruzar() {
         cat = ok ? 'sac' : 'fora';
       }
     }
+    if (payYm && F) for (const [ym, q] of F.nok) if (ym >= payYm) ESTADO.AJ.push({ mat: o.mat, cidade: o.cidade, sup: o.sup, ym, payYm, b: q.b, l: q.l, sit: q.sit });
     return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, payYm, sitAtual, cat };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
@@ -602,6 +639,7 @@ function preencher(sel, valores, rotulo, fmt) {
 }
 function renderAnalise() {
   const L = ESTADO.LIN; const caixas = ['boxAnalise', 'boxMes', 'boxSup', 'boxLista'];
+  if (!L.length) renderFat();
   caixas.forEach(i => $('#' + i).classList.toggle('oculto', !L.length)); $('#vazio').classList.toggle('oculto', !!L.length); $('#vazio2').classList.toggle('oculto', !!L.length);
   if (!L.length) return;
   preencher($('#fMes'), [...new Set(L.map(x => x.ym))].sort(), 'Todos os meses', labelYm);
@@ -619,6 +657,7 @@ function resumir(rows) {
   r.deveria = r.fora + r.semfat; return r;
 }
 function aplicar() {
+  renderFat();
   const rows = filtrado(), t = resumir(rows);
   $('#kpis').innerHTML = [
     ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', '', 'impl'],
@@ -650,6 +689,73 @@ function aplicar() {
 }
 let tudo = false;
 
+/* ---------- resumo de faturamento: geral, auditoria hoje e auditoria corrigida ---------- */
+let FATMED = 'l';
+const SUP_DRE = { 'Interior': ['APERIBE', 'CACHOEIRAS DE MACACU', 'CAMBUCI', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS', 'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'S.FCO.DO ITABAPOANA', 'S.SEBASTIAO DO ALTO'],
+  'Leste': ['ITABORAI', 'MAGE', 'MARICA', 'RIO DE JANEIRO - A', 'RIO DE JANEIRO - B', 'SAO GONCALO', 'SAQUAREMA', 'TANGUA'] };
+function supDaCidade(cid) {
+  if (!supDaCidade.mapa) {
+    const mp = new Map(); for (const [sup, cs] of Object.entries(SUP_DRE)) cs.forEach(c => mp.set(norm(c), sup));
+    for (const o of ESTADO.impl.values()) if (o.cidade && o.sup) mp.set(norm(o.cidade), o.sup);   // o que vem das implantações prevalece
+    supDaCidade.mapa = mp;
+  }
+  return supDaCidade.mapa.get(cid) || '(sem sup)';
+}
+function ajusteFiltrado() {
+  const a = $('#fMes').value, b = $('#fSup').value, c = $('#fCid').value;
+  return ESTADO.AJ.filter(x => (!a || x.ym === a) && (!b || norm(x.sup) === norm(b)) && (!c || norm(x.cidade) === norm(c)));
+}
+function resumoFat() {
+  const a = $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), g = FATMED === 'l' ? ['gl', 'al', 'l'] : ['gb', 'ab', 'b'];
+  const meses = new Map(), ev = ym => { let o = meses.get(ym); if (!o) { o = { ym, ger: 0, aud: 0, aj: 0, n: 0, mats: new Set() }; meses.set(ym, o); } return o; };
+  for (const e of ESTADO.agg.values()) {
+    if (a && e.ym !== a) continue; if (c && e.cid !== c) continue; if (b && norm(supDaCidade(e.cid)) !== b) continue;
+    const o = ev(e.ym); o.ger += e[g[0]]; o.aud += e[g[1]];
+  }
+  for (const x of ajusteFiltrado()) { const o = ev(x.ym); o.aj += x[g[2]]; o.n++; o.mats.add(x.mat); }
+  return [...meses.values()].sort((p, q) => p.ym < q.ym ? -1 : 1);
+}
+function renderFat() {
+  const tem = ESTADO.agg.size > 0;
+  $('#boxFat').classList.toggle('oculto', !tem); $('#vazio3').classList.toggle('oculto', tem);
+  if (!tem) return;
+  $('#medL').disabled = !ESTADO.temLiq;
+  if (!ESTADO.temLiq && FATMED === 'l') FATMED = 'b';
+  $('#medL').classList.toggle('ativo', FATMED === 'l'); $('#medB').classList.toggle('ativo', FATMED === 'b');
+  $('#medL').setAttribute('aria-pressed', FATMED === 'l'); $('#medB').setAttribute('aria-pressed', FATMED === 'b');
+  $('#notaFat').textContent = FATMED === 'l' ? 'Medida: faturamento total líquido (R__Faturamento_total_liquido, já com cancelamentos).' : 'Medida: faturamento bruto (direta nas classes Contas de Água e Esgoto, mais indireta de água e esgoto).';
+  const R = resumoFat(), T = { ger: 0, aud: 0, aj: 0, n: 0 }; R.forEach(o => { T.ger += o.ger; T.aud += o.aud; T.aj += o.aj; T.n += o.n; });
+  $('#kpisFat').innerHTML = [
+    ['Faturamento geral', fMoeda(T.ger), 'Tudo o que foi faturado', '', ''],
+    ['Visão auditoria hoje', fMoeda(T.aud), fPct(T.aud, T.ger) + ' do geral, só Ativa Faturando e Cortada', '', ''],
+    ['Ajuste do SAC', fMoeda(T.aj), fInt(T.n) + ' faturamento(s) de matrículas que pagaram', 'neg', 'drill'],
+    ['Visão auditoria corrigida', fMoeda(T.aud + T.aj), fPct(T.aud + T.aj, T.ger) + ' do geral', '', ''],
+    ['Fora da auditoria depois do ajuste', fMoeda(T.ger - T.aud - T.aj), 'Ainda sem pagamento ou sem situação', '', '']
+  ].map(k => '<div class="kpi ' + k[3] + ' ' + k[4] + '"' + (k[4] ? ' role="button" tabindex="0" data-t="fat" data-k="" data-m="ajuste" title="Ver matrículas do ajuste"' : '') + '><div class="rot">' + k[0] + '</div><div class="val">' + k[1] + '</div><div class="sub">' + k[2] + '</div></div>').join('');
+  const lin = (nome, o, cls, k) => '<tr class="' + cls + '"><td>' + nome + '</td><td class="n">' + fMoeda(o.ger) + '</td><td class="n">' + fMoeda(o.aud) + '</td><td class="n">' + fPct(o.aud, o.ger) + '</td><td class="n drill" role="button" tabindex="0" data-t="fat" data-k="' + k + '" data-m="ajuste" title="Ver matrículas do ajuste">' + fMoeda(o.aj) + '</td><td class="n">' + fMoeda(o.aud + o.aj) + '</td><td class="n">' + fPct(o.aud + o.aj, o.ger) + '</td></tr>';
+  $('#tabFat').innerHTML = '<thead><tr><th>Mês</th><th class="n">Faturamento geral</th><th class="n">Visão auditoria hoje</th><th class="n">% do geral</th><th class="n">Ajuste do SAC</th><th class="n">Visão auditoria corrigida</th><th class="n">% do geral</th></tr></thead><tbody>' +
+    R.map(o => lin(labelYm(o.ym), o, '', o.ym)).join('') + lin('Total', T, 'linha-total', '') + '</tbody>';
+}
+$('#medL').onclick = () => { if (ESTADO.temLiq) { FATMED = 'l'; renderFat(); } };
+$('#medB').onclick = () => { FATMED = 'b'; renderFat(); };
+function abrirDrillAjuste(ym) {
+  const rows = ajusteFiltrado().filter(x => !ym || x.ym === ym);
+  DRILL = { rows, todos: false, modo: 'ajuste', grupo: ym ? labelYm(ym) : 'Todos os meses', metrica: 'Ajuste do SAC' };
+  $('#drillSub').textContent = DRILL.grupo; $('#drillBusca').value = '';
+  $('#drillFundo').classList.remove('oculto'); $('#drill').classList.remove('oculto');
+  desenharDrill(); $('#drillFechar').focus();
+}
+function desenharAjuste() {
+  const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100, k = FATMED === 'l' ? 'l' : 'b';
+  const soma = rows.reduce((a, x) => a + x[k], 0);
+  $('#drillTitulo').textContent = 'Ajuste do SAC: ' + fMoeda(soma);
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Mês do faturamento</th><th>1º pagamento</th><th>Situação na base</th><th class="n">Valor do ajuste</th></tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td>' + esc(x.sit || '-') + '</td><td class="n">' + fMoeda(x[k]) + '</td></tr>').join('') + '</tbody>';
+  $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
+  const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
+  mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
+}
+
 /* ---------- drill-down: clicar num número abre as matrículas no painel lateral ---------- */
 const METRICAS = {
   impl: ['Implantadas', x => true],
@@ -665,6 +771,7 @@ function linhasDrill(t, k, m) {
   return filtrado().filter(x => (t === 'tot' || (t === 'mes' ? x.ym === k : (x.sup || '(sem sup)') === k)) && METRICAS[m][1](x));
 }
 function abrirDrill(t, k, m) {
+  if (m === 'ajuste') return abrirDrillAjuste(k);
   const rows = linhasDrill(t, k, m);
   const grupo = t === 'tot' ? 'Todos os meses e superintendências' : (t === 'mes' ? labelYm(k) : k);
   DRILL = { rows, todos: false, grupo, metrica: METRICAS[m][0] };
@@ -679,6 +786,7 @@ function drillFiltrado() {
   return DRILL.rows.filter(x => x.mat.includes(q) || norm(x.cidade).includes(q));
 }
 function desenharDrill() {
+  if (DRILL.modo === 'ajuste') return desenharAjuste();
   const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
   $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th class="n">Valor faturado</th><th>1º pagamento</th><th>Situação na base</th><th>Classificação</th></tr></thead><tbody>' +
     rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td class="n">' + (x.bill ? fMoeda(x.valor) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + ROT_CAT[x.cat] + '</td></tr>').join('') + '</tbody>';
@@ -692,6 +800,12 @@ $('#drillFechar').onclick = fecharDrill; $('#drillFundo').onclick = fecharDrill;
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#drill').classList.contains('oculto')) fecharDrill(); });
 $('#drillCsv').onclick = () => {
   const rows = drillFiltrado(), cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  if (DRILL.modo === 'ajuste') {
+    const k = FATMED === 'l' ? 'l' : 'b';
+    const csv = ['Matrícula;Cidade;Sup;Mês do faturamento;1º pagamento;Situação na base;Valor do ajuste'].concat(rows.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x[k].toFixed(2).replace('.', ',')].join(';'))).join('\r\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'sac_ajuste_' + norm(DRILL.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
+  }
   const csv = ['Matrícula;Cidade;Sup;Implantação;Valor faturado;1º pagamento;Situação na base;Classificação'].concat(rows.map(x =>
     [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), x.bill ? x.valor.toFixed(2).replace('.', ',') : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual), cel(ROT_CAT[x.cat])].join(';'))).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));

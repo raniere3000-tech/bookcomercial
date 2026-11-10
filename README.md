@@ -41,6 +41,8 @@ O SAC segue a mesma regra: a versão (v5, v6…) fica no selo do cabeçalho de `
 ## SAC (`SAC.html`)
 Conecta a pasta com os Excel, como o DRE, e identifica cada arquivo pelo cabeçalho: implantações de ligações, faturamento e arrecadação. A tela de validação mostra o tipo reconhecido, as linhas lidas e as colunas que faltam. A análise cruza as matrículas implantadas com o faturamento (DSC_CLASSE Ligações de Água, faturamento indireto de água) e com a arrecadação, e lista as que pagaram mas não estão como Ativa Faturando ou Cortada a partir do mês do pagamento. As regras ficam em `CONFIG` no script.
 
+A aba Faturamento mostra, por mês, o faturamento geral, a visão auditoria de hoje (só Ativa Faturando e Cortada), o ajuste do SAC (faturamento das matrículas que pagaram e estão fora da auditoria, do mês do primeiro pagamento em diante) e a visão auditoria corrigida. A medida alterna entre líquido (`R__Faturamento_total_liquido`) e bruto (direta nas classes Contas de Água e Esgoto, mais indireta), com a mesma regra do DRE.
+
 | Versão | O que mudou |
 |---|---|
 | V25 | Arquivos de Arrecadação com aba de explicação (ex.: "Informações" do Tabela_BI): a aba só é lida como Arrecadação quando o cabeçalho tem Cidade, Mes/ano e Arrecadacao_Acumulada. Antes, a aba "Informações" era lida e dava erro de colunas ausentes. |
