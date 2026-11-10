@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v5</title>
+<title>Águas do Rio | SAC v6</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -79,7 +79,7 @@ td.neg { background:#FFC7CE !important; color:#9C0006; }
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v5</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v6</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -131,6 +131,11 @@ td.neg { background:#FFC7CE !important; color:#9C0006; }
       <div class="tabela-wrap"><table id="tabVal"></table></div>
       <p class="nota-secao" id="notaVal" style="margin-top:8px"></p>
     </div>
+    <div class="card oculto" id="boxDiag">
+      <h2>Diagnóstico do cruzamento</h2>
+      <p class="nota-secao">Mostra onde as matrículas deixam de casar entre as planilhas. Compare as amostras: o formato precisa ser o mesmo.</p>
+      <div class="tabela-wrap"><table id="tabDiag"></table></div>
+    </div>
     <div class="card">
       <h2>Regras de cálculo</h2>
       <ul class="regras">
@@ -148,7 +153,7 @@ td.neg { background:#FFC7CE !important; color:#9C0006; }
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v5';
+const VERSAO_SAC = 'v6';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -336,7 +341,8 @@ function toYm(v) {
   const s = norm(v); let m;
   if ((m = /^(\d{4})(\d{2})$/.exec(s))) return m[1] + '-' + m[2];
   if ((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s))) return m[3] + '-' + pad2(m[2]);
-  if ((m = /^(\d{4})-(\d{2})/.exec(s))) return m[1] + '-' + m[2];
+  if ((m = /^(\d{4})[-\/](\d{1,2})/.exec(s))) return m[1] + '-' + pad2(m[2]);
+  if ((m = /^(\d{1,2})[\/-](\d{4})$/.exec(s))) return m[2] + '-' + pad2(m[1]);
   if ((m = /^([a-z]{3})[a-z]*[\/\-. ](\d{2}|\d{4})$/.exec(s)) && MESES[m[1]]) return (m[2].length === 2 ? '20' + m[2] : m[2]) + '-' + pad2(MESES[m[1]]);
   return null;
 }
@@ -344,14 +350,16 @@ function toMat(v) {
   if (v == null || v === '') return null;
   if (typeof v === 'number') return v > 0 ? String(Math.round(v)) : null;
   const s = String(v).trim();
-  if (/e\+/i.test(s)) return null;                 // notação científica: dígitos perdidos
-  const d = s.replace(/\.0+$/, '').replace(/\D/g, '');
+  if (/\de[+-]?\d/i.test(s)) return 'CIENTIFICA';  // notação científica (1,01E+08): dígitos perdidos
+  const d = s.replace(/[.,]0+$/, '').replace(/\D/g, '').replace(/^0+/, '');
   return d || null;
 }
 function toNum(v) {
   if (typeof v === 'number') return v;
   if (v == null || v === '') return 0;
-  const s = String(v).trim(); const n = Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
+  let s = String(v).trim().replace(/[^\d,.\-]/g, '');           // tira R$, espaços e letras
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -386,6 +394,7 @@ async function inspecionarAba(x, aba) {
 /* =====================================================================
    LEITURA E CRUZAMENTO
    ===================================================================== */
+const DIAG = { impl: {}, fat: {}, arr: {} };
 const ESTADO = { impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
 let dirHandle = null, ARQUIVOS = null;
 
@@ -398,6 +407,7 @@ function aviso(texto, erro) {
 
 async function processar(files) {
   ARQUIVOS = files;
+  DIAG.impl = {}; DIAG.fat = {}; DIAG.arr = {};
   Object.assign(ESTADO, { impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
   if (!files.length) { setStatus('Nenhum arquivo .xlsx ou .csv encontrado na pasta.', true); return; }
   const lista = [];
@@ -427,43 +437,63 @@ async function processar(files) {
     } catch (e) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Falha na leitura: ' + e.message }); }
   }
   for (const k of ['impl', 'fat', 'arr']) if (!ESTADO.val.some(v => v.tipo === k && v.status !== 'erro')) ESTADO.avisos.push('Falta a planilha de ' + TIPOS[k].nome.toLowerCase() + ' na pasta.');
-  cruzar(); renderValidacao(); renderAnalise(); setProg(null);
+  cruzar(); renderValidacao(); renderDiag(); renderAnalise(); setProg(null);
   setStatus('Pasta lida: ' + files.length + ' arquivo(s) · ' + fInt(ESTADO.impl.size) + ' matrículas implantadas · atualizado em ' + new Date().toLocaleString('pt-BR'));
   const erros = ESTADO.val.filter(v => v.status === 'erro').length + ESTADO.avisos.length;
   aviso(erros ? 'Pasta lida com ' + erros + ' ponto(s) de atenção. Veja a aba Dados.' : 'Pasta lida e analisada.', !!erros);
 }
 
+/* Lê a matrícula e conta o que não deu para ler, para o diagnóstico */
+function lerMat(v, c) {
+  const m = toMat(v);
+  if (m === 'CIENTIFICA') { c.sci++; return null; }
+  if (!m) { c.vazia++; return null; }
+  if (c.amostra.length < 3 && !c.amostra.includes(m)) c.amostra.push(m);
+  return m;
+}
+const novoC = () => ({ sci: 0, vazia: 0, semMes: 0, linhas: 0, casam: new Set(), amostra: [] });
+function obsLeitura(c, extra) {
+  const o = [];
+  if (c.sci) o.push(c.sci + ' linha(s) com matrícula em notação científica (ex.: 1,01E+08), ilegíveis. Salve a coluna Matrícula como número inteiro ou texto');
+  if (c.vazia) o.push(c.vazia + ' linha(s) sem matrícula');
+  if (c.semMes) o.push(c.semMes + ' linha(s) com mês não reconhecido');
+  return o.concat(extra || []);
+}
+function somar(tipo, c) {
+  const d = DIAG[tipo]; d.linhas = (d.linhas || 0) + c.linhas; d.sci = (d.sci || 0) + c.sci; d.semMes = (d.semMes || 0) + c.semMes;
+  d.amostra = (d.amostra || []).concat(c.amostra).slice(0, 5);
+  d.casam = d.casam || new Set(); c.casam.forEach(x => d.casam.add(x));
+}
 const LEITORES = {
   async impl(l) {
-    const m = l.d.map, st = { lidas: 0, obs: [] }; let semMat = 0, dup = 0, semData = 0;
+    const m = l.d.map, st = { lidas: 0, obs: [] }, c = novoC(); let dup = 0, semData = 0;
     await lerAba(l.x, l.aba.path, (r, n) => {
       if (n <= l.d.hdr) return true;
-      const mat = toMat(r[m.mat]); if (!mat) { semMat++; return true; }
+      const mat = lerMat(r[m.mat], c); if (!mat) return true;
       const os = r[m.os] != null ? String(r[m.os]) : null;
       if (os && ESTADO.osVistas.has(os)) { dup++; return true; }
       if (os) ESTADO.osVistas.add(os);
       const ym = toYm(r[m.data]) || (m.mes != null ? toYm(r[m.mes]) : null); if (!ym) { semData++; return true; }
-      st.lidas++;
+      st.lidas++; c.linhas++;
       let o = ESTADO.impl.get(mat);
       if (!o) { o = { mat, ym, cidade: String(r[m.cidade] ?? '').trim(), sup: String(r[m.sup] ?? '').trim(), servico: m.servico != null ? String(r[m.servico] ?? '') : '', eco: 0, nOS: 0 }; ESTADO.impl.set(mat, o); }
       else if (ym < o.ym) o.ym = ym;
       o.nOS++; o.eco += m.eco != null ? toNum(r[m.eco]) : 1;
       return true;
     });
-    if (semMat) st.obs.push(semMat + ' linha(s) sem matrícula válida');
-    if (dup) st.obs.push(dup + ' OS repetida(s) ignorada(s)');
-    if (semData) st.obs.push(semData + ' linha(s) sem data reconhecida');
-    return st;
+    st.obs = obsLeitura(c, [dup ? dup + ' OS repetida(s) ignorada(s)' : '', semData ? semData + ' linha(s) sem data reconhecida' : ''].filter(Boolean));
+    somar('impl', c); return st;
   },
   async fat(l) {
-    const m = l.d.map, st = { lidas: 0, obs: [] }; let ligNova = 0, semMat = 0;
+    const m = l.d.map, st = { lidas: 0, obs: [] }, c = novoC(); let ligNova = 0;
     await lerAba(l.x, l.aba.path, (r, n) => {
       if (n <= l.d.hdr) return true;
       if (m.total != null && (r[m.total] === true || norm(r[m.total]) === 'true')) return true;   // linha de total geral
-      const mat = toMat(r[m.mat]); if (!mat) { semMat++; return true; }
-      st.lidas++;
+      const mat = lerMat(r[m.mat], c); if (!mat) return true;
+      st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
-      const ym = toYm(r[m.ym]); if (!ym) return true;
+      c.casam.add(mat);
+      const ym = toYm(r[m.ym]); if (!ym) { c.semMes++; return true; }
       let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, st: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
       const sit = String(r[m.sit] ?? '').trim();
       if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
@@ -474,23 +504,28 @@ const LEITORES = {
       }
       return true;
     });
-    if (!ligNova && ESTADO.impl.size) st.obs.push('Nenhuma linha de matrícula implantada com DSC_CLASSE Ligações de Água');
-    return st;
+    const ex = [];
+    if (ESTADO.impl.size && !c.casam.size) ex.push('Nenhuma matrícula implantada foi encontrada neste arquivo');
+    else if (ESTADO.impl.size && !ligNova) ex.push('Nenhuma linha de matrícula implantada com DSC_CLASSE Ligações de Água');
+    st.obs = obsLeitura(c, ex); somar('fat', c); return st;
   },
   async arr(l) {
-    const m = l.d.map, st = { lidas: 0, obs: [] };
+    const m = l.d.map, st = { lidas: 0, obs: [] }, c = novoC(); let comPag = 0;
     await lerAba(l.x, l.aba.path, (r, n) => {
       if (n <= l.d.hdr) return true;
-      const mat = toMat(r[m.mat]); if (!mat) return true;
-      st.lidas++;
+      const mat = lerMat(r[m.mat], c); if (!mat) return true;
+      st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
-      const ym = toYm(r[m.mes]); if (!ym) return true;
+      c.casam.add(mat);
+      const ym = toYm(r[m.mes]); if (!ym) { c.semMes++; return true; }
       const pagou = toNum(r[m.arr]) > 0 || (m.dias != null && toNum(r[m.dias]) > 0);
       let A = ESTADO.arr.get(mat); if (!A) { A = { payYm: null }; ESTADO.arr.set(mat, A); }
-      if (pagou && (!A.payYm || ym < A.payYm)) A.payYm = ym;
+      if (pagou && (!A.payYm || ym < A.payYm)) { if (!A.payYm) comPag++; A.payYm = ym; }
       return true;
     });
-    return st;
+    const ex = [];
+    if (ESTADO.impl.size && !c.casam.size) ex.push('Nenhuma matrícula implantada foi encontrada neste arquivo');
+    st.obs = obsLeitura(c, ex); somar('arr', c); return st;
   }
 };
 
@@ -514,6 +549,16 @@ function cruzar() {
 /* =====================================================================
    TELA
    ===================================================================== */
+function renderDiag() {
+  const I = ESTADO.impl.size; $('#boxDiag').classList.toggle('oculto', !I && !DIAG.impl.linhas);
+  const nPag = [...ESTADO.arr.values()].filter(a => a.payYm).length;
+  const lin = (nome, lidas, casam, amostra, obs) => '<tr><td>' + nome + '</td><td class="n">' + fInt(lidas) + '</td><td class="n">' + casam + '</td><td>' + esc(amostra || '-') + '</td><td>' + esc(obs) + '</td></tr>';
+  const d = DIAG;
+  $('#tabDiag').innerHTML = '<thead><tr><th>Planilha</th><th class="n">Linhas lidas</th><th class="n">Matrículas que casam com as implantadas</th><th>Amostra de matrículas lidas</th><th>Observação</th></tr></thead><tbody>' +
+    lin('Implantações', d.impl.linhas || 0, fInt(I) + ' (base)', (d.impl.amostra || []).join(', '), '') +
+    lin('Faturamento', d.fat.linhas || 0, fInt(d.fat.casam ? d.fat.casam.size : 0) + ' de ' + fInt(I), (d.fat.amostra || []).join(', '), d.fat.semMes ? d.fat.semMes + ' linha(s) sem mês reconhecido' : '') +
+    lin('Arrecadação', d.arr.linhas || 0, fInt(d.arr.casam ? d.arr.casam.size : 0) + ' de ' + fInt(I) + ', ' + fInt(nPag) + ' com pagamento', (d.arr.amostra || []).join(', '), d.arr.semMes ? d.arr.semMes + ' linha(s) sem mês reconhecido' : '') + '</tbody>';
+}
 function renderValidacao() {
   $('#boxVal').classList.remove('oculto');
   const rot = { ok: 'OK', aviso: 'Atenção', erro: 'Erro' };
