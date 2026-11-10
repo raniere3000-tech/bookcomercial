@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v8</title>
+<title>Águas do Rio | SAC v9</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -49,6 +49,8 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .nota-secao { margin:-4px 0 8px; font-size:11.5px; line-height:1.35; color:var(--azul-claro); }
 .card.alerta { border-color:var(--laranja); } .card.alerta h2 { color:var(--laranja-texto); }
 .kpis.c5 { grid-template-columns:repeat(5, minmax(0,1fr)); }
+.acoes-seg { display:flex; gap:8px; flex-wrap:wrap; }
+.seg button:disabled { opacity:.5; cursor:not-allowed; }
 .seg { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
 .seg button { border:0; background:#fff; color:var(--marinho); font:600 12.5px var(--fonte); padding:5px 14px; cursor:pointer; }
 .seg button + button { border-left:1px solid var(--line); }
@@ -99,7 +101,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v8</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v9</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -139,13 +141,16 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     <div class="card oculto" id="boxFat">
       <div class="card-titulo">
         <h2>Resumo de faturamento por mês</h2>
-        <div class="seg" role="group" aria-label="Medida"><button type="button" id="medL" class="ativo" aria-pressed="true">Líquido</button><button type="button" id="medB" aria-pressed="false">Bruto</button></div>
+        <div class="acoes-seg">
+          <div class="seg" role="group" aria-label="Tipo de faturamento"><button type="button" id="tipT" class="ativo" aria-pressed="true">Total</button><button type="button" id="tipD" aria-pressed="false">Direto</button><button type="button" id="tipI" aria-pressed="false">Indireto</button></div>
+          <div class="seg" role="group" aria-label="Medida"><button type="button" id="medL" class="ativo" aria-pressed="true">Líquido</button><button type="button" id="medB" aria-pressed="false">Bruto</button></div>
+        </div>
       </div>
       <p class="nota-secao" id="notaFat"></p>
       <div class="kpis c5" id="kpisFat"></div>
       <div class="tabela-wrap" style="margin-top:12px"><table id="tabFat"></table></div>
       <ul class="regras">
-        <li>Faturamento geral: tudo o que foi faturado no mês na base de faturamento, de todas as matrículas.</li>
+        <li>Faturamento geral: tudo o que foi faturado no mês na base de faturamento, de todas as matrículas. Total, Direto e Indireto usam a medida bruta; só o Total tem versão líquida.</li>
         <li>Visão auditoria hoje: só as linhas com situação final Ativa Faturando ou Cortada.</li>
         <li>Ajuste do SAC: faturamento das matrículas implantadas que já pagaram e, do mês do primeiro pagamento em diante, estão fora de Ativa Faturando e Cortada.</li>
         <li>Visão auditoria corrigida: visão auditoria hoje mais o ajuste do SAC. O Mês do cabeçalho filtra o mês do faturamento, e Superintendência e Cidade filtram pela cidade.</li>
@@ -205,7 +210,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v8';
+const VERSAO_SAC = 'v9';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -549,17 +554,17 @@ const LEITORES = {
       const cid = m.cidade != null ? norm(r[m.cidade]) : ''; if (m.cidade != null && (!cid || cid === '0')) return true;
       const ym = toYm(r[m.ym]); if (!ym) { c.semMes++; return true; }
       const sit = String(r[m.sit] ?? '').trim(), ok = sac.has(norm(sit));
-      const bm = (direta.has(cls) ? num(r, 'dirA') + num(r, 'dirE') : 0) + num(r, 'indAgua') + num(r, 'indEsg'), lm = num(r, 'liq');
+      const bd = direta.has(cls) ? num(r, 'dirA') + num(r, 'dirE') : 0, bi = num(r, 'indAgua') + num(r, 'indEsg'), bm = bd + bi, lm = num(r, 'liq');
       const key = ym + '|' + cid; let g = ESTADO.agg.get(key);
-      if (!g) { g = { ym, cid, gb: 0, gl: 0, ab: 0, al: 0 }; ESTADO.agg.set(key, g); }
-      g.gb += bm; g.gl += lm; if (ok) { g.ab += bm; g.al += lm; }
+      if (!g) { g = { ym, cid, gb: 0, gl: 0, ab: 0, al: 0, gd: 0, gi: 0, ad: 0, ai: 0 }; ESTADO.agg.set(key, g); }
+      g.gb += bm; g.gl += lm; g.gd += bd; g.gi += bi; if (ok) { g.ab += bm; g.al += lm; g.ad += bd; g.ai += bi; }
       const mat = lerMat(r[m.mat], c); if (!mat) return true;
       st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
       c.casam.add(mat);
       let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, st: new Map(), nok: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
       if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
-      if (!ok) { let q = F.nok.get(ym); if (!q) { q = { b: 0, l: 0, sit: '' }; F.nok.set(ym, q); } q.b += bm; q.l += lm; q.sit = sit; }
+      if (!ok) { let q = F.nok.get(ym); if (!q) { q = { b: 0, l: 0, d: 0, i: 0, sit: '' }; F.nok.set(ym, q); } q.b += bm; q.l += lm; q.d += bd; q.i += bi; q.sit = sit; }
       if (cls === CONFIG.classeLigacaoAgua) {
         ligNova++;
         const v = num(r, 'indAgua');
@@ -606,7 +611,7 @@ function cruzar() {
         cat = ok ? 'sac' : 'fora';
       }
     }
-    if (payYm && F) for (const [ym, q] of F.nok) if (ym >= payYm) ESTADO.AJ.push({ mat: o.mat, cidade: o.cidade, sup: o.sup, ym, payYm, b: q.b, l: q.l, sit: q.sit });
+    if (payYm && F) for (const [ym, q] of F.nok) if (ym >= payYm) ESTADO.AJ.push({ mat: o.mat, cidade: o.cidade, sup: o.sup, ym, payYm, b: q.b, l: q.l, d: q.d, i: q.i, sit: q.sit });
     return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, payYm, sitAtual, cat };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
@@ -690,7 +695,9 @@ function aplicar() {
 let tudo = false;
 
 /* ---------- resumo de faturamento: geral, auditoria hoje e auditoria corrigida ---------- */
-let FATMED = 'l';
+let FATMED = 'l', FATTIPO = 'tot';
+const CHAVES = { l: ['gl', 'al', 'l'], b: ['gb', 'ab', 'b'], dir: ['gd', 'ad', 'd'], ind: ['gi', 'ai', 'i'] };
+const medida = () => FATTIPO === 'tot' ? FATMED : FATTIPO;      // direto e indireto só existem no bruto
 const SUP_DRE = { 'Interior': ['APERIBE', 'CACHOEIRAS DE MACACU', 'CAMBUCI', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS', 'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'S.FCO.DO ITABAPOANA', 'S.SEBASTIAO DO ALTO'],
   'Leste': ['ITABORAI', 'MAGE', 'MARICA', 'RIO DE JANEIRO - A', 'RIO DE JANEIRO - B', 'SAO GONCALO', 'SAQUAREMA', 'TANGUA'] };
 function supDaCidade(cid) {
@@ -706,7 +713,7 @@ function ajusteFiltrado() {
   return ESTADO.AJ.filter(x => (!a || x.ym === a) && (!b || norm(x.sup) === norm(b)) && (!c || norm(x.cidade) === norm(c)));
 }
 function resumoFat() {
-  const a = $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), g = FATMED === 'l' ? ['gl', 'al', 'l'] : ['gb', 'ab', 'b'];
+  const a = $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), g = CHAVES[medida()];
   const meses = new Map(), ev = ym => { let o = meses.get(ym); if (!o) { o = { ym, ger: 0, aud: 0, aj: 0, n: 0, mats: new Set() }; meses.set(ym, o); } return o; };
   for (const e of ESTADO.agg.values()) {
     if (a && e.ym !== a) continue; if (c && e.cid !== c) continue; if (b && norm(supDaCidade(e.cid)) !== b) continue;
@@ -719,14 +726,19 @@ function renderFat() {
   const tem = ESTADO.agg.size > 0;
   $('#boxFat').classList.toggle('oculto', !tem); $('#vazio3').classList.toggle('oculto', tem);
   if (!tem) return;
-  $('#medL').disabled = !ESTADO.temLiq;
   if (!ESTADO.temLiq && FATMED === 'l') FATMED = 'b';
-  $('#medL').classList.toggle('ativo', FATMED === 'l'); $('#medB').classList.toggle('ativo', FATMED === 'b');
-  $('#medL').setAttribute('aria-pressed', FATMED === 'l'); $('#medB').setAttribute('aria-pressed', FATMED === 'b');
-  $('#notaFat').textContent = FATMED === 'l' ? 'Medida: faturamento total líquido (R__Faturamento_total_liquido, já com cancelamentos).' : 'Medida: faturamento bruto (direta nas classes Contas de Água e Esgoto, mais indireta de água e esgoto).';
+  const dividido = FATTIPO !== 'tot';
+  $('#medL').disabled = !ESTADO.temLiq || dividido; $('#medB').disabled = dividido;
+  const ativoM = dividido ? 'b' : FATMED;
+  $('#medL').classList.toggle('ativo', ativoM === 'l'); $('#medB').classList.toggle('ativo', ativoM === 'b');
+  $('#medL').setAttribute('aria-pressed', ativoM === 'l'); $('#medB').setAttribute('aria-pressed', ativoM === 'b');
+  for (const [id, v] of [['tipT', 'tot'], ['tipD', 'dir'], ['tipI', 'ind']]) { $('#' + id).classList.toggle('ativo', FATTIPO === v); $('#' + id).setAttribute('aria-pressed', FATTIPO === v); }
+  $('#notaFat').textContent = FATTIPO === 'dir' ? 'Faturamento direto (bruto): colunas diretas de água e esgoto nas classes Contas de Água e Contas de Esgoto.'
+    : FATTIPO === 'ind' ? 'Faturamento indireto (bruto): colunas indiretas de água e esgoto, em todas as classes (ligações, religações, cortes, sanções e outras).'
+    : FATMED === 'l' ? 'Medida: faturamento total líquido (R__Faturamento_total_liquido, já com cancelamentos).' : 'Medida: faturamento bruto (direto nas classes Contas de Água e Esgoto, mais indireto de água e esgoto).';
   const R = resumoFat(), T = { ger: 0, aud: 0, aj: 0, n: 0 }; R.forEach(o => { T.ger += o.ger; T.aud += o.aud; T.aj += o.aj; T.n += o.n; });
   $('#kpisFat').innerHTML = [
-    ['Faturamento geral', fMoeda(T.ger), 'Tudo o que foi faturado', '', ''],
+    ['Faturamento geral', fMoeda(T.ger), FATTIPO === 'dir' ? 'Só o direto' : FATTIPO === 'ind' ? 'Só o indireto' : 'Tudo o que foi faturado', '', ''],
     ['Visão auditoria hoje', fMoeda(T.aud), fPct(T.aud, T.ger) + ' do geral, só Ativa Faturando e Cortada', '', ''],
     ['Ajuste do SAC', fMoeda(T.aj), fInt(T.n) + ' faturamento(s) de matrículas que pagaram', 'neg', 'drill'],
     ['Visão auditoria corrigida', fMoeda(T.aud + T.aj), fPct(T.aud + T.aj, T.ger) + ' do geral', '', ''],
@@ -737,6 +749,7 @@ function renderFat() {
     R.map(o => lin(labelYm(o.ym), o, '', o.ym)).join('') + lin('Total', T, 'linha-total', '') + '</tbody>';
 }
 $('#medL').onclick = () => { if (ESTADO.temLiq) { FATMED = 'l'; renderFat(); } };
+$('#tipT').onclick = () => { FATTIPO = 'tot'; renderFat(); }; $('#tipD').onclick = () => { FATTIPO = 'dir'; renderFat(); }; $('#tipI').onclick = () => { FATTIPO = 'ind'; renderFat(); };
 $('#medB').onclick = () => { FATMED = 'b'; renderFat(); };
 function abrirDrillAjuste(ym) {
   const rows = ajusteFiltrado().filter(x => !ym || x.ym === ym);
@@ -746,7 +759,7 @@ function abrirDrillAjuste(ym) {
   desenharDrill(); $('#drillFechar').focus();
 }
 function desenharAjuste() {
-  const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100, k = FATMED === 'l' ? 'l' : 'b';
+  const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100, k = CHAVES[medida()][2];
   const soma = rows.reduce((a, x) => a + x[k], 0);
   $('#drillTitulo').textContent = 'Ajuste do SAC: ' + fMoeda(soma);
   $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Mês do faturamento</th><th>1º pagamento</th><th>Situação na base</th><th class="n">Valor do ajuste</th></tr></thead><tbody>' +
@@ -801,7 +814,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#drill
 $('#drillCsv').onclick = () => {
   const rows = drillFiltrado(), cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
   if (DRILL.modo === 'ajuste') {
-    const k = FATMED === 'l' ? 'l' : 'b';
+    const k = CHAVES[medida()][2];
     const csv = ['Matrícula;Cidade;Sup;Mês do faturamento;1º pagamento;Situação na base;Valor do ajuste'].concat(rows.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x[k].toFixed(2).replace('.', ',')].join(';'))).join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = 'sac_ajuste_' + norm(DRILL.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
