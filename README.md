@@ -38,6 +38,9 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 O SAC segue a mesma regra: a versão fica ao lado do título em `SAC.html` (`VERSAO_SAC`) e sobe a cada alteração publicada. A Central de Links (`index.html`) mostra a sua no rodapé.
 
+## SAC (`SAC.html`)
+Conecta a pasta com os Excel, como o DRE, e identifica cada arquivo pelo cabeçalho: implantações de ligações, faturamento e arrecadação. A tela de validação mostra o tipo reconhecido, as linhas lidas e as colunas que faltam. A análise cruza as matrículas implantadas com o faturamento (DSC_CLASSE Ligação nova, faturamento indireto de água) e com a arrecadação, e lista as que pagaram mas não estão como Ativa Faturando ou Cortada a partir do mês do pagamento. As regras ficam em `CONFIG` no script.
+
 | Versão | O que mudou |
 |---|---|
 | V25 | Arquivos de Arrecadação com aba de explicação (ex.: "Informações" do Tabela_BI): a aba só é lida como Arrecadação quando o cabeçalho tem Cidade, Mes/ano e Arrecadacao_Acumulada. Antes, a aba "Informações" era lida e dava erro de colunas ausentes. |

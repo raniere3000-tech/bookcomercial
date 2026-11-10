@@ -3,50 +3,544 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio — SAC V1</title>
+<title>Águas do Rio | SAC V2</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
+<script src="lib/jszip.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    min-height: 100vh;
-    padding: 32px 24px;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: #00264a;
-    color: #fff;
+  :root {
+    --fundo: #00264a; --painel: rgba(16,40,64,0.78); --linha: rgba(255,255,255,0.14);
+    --texto: #fff; --suave: rgba(255,255,255,0.72); --destaque: #16a5b8; --claro: #9fe1e7; --ruim: #f2b84b;
   }
-  .topo { max-width: 1100px; margin: 0 auto 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  body { min-height: 100vh; padding: 28px 24px 48px; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--fundo); color: var(--texto); font-variant-numeric: tabular-nums; }
+  .pagina { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  .topo { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   h1 { font-size: 1.5rem; text-wrap: balance; }
-  .versao { margin-left: 8px; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; vertical-align: middle; background: rgba(159,225,231,0.18); color: #9fe1e7; font-variant-numeric: tabular-nums; }
-  .voltar {
-    display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px;
-    border-radius: 14px; text-decoration: none; color: #fff; font-weight: 600;
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-    transition: background 0.15s ease;
-  }
-  .voltar:hover { background: rgba(255,255,255,0.18); }
-  main {
-    max-width: 1100px; margin: 0 auto; padding: 32px; border-radius: 28px;
-    background: rgba(16,40,64,0.62); border: 1px solid rgba(255,255,255,0.2);
-    box-shadow: 0 25px 70px rgba(0,0,0,0.45);
-    color: rgba(255,255,255,0.9);
-  }
+  h2 { font-size: 1.05rem; margin-bottom: 12px; text-wrap: balance; }
+  .versao { margin-left: 8px; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; vertical-align: middle; background: rgba(159,225,231,0.18); color: var(--claro); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border-radius: 14px; border: 1px solid var(--linha); background: rgba(255,255,255,0.1); color: #fff; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.15s ease, transform 0.15s ease; }
+  .btn:hover { background: rgba(255,255,255,0.18); }
+  .btn:active { transform: scale(0.97); }
+  .btn.principal { background: var(--destaque); border-color: transparent; }
+  .btn.principal:hover { background: #1bb6ca; }
+  .btn[hidden] { display: none; }
+  .acoes { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .painel { padding: 24px; border-radius: 24px; background: var(--painel); border: 1px solid var(--linha); box-shadow: 0 20px 50px rgba(0,0,0,0.35); }
+  .status { color: var(--suave); font-size: 0.92rem; margin-top: 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; }
+  .kpi { padding: 16px; border-radius: 16px; background: rgba(255,255,255,0.07); border: 1px solid var(--linha); }
+  .kpi .rot { font-size: 0.8rem; color: var(--suave); }
+  .kpi .val { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
+  .kpi .sub { font-size: 0.78rem; color: var(--suave); margin-top: 2px; }
+  .kpi.alvo { border-color: var(--destaque); box-shadow: 0 0 0 1px var(--destaque) inset; }
+  .filtros { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 16px; }
+  .filtros label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--suave); }
+  select { min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--linha); background: #0b3358; color: #fff; font: inherit; min-width: 170px; }
+  .rolagem { overflow-x: auto; border-radius: 14px; border: 1px solid var(--linha); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { padding: 10px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--linha); }
+  th { background: rgba(255,255,255,0.08); font-weight: 600; position: sticky; top: 0; }
+  td.n, th.n { text-align: right; }
+  tr:last-child td { border-bottom: 0; }
+  tr.total td { font-weight: 700; background: rgba(255,255,255,0.05); }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+  .tag.ok { background: rgba(22,165,184,0.25); color: var(--claro); }
+  .tag.aviso { background: rgba(242,184,75,0.2); color: var(--ruim); }
+  .tag.erro { background: rgba(242,184,75,0.35); color: var(--ruim); }
+  .nota { color: var(--suave); font-size: 0.85rem; margin-top: 10px; line-height: 1.5; }
+  .regras { color: var(--suave); font-size: 0.88rem; line-height: 1.6; padding-left: 18px; }
+  .oculto { display: none; }
+  @media (max-width: 600px) { body { padding: 20px 16px 40px; } .btn { min-height: 44px; } }
 </style>
 </head>
 <body>
+<div class="pagina">
   <div class="topo">
-    <h1>SAC — Análise <span class="versao" id="versao">V1</span></h1>
-    <a class="voltar" href="index.html">Voltar</a>
+    <h1>SAC · Implantações de ligações <span class="versao" id="versao">V2</span></h1>
+    <div class="acoes">
+      <button class="btn principal" id="btnPasta">Conectar pasta</button>
+      <button class="btn" id="btnReload" hidden>Atualizar</button>
+      <a class="btn" href="index.html">Voltar</a>
+    </div>
   </div>
-  <main>
-    <p>Página criada. Os dados e indicadores do SAC entram aqui.</p>
-  </main>
+  <input type="file" id="fileFallback" webkitdirectory multiple style="display:none">
+  <input type="file" id="fileArquivos" accept=".xlsx" multiple style="display:none">
+
+  <section class="painel">
+    <h2>Pasta e validação dos arquivos</h2>
+    <div class="status" id="status">Nenhuma pasta conectada. Escolha a pasta com os Excel de implantações, faturamento e arrecadação. Cada arquivo é identificado pelo cabeçalho, não pelo nome.</div>
+    <div class="rolagem oculto" id="boxVal" style="margin-top:14px"><table id="tabVal"></table></div>
+    <p class="nota" id="notaVal"></p>
+  </section>
+
+  <section class="painel oculto" id="boxAnalise">
+    <h2>Quais ligações deveriam estar no SAC</h2>
+    <div class="filtros">
+      <label>Mês da implantação<select id="fMes"></select></label>
+      <label>Superintendência<select id="fSup"></select></label>
+      <label>Cidade<select id="fCid"></select></label>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <ul class="regras" style="margin-top:16px">
+      <li>No SAC: matrícula com situação final Ativa Faturando ou Cortada na base de faturamento.</li>
+      <li>Pagou: matrícula com arrecadação acumulada maior que zero, ou com dias de pagamento, na planilha de arrecadação.</li>
+      <li>Deveria estar no SAC: pagou e, do mês do primeiro pagamento em diante, a base de faturamento não mostra Ativa Faturando nem Cortada.</li>
+      <li>Faturada: matrícula com linha de DSC_CLASSE Ligação nova e faturamento indireto de água maior que zero.</li>
+    </ul>
+  </section>
+
+  <section class="painel oculto" id="boxMes">
+    <h2>Resumo por mês de implantação</h2>
+    <div class="rolagem"><table id="tabMes"></table></div>
+  </section>
+
+  <section class="painel oculto" id="boxSup">
+    <h2>Resumo por superintendência</h2>
+    <div class="rolagem"><table id="tabSup"></table></div>
+  </section>
+
+  <section class="painel oculto" id="boxLista">
+    <div class="topo" style="margin-bottom:12px">
+      <h2 style="margin:0">Matrículas que pagaram e ficaram fora do SAC</h2>
+      <button class="btn" id="btnCsv">Exportar CSV</button>
+    </div>
+    <div class="rolagem" style="max-height:480px"><table id="tabLista"></table></div>
+    <p class="nota" id="notaLista"></p>
+  </section>
+</div>
+
 <script>
-  // Versão do SAC: aumentar a cada alteração publicada (V2, V3…)
-  const VERSAO_SAC = 'V1';
-  document.getElementById('versao').textContent = VERSAO_SAC;
-  document.title = 'Águas do Rio — SAC ' + VERSAO_SAC;
+'use strict';
+// Versão do SAC: aumentar a cada alteração publicada (V3, V4…)
+const VERSAO_SAC = 'V2';
+document.getElementById('versao').textContent = VERSAO_SAC;
+document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const hnorm = s => norm(s).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+const fInt = n => Number(n || 0).toLocaleString('pt-BR');
+const fMoeda = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fPct = (a, b) => b ? (a / b * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%' : '-';
+
+/* =====================================================================
+   REGRAS (ajuste aqui se precisar)
+   ===================================================================== */
+const CONFIG = {
+  situacoesSac: ['ativa faturando', 'cortada'],   // situação final que entra no SAC
+  classeLigacaoNova: 'ligacao nova'               // DSC_CLASSE das linhas de ligação nova
+};
+
+/* Cada tipo é reconhecido pelo cabeçalho: todas as colunas de "chave" precisam existir.
+   "cols" lista os nomes aceitos (já normalizados) de cada coluna; "req" são as obrigatórias. */
+const TIPOS = {
+  arr: { nome: 'Arrecadação', chave: ['arrecadacao_acumulada'],
+    cols: { mat: ['matricula'], mes: ['mes_ano'], arr: ['arrecadacao_acumulada'], dias: ['dias_com_pagamento'], pagou: ['pagou_mes_anterior'], cidade: ['cidade'], sup: ['superintendencia'] },
+    req: ['mat', 'mes', 'arr'] },
+  fat: { nome: 'Faturamento', chave: ['dsc_classe', 'baseinativacao_situacao_final'],
+    cols: { mat: ['num_ligacao'], ym: ['anomes'], classe: ['dsc_classe'], sit: ['baseinativacao_situacao_final'], indAgua: ['faturamento_bruto_indireta_agua'], cidade: ['cidade'], total: ['isgrandtotalrowtotal'] },
+    req: ['mat', 'ym', 'classe', 'sit', 'indAgua'] },
+  impl: { nome: 'Implantações', chave: ['id_da_os', 'data_da_os'],
+    cols: { mat: ['matricula'], data: ['data_da_os'], mes: ['mes'], os: ['id_da_os'], servico: ['servico'], sup: ['sup'], cidade: ['cidade'], eco: ['economias'] },
+    req: ['mat', 'data', 'os', 'cidade', 'sup'] }
+};
+
+/* =====================================================================
+   LEITOR DE XLSX (em blocos, usa JSZip) — mesmo método do DRE
+   ===================================================================== */
+function decodeEnt(s) {
+  return s.indexOf('&') < 0 ? s : s.replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g, (m, e) => {
+    if (e === 'amp') return '&'; if (e === 'lt') return '<'; if (e === 'gt') return '>';
+    if (e === 'quot') return '"'; if (e === 'apos') return "'";
+    return String.fromCodePoint(e[1] === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+  });
+}
+function colIdx(letters) { let n = 0; for (let i = 0; i < letters.length; i++) n = n * 26 + letters.charCodeAt(i) - 64; return n - 1; }
+
+async function abrirXlsx(file) {
+  const zip = await JSZip.loadAsync(file);
+  const shared = [], sst = zip.file('xl/sharedStrings.xml');
+  if (sst) {
+    const x = await sst.async('string'), re = /<si>([\s\S]*?)<\/si>|<si\/>/g; let m;
+    while ((m = re.exec(x))) {
+      let t = '';
+      if (m[1]) { const body = m[1].replace(/<rPh[\s\S]*?<\/rPh>/g, ''), tr = /<t[^>]*>([\s\S]*?)<\/t>/g; let k; while ((k = tr.exec(body))) t += k[1]; }
+      shared.push(decodeEnt(t));
+    }
+  }
+  const fallback = () => Object.keys(zip.files).filter(n => /^xl\/worksheets\/[^/]+\.xml$/.test(n)).sort().map(p => ({ nome: p.replace(/^.*\/|\.xml$/g, ''), path: p }));
+  let abas = [];
+  const wb = zip.file('xl/workbook.xml'), rl = zip.file('xl/_rels/workbook.xml.rels');
+  if (wb && rl) {
+    const rels = {}, rx = await rl.async('string'); let m;
+    const reR = /<Relationship\b[^>]*>/g; while ((m = reR.exec(rx))) { const id = /Id="([^"]+)"/.exec(m[0]), t = /Target="([^"]+)"/.exec(m[0]); if (id && t) rels[id[1]] = t[1]; }
+    const wx = await wb.async('string'), reS = /<sheet\b[^>]*>/g;
+    while ((m = reS.exec(wx))) {
+      const nm = /name="([^"]*)"/.exec(m[0]), id = /r:id="([^"]+)"/.exec(m[0]); if (!nm || !id || !rels[id[1]]) continue;
+      let t = rels[id[1]].replace(/^\//, ''); if (!t.startsWith('xl/')) t = 'xl/' + t;
+      if (zip.file(t)) abas.push({ nome: decodeEnt(nm[1]), path: t });
+    }
+  }
+  if (!abas.length) abas = fallback();
+  return { zip, shared, abas };
+}
+
+/* Lê uma aba linha a linha. onRow(linha, nº) devolve false para parar. */
+async function lerAba(x, path, onRow) {
+  const cellRe = /<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  let count = 0, stopped = false;
+  const parseRow = body => {
+    if (body.indexOf('<v>') < 0 && body.indexOf('<is>') < 0) return true;
+    const row = []; cellRe.lastIndex = 0; let m;
+    while ((m = cellRe.exec(body))) {
+      const inner = m[3]; if (!inner) continue;
+      let v = null; const tm = /t="(\w+)"/.exec(m[2]); const t = tm ? tm[1] : 'n';
+      if (t === 'inlineStr') { const im = /<t[^>]*>([\s\S]*?)<\/t>/.exec(inner); v = im ? decodeEnt(im[1]) : null; }
+      else { const vm = /<v>([\s\S]*?)<\/v>/.exec(inner); if (!vm) continue; const raw = vm[1];
+        if (t === 's') v = x.shared[+raw]; else if (t === 'str' || t === 'e') v = decodeEnt(raw);
+        else if (t === 'b') v = raw === '1'; else { v = Number(raw); if (Number.isNaN(v)) v = raw; } }
+      row[colIdx(m[1])] = v;
+    }
+    count++;
+    if (onRow(row, count) === false) { stopped = true; return false; }
+    return true;
+  };
+  const drain = buf => {
+    let pos = 0;
+    while (!stopped) {
+      const a = buf.indexOf('<row ', pos); if (a < 0) { pos = Math.max(pos, buf.length - 5); break; }
+      const b = buf.indexOf('>', a); if (b < 0) { pos = a; break; }
+      if (buf.charCodeAt(b - 1) === 47) { pos = b + 1; continue; }
+      const c = buf.indexOf('</row>', b); if (c < 0) { pos = a; break; }
+      pos = c + 6;
+      if (parseRow(buf.substring(b + 1, c)) === false) break;
+    }
+    return buf.slice(pos);
+  };
+  await new Promise((resolve, reject) => {
+    const dec = new TextDecoder('utf-8'), parts = []; let size = 0, rest = '';
+    const helper = x.zip.file(path).internalStream('uint8array');
+    const flush = last => {
+      if (!parts.length && !last) return;
+      let txt = rest + parts.map(u => dec.decode(u, { stream: true })).join(''); parts.length = 0; size = 0;
+      if (last) txt += dec.decode();
+      rest = drain(txt);
+    };
+    helper.on('data', chunk => {
+      if (stopped) return;
+      parts.push(chunk); size += chunk.length;
+      if (size >= (1 << 22)) { try { flush(false); } catch (e) { stopped = true; helper.pause(); reject(e); } }
+      if (stopped) { helper.pause(); resolve(); }
+    });
+    helper.on('error', reject);
+    helper.on('end', () => { try { if (!stopped) flush(true); resolve(); } catch (e) { reject(e); } });
+    helper.resume();
+  });
+  return count;
+}
+
+/* =====================================================================
+   CONVERSÕES
+   ===================================================================== */
+const MESES = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+const NOME_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const pad2 = n => String(n).padStart(2, '0');
+function labelYm(ym) { const [a, m] = ym.split('-'); return NOME_MES[+m - 1] + '/' + a.slice(2); }
+function toYm(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') {
+    if (v >= 190001 && v <= 299912) return Math.floor(v / 100) + '-' + pad2(v % 100);
+    if (v > 20000 && v < 80000) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1); }
+    return null;
+  }
+  const s = norm(v); let m;
+  if ((m = /^(\d{4})(\d{2})$/.exec(s))) return m[1] + '-' + m[2];
+  if ((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s))) return m[3] + '-' + pad2(m[2]);
+  if ((m = /^(\d{4})-(\d{2})/.exec(s))) return m[1] + '-' + m[2];
+  if ((m = /^([a-z]{3})[a-z]*[\/\-. ](\d{2}|\d{4})$/.exec(s)) && MESES[m[1]]) return (m[2].length === 2 ? '20' + m[2] : m[2]) + '-' + pad2(MESES[m[1]]);
+  return null;
+}
+function toMat(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return v > 0 ? String(Math.round(v)) : null;
+  const s = String(v).trim();
+  if (/e\+/i.test(s)) return null;                 // notação científica: dígitos perdidos
+  const d = s.replace(/\.0+$/, '').replace(/\D/g, '');
+  return d || null;
+}
+function toNum(v) {
+  if (typeof v === 'number') return v;
+  if (v == null || v === '') return 0;
+  const s = String(v).trim(); const n = Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/* =====================================================================
+   IDENTIFICAÇÃO PELO CABEÇALHO
+   ===================================================================== */
+const HDR_MAX = 30;
+function detectar(row) {
+  const hs = row.map(c => typeof c === 'string' ? hnorm(c) : '');
+  for (const k of ['arr', 'fat', 'impl']) {
+    if (TIPOS[k].chave.every(c => hs.includes(c))) {
+      const map = {}, faltando = [];
+      for (const [campo, nomes] of Object.entries(TIPOS[k].cols)) {
+        const i = hs.findIndex(h => nomes.includes(h)); if (i >= 0) map[campo] = i;
+      }
+      for (const campo of TIPOS[k].req) if (map[campo] == null) faltando.push(TIPOS[k].cols[campo][0]);
+      return { tipo: k, map, faltando };
+    }
+  }
+  return null;
+}
+async function inspecionarAba(x, aba) {
+  let achou = null, linhas = 0;
+  await lerAba(x, aba.path, (row, n) => {
+    linhas = n;
+    const d = detectar(row); if (d) { achou = { ...d, hdr: n }; return false; }
+    return n < HDR_MAX;
+  });
+  return achou;
+}
+
+/* =====================================================================
+   LEITURA E CRUZAMENTO
+   ===================================================================== */
+const ESTADO = { impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
+let dirHandle = null, ARQUIVOS = null;
+
+function setStatus(t, erro) { $('#status').innerHTML = erro ? '<span class="tag erro">Erro</span> ' + esc(t) : t; }
+
+async function processar(files) {
+  ARQUIVOS = files;
+  Object.assign(ESTADO, { impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
+  if (!files.length) { setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true); return; }
+  const lista = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    setStatus('Validando ' + (i + 1) + ' de ' + files.length + ': ' + esc(f.name));
+    try {
+      const x = await abrirXlsx(f);
+      for (const aba of x.abas) {
+        const d = await inspecionarAba(x, aba);
+        lista.push({ f, x, aba, d });
+      }
+    } catch (e) { ESTADO.val.push({ arquivo: f.name, aba: '-', tipo: null, linhas: 0, status: 'erro', obs: 'Não foi possível abrir: ' + e.message }); }
+  }
+  const ordem = { impl: 0, fat: 1, arr: 2 };
+  const reconhecidos = lista.filter(l => l.d).sort((a, b) => ordem[a.d.tipo] - ordem[b.d.tipo]);
+  for (const l of lista.filter(l => !l.d)) ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: null, linhas: 0, status: 'aviso', obs: 'Cabeçalho não reconhecido, aba ignorada' });
+  for (const l of reconhecidos) {
+    setStatus('Lendo ' + esc(l.f.name) + ' (' + esc(l.aba.nome) + ')');
+    if (l.d.faltando.length) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Colunas obrigatórias ausentes: ' + l.d.faltando.join(', ') }); continue; }
+    try {
+      const st = await LEITORES[l.d.tipo](l);
+      ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: st.lidas, status: st.obs.length ? 'aviso' : 'ok', obs: st.obs.join('; ') || 'Colunas conferidas' });
+    } catch (e) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Falha na leitura: ' + e.message }); }
+  }
+  for (const k of ['impl', 'fat', 'arr']) if (!ESTADO.val.some(v => v.tipo === k && v.status !== 'erro')) ESTADO.avisos.push('Falta a planilha de ' + TIPOS[k].nome.toLowerCase() + ' na pasta.');
+  cruzar(); renderValidacao(); renderAnalise();
+  setStatus('Pasta lida: ' + files.length + ' arquivo(s), ' + fInt(ESTADO.impl.size) + ' matrículas implantadas.');
+}
+
+const LEITORES = {
+  async impl(l) {
+    const m = l.d.map, st = { lidas: 0, obs: [] }; let semMat = 0, dup = 0, semData = 0;
+    await lerAba(l.x, l.aba.path, (r, n) => {
+      if (n <= l.d.hdr) return true;
+      const mat = toMat(r[m.mat]); if (!mat) { semMat++; return true; }
+      const os = r[m.os] != null ? String(r[m.os]) : null;
+      if (os && ESTADO.osVistas.has(os)) { dup++; return true; }
+      if (os) ESTADO.osVistas.add(os);
+      const ym = toYm(r[m.data]) || (m.mes != null ? toYm(r[m.mes]) : null); if (!ym) { semData++; return true; }
+      st.lidas++;
+      let o = ESTADO.impl.get(mat);
+      if (!o) { o = { mat, ym, cidade: String(r[m.cidade] ?? '').trim(), sup: String(r[m.sup] ?? '').trim(), servico: m.servico != null ? String(r[m.servico] ?? '') : '', eco: 0, nOS: 0 }; ESTADO.impl.set(mat, o); }
+      else if (ym < o.ym) o.ym = ym;
+      o.nOS++; o.eco += m.eco != null ? toNum(r[m.eco]) : 1;
+      return true;
+    });
+    if (semMat) st.obs.push(semMat + ' linha(s) sem matrícula válida');
+    if (dup) st.obs.push(dup + ' OS repetida(s) ignorada(s)');
+    if (semData) st.obs.push(semData + ' linha(s) sem data reconhecida');
+    return st;
+  },
+  async fat(l) {
+    const m = l.d.map, st = { lidas: 0, obs: [] }; let ligNova = 0, semMat = 0;
+    await lerAba(l.x, l.aba.path, (r, n) => {
+      if (n <= l.d.hdr) return true;
+      if (m.total != null && (r[m.total] === true || norm(r[m.total]) === 'true')) return true;   // linha de total geral
+      const mat = toMat(r[m.mat]); if (!mat) { semMat++; return true; }
+      st.lidas++;
+      if (!ESTADO.impl.has(mat)) return true;
+      const ym = toYm(r[m.ym]); if (!ym) return true;
+      let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, st: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
+      const sit = String(r[m.sit] ?? '').trim();
+      if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
+      if (norm(r[m.classe]).includes(CONFIG.classeLigacaoNova)) {
+        ligNova++;
+        const v = toNum(r[m.indAgua]);
+        if (v > 0) { F.bill = true; F.valor += v; if (!F.billYm || ym < F.billYm) F.billYm = ym; }
+      }
+      return true;
+    });
+    if (!ligNova) st.obs.push('Nenhuma linha de matrícula implantada com DSC_CLASSE Ligação nova');
+    return st;
+  },
+  async arr(l) {
+    const m = l.d.map, st = { lidas: 0, obs: [] };
+    await lerAba(l.x, l.aba.path, (r, n) => {
+      if (n <= l.d.hdr) return true;
+      const mat = toMat(r[m.mat]); if (!mat) return true;
+      st.lidas++;
+      if (!ESTADO.impl.has(mat)) return true;
+      const ym = toYm(r[m.mes]); if (!ym) return true;
+      const pagou = toNum(r[m.arr]) > 0 || (m.dias != null && toNum(r[m.dias]) > 0);
+      let A = ESTADO.arr.get(mat); if (!A) { A = { payYm: null }; ESTADO.arr.set(mat, A); }
+      if (pagou && (!A.payYm || ym < A.payYm)) A.payYm = ym;
+      return true;
+    });
+    return st;
+  }
+};
+
+function cruzar() {
+  const sac = new Set(CONFIG.situacoesSac);
+  ESTADO.LIN = [...ESTADO.impl.values()].map(o => {
+    const F = ESTADO.fat.get(o.mat), A = ESTADO.arr.get(o.mat);
+    const payYm = A ? A.payYm : null;
+    let cat = 'np', sitAtual = F ? F.lastSit : '';
+    if (payYm) {
+      if (!F || !F.st.size) cat = 'semfat';
+      else {
+        let ok = false; for (const [ym, set] of F.st) if (ym >= payYm && [...set].some(s => sac.has(s))) { ok = true; break; }
+        cat = ok ? 'sac' : 'fora';
+      }
+    }
+    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, payYm, sitAtual, cat };
+  }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
+}
+
+/* =====================================================================
+   TELA
+   ===================================================================== */
+function renderValidacao() {
+  $('#boxVal').classList.remove('oculto');
+  const rot = { ok: 'OK', aviso: 'Atenção', erro: 'Erro' };
+  $('#tabVal').innerHTML = '<thead><tr><th>Arquivo</th><th>Aba</th><th>Tipo identificado</th><th class="n">Linhas</th><th>Situação</th><th>Observação</th></tr></thead><tbody>' +
+    ESTADO.val.map(v => '<tr><td>' + esc(v.arquivo) + '</td><td>' + esc(v.aba) + '</td><td>' + (v.tipo ? esc(TIPOS[v.tipo].nome) : 'Não reconhecido') + '</td><td class="n">' + fInt(v.linhas) + '</td><td><span class="tag ' + v.status + '">' + rot[v.status] + '</span></td><td>' + esc(v.obs) + '</td></tr>').join('') + '</tbody>';
+  $('#notaVal').textContent = ESTADO.avisos.join(' ');
+}
+
+function preencher(sel, valores, rotulo, fmt) {
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">' + rotulo + '</option>' + valores.map(v => '<option value="' + esc(v) + '">' + esc(fmt ? fmt(v) : v) + '</option>').join('');
+  if (valores.includes(atual)) sel.value = atual;
+}
+function renderAnalise() {
+  const L = ESTADO.LIN; if (!L.length) { ['boxAnalise', 'boxMes', 'boxSup', 'boxLista'].forEach(i => $('#' + i).classList.add('oculto')); return; }
+  ['boxAnalise', 'boxMes', 'boxSup', 'boxLista'].forEach(i => $('#' + i).classList.remove('oculto'));
+  preencher($('#fMes'), [...new Set(L.map(x => x.ym))].sort(), 'Todos os meses', labelYm);
+  preencher($('#fSup'), [...new Set(L.map(x => x.sup))].sort(), 'Todas');
+  preencher($('#fCid'), [...new Set(L.map(x => x.cidade))].sort(), 'Todas');
+  aplicar();
+}
+function filtrado() {
+  const a = $('#fMes').value, b = $('#fSup').value, c = $('#fCid').value;
+  return ESTADO.LIN.filter(x => (!a || x.ym === a) && (!b || x.sup === b) && (!c || x.cidade === c));
+}
+function resumir(rows) {
+  const r = { impl: rows.length, os: 0, bill: 0, valor: 0, pagou: 0, sac: 0, fora: 0, semfat: 0, np: 0 };
+  for (const x of rows) { r.os += x.nOS; if (x.bill) r.bill++; r.valor += x.valor; if (x.payYm) r.pagou++; r[x.cat]++; }
+  r.deveria = r.fora + r.semfat; return r;
+}
+function aplicar() {
+  const rows = filtrado(), t = resumir(rows);
+  $('#kpis').innerHTML = [
+    ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', ''],
+    ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', ''],
+    ['Valor faturado (indireto água)', fMoeda(t.valor), 'Ligação nova', ''],
+    ['Clientes que pagaram', fInt(t.pagou), fPct(t.pagou, t.impl) + ' das implantadas', ''],
+    ['Pagaram e já estão no SAC', fInt(t.sac), 'Ativa Faturando ou Cortada', ''],
+    ['Pagaram e deveriam estar no SAC', fInt(t.deveria), fInt(t.fora) + ' com base sem a situação, ' + fInt(t.semfat) + ' fora da base', 'alvo']
+  ].map(k => '<div class="kpi ' + k[3] + '"><div class="rot">' + k[0] + '</div><div class="val">' + k[1] + '</div><div class="sub">' + k[2] + '</div></div>').join('');
+
+  const cab = '<thead><tr><th>@</th><th class="n">Implantadas</th><th class="n">Faturadas</th><th class="n">Valor faturado</th><th class="n">Pagaram</th><th class="n">No SAC</th><th class="n">Deveriam estar no SAC</th><th class="n">Não pagaram</th></tr></thead>';
+  const linha = (nome, r, cls) => '<tr class="' + (cls || '') + '"><td>' + esc(nome) + '</td><td class="n">' + fInt(r.impl) + '</td><td class="n">' + fInt(r.bill) + '</td><td class="n">' + fMoeda(r.valor) + '</td><td class="n">' + fInt(r.pagou) + '</td><td class="n">' + fInt(r.sac) + '</td><td class="n">' + fInt(r.deveria) + '</td><td class="n">' + fInt(r.np) + '</td></tr>';
+  const agrupar = (chave, fmt, ord) => {
+    const g = new Map(); for (const x of rows) { const k = chave(x); if (!g.has(k)) g.set(k, []); g.get(k).push(x); }
+    return [...g.keys()].sort(ord).map(k => linha(fmt(k), resumir(g.get(k)))).join('');
+  };
+  $('#tabMes').innerHTML = cab.replace('@', 'Mês') + '<tbody>' + agrupar(x => x.ym, labelYm) + linha('Total', t, 'total') + '</tbody>';
+  $('#tabSup').innerHTML = cab.replace('@', 'Superintendência') + '<tbody>' + agrupar(x => x.sup || '(sem sup)', s => s, (a, b) => a.localeCompare(b)) + linha('Total', t, 'total') + '</tbody>';
+
+  const lista = rows.filter(x => x.cat === 'fora' || x.cat === 'semfat');
+  const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
+  $('#tabLista').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th class="n">Valor faturado</th><th>Situação atual na base</th><th>Motivo</th></tr></thead><tbody>' +
+    lista.slice(0, 500).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td class="n">' + fMoeda(x.valor) + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + cat[x.cat] + '</td></tr>').join('') + '</tbody>';
+  $('#notaLista').textContent = lista.length > 500 ? 'Mostrando 500 de ' + fInt(lista.length) + ' matrículas. O CSV exporta todas.' : fInt(lista.length) + ' matrícula(s).';
+  $('#btnCsv').dataset.n = lista.length;
+}
+['fMes', 'fSup', 'fCid'].forEach(i => $('#' + i).onchange = aplicar);
+
+$('#btnCsv').onclick = () => {
+  const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
+  const rows = filtrado().filter(x => x.cat === 'fora' || x.cat === 'semfat');
+  const cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const csv = ['Matrícula;Cidade;Sup;Implantação;1º pagamento;Valor faturado;Situação atual;Motivo'].concat(rows.map(x =>
+    [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), String(x.valor.toFixed(2)).replace('.', ','), cel(x.sitAtual), cel(cat[x.cat])].join(';'))).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'sac_fora_do_sac.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+/* =====================================================================
+   CONEXÃO COM A PASTA (mesmo método do DRE)
+   ===================================================================== */
+const idb = {
+  open() { return new Promise((res, rej) => { const r = indexedDB.open('sacu', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async get(k) { try { const db = await this.open(); return await new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(null); }); } catch (e) { return null; } },
+  async set(k, v) { try { const db = await this.open(); await new Promise(res => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; }); } catch (e) {} }
+};
+async function coletar(handle, depth = 0) {
+  const out = [];
+  for await (const [name, h] of handle.entries()) {
+    if (h.kind === 'file' && /\.xlsx$/i.test(name) && !name.startsWith('~$')) out.push(await h.getFile());
+    else if (h.kind === 'directory' && depth < 5) out.push(...await coletar(h, depth + 1));
+  }
+  return out;
+}
+async function escolherPasta() {
+  if (window.showDirectoryPicker) {
+    try { dirHandle = await window.showDirectoryPicker({ mode: 'read' }); await idb.set('dir', dirHandle); $('#btnReload').hidden = false; await processar(await coletar(dirHandle)); }
+    catch (e) { if (e.name !== 'AbortError') setStatus('Erro ao abrir a pasta: ' + e.message, true); }
+  } else $('#fileFallback').click();
+}
+async function atualizar() {
+  if (!dirHandle) return escolherPasta();
+  try {
+    if ((await dirHandle.queryPermission({ mode: 'read' })) !== 'granted' && (await dirHandle.requestPermission({ mode: 'read' })) !== 'granted') return setStatus('Permissão de leitura negada.', true);
+    await processar(await coletar(dirHandle));
+  } catch (e) { setStatus('Erro ao atualizar: ' + e.message, true); }
+}
+$('#btnPasta').onclick = escolherPasta;
+$('#btnReload').onclick = atualizar;
+const soXlsx = e => Array.from(e.target.files).filter(f => /\.xlsx$/i.test(f.name) && !f.name.startsWith('~$'));
+$('#fileFallback').onchange = async e => { await processar(soXlsx(e)); e.target.value = ''; };
+$('#fileArquivos').onchange = async e => { await processar(soXlsx(e)); e.target.value = ''; };
+
+(async function init() {
+  if (!window.showDirectoryPicker) return;
+  const h = await idb.get('dir');
+  if (!h) return;
+  dirHandle = h; $('#btnReload').hidden = false;
+  try {
+    if ((await h.queryPermission({ mode: 'read' })) === 'granted') await processar(await coletar(h));
+    else setStatus('Pasta anterior encontrada. Clique em <b>Atualizar</b> para reconectar.');
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
