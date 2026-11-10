@@ -36,6 +36,8 @@ A aba **Dados** mostra o que foi lido, um resumo por mês dos valores identifica
 ## Versões
 A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.: **V1**). Ela sobe a cada alteração publicada no `main` (`VERSAO_BOOK` no script de `DRE_Unificado.html`: V1, V2, V3…) e também aparece no título da aba do navegador, nas mensagens de erro e no log.
 
+O SAC segue a mesma regra: a versão fica ao lado do título em `SAC.html` (`VERSAO_SAC`) e sobe a cada alteração publicada. A Central de Links (`index.html`) mostra a sua no rodapé.
+
 | Versão | O que mudou |
 |---|---|
 | V25 | Arquivos de Arrecadação com aba de explicação (ex.: "Informações" do Tabela_BI): a aba só é lida como Arrecadação quando o cabeçalho tem Cidade, Mes/ano e Arrecadacao_Acumulada. Antes, a aba "Informações" era lida e dava erro de colunas ausentes. |

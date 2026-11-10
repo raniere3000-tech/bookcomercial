@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio — SAC</title>
+<title>Águas do Rio — SAC V1</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -18,6 +18,7 @@
   }
   .topo { max-width: 1100px; margin: 0 auto 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
   h1 { font-size: 1.5rem; text-wrap: balance; }
+  .versao { margin-left: 8px; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; vertical-align: middle; background: rgba(159,225,231,0.18); color: #9fe1e7; font-variant-numeric: tabular-nums; }
   .voltar {
     display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px;
     border-radius: 14px; text-decoration: none; color: #fff; font-weight: 600;
@@ -35,11 +36,17 @@
 </head>
 <body>
   <div class="topo">
-    <h1>SAC — Análise</h1>
+    <h1>SAC — Análise <span class="versao" id="versao">V1</span></h1>
     <a class="voltar" href="index.html">Voltar</a>
   </div>
   <main>
     <p>Página criada. Os dados e indicadores do SAC entram aqui.</p>
   </main>
+<script>
+  // Versão do SAC: aumentar a cada alteração publicada (V2, V3…)
+  const VERSAO_SAC = 'V1';
+  document.getElementById('versao').textContent = VERSAO_SAC;
+  document.title = 'Águas do Rio — SAC ' + VERSAO_SAC;
+</script>
 </body>
 </html>
