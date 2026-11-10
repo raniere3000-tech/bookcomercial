@@ -36,7 +36,7 @@ A aba **Dados** mostra o que foi lido, um resumo por mês dos valores identifica
 ## Versões
 A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.: **V1**). Ela sobe a cada alteração publicada no `main` (`VERSAO_BOOK` no script de `DRE_Unificado.html`: V1, V2, V3…) e também aparece no título da aba do navegador, nas mensagens de erro e no log.
 
-O SAC segue a mesma regra: a versão fica ao lado do título em `SAC.html` (`VERSAO_SAC`) e sobe a cada alteração publicada. A Central de Links (`index.html`) mostra a sua no rodapé.
+O SAC segue a mesma regra: a versão (v5, v6…) fica no selo do cabeçalho de `SAC.html` (`VERSAO_SAC`) e sobe a cada alteração publicada. O visual segue o padrão dos painéis (cabeçalho marinho, abas, cartões brancos, faixa de KPIs). A Central de Links (`index.html`) mostra a sua no rodapé.
 
 ## SAC (`SAC.html`)
 Conecta a pasta com os Excel, como o DRE, e identifica cada arquivo pelo cabeçalho: implantações de ligações, faturamento e arrecadação. A tela de validação mostra o tipo reconhecido, as linhas lidas e as colunas que faltam. A análise cruza as matrículas implantadas com o faturamento (DSC_CLASSE Ligações de Água, faturamento indireto de água) e com a arrecadação, e lista as que pagaram mas não estão como Ativa Faturando ou Cortada a partir do mês do pagamento. As regras ficam em `CONFIG` no script.

@@ -3,120 +3,155 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC V4</title>
+<title>Águas do Rio | SAC v5</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="lib/jszip.min.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --fundo: #00264a; --painel: rgba(16,40,64,0.78); --linha: rgba(255,255,255,0.14);
-    --texto: #fff; --suave: rgba(255,255,255,0.72); --destaque: #16a5b8; --claro: #9fe1e7; --ruim: #f2b84b;
-  }
-  body { min-height: 100vh; padding: 28px 24px 48px; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--fundo); color: var(--texto); font-variant-numeric: tabular-nums; }
-  .pagina { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-  .topo { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-  h1 { font-size: 1.5rem; text-wrap: balance; }
-  h2 { font-size: 1.05rem; margin-bottom: 12px; text-wrap: balance; }
-  .versao { margin-left: 8px; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; vertical-align: middle; background: rgba(159,225,231,0.18); color: var(--claro); }
-  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border-radius: 14px; border: 1px solid var(--linha); background: rgba(255,255,255,0.1); color: #fff; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.15s ease, transform 0.15s ease; }
-  .btn:hover { background: rgba(255,255,255,0.18); }
-  .btn:active { transform: scale(0.97); }
-  .btn.principal { background: var(--destaque); border-color: transparent; }
-  .btn.principal:hover { background: #1bb6ca; }
-  .btn[hidden] { display: none; }
-  .acoes { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .painel { padding: 24px; border-radius: 24px; background: var(--painel); border: 1px solid var(--linha); box-shadow: 0 20px 50px rgba(0,0,0,0.35); }
-  .status { color: var(--suave); font-size: 0.92rem; margin-top: 12px; }
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; }
-  .kpi { padding: 16px; border-radius: 16px; background: rgba(255,255,255,0.07); border: 1px solid var(--linha); }
-  .kpi .rot { font-size: 0.8rem; color: var(--suave); }
-  .kpi .val { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
-  .kpi .sub { font-size: 0.78rem; color: var(--suave); margin-top: 2px; }
-  .kpi.alvo { border-color: var(--destaque); box-shadow: 0 0 0 1px var(--destaque) inset; }
-  .filtros { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 16px; }
-  .filtros label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--suave); }
-  select { min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--linha); background: #0b3358; color: #fff; font: inherit; min-width: 170px; }
-  .rolagem { overflow-x: auto; border-radius: 14px; border: 1px solid var(--linha); }
-  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-  th, td { padding: 10px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--linha); }
-  th { background: rgba(255,255,255,0.08); font-weight: 600; position: sticky; top: 0; }
-  td.n, th.n { text-align: right; }
-  tr:last-child td { border-bottom: 0; }
-  tr.total td { font-weight: 700; background: rgba(255,255,255,0.05); }
-  .tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
-  .tag.ok { background: rgba(22,165,184,0.25); color: var(--claro); }
-  .tag.aviso { background: rgba(242,184,75,0.2); color: var(--ruim); }
-  .tag.erro { background: rgba(242,184,75,0.35); color: var(--ruim); }
-  .nota { color: var(--suave); font-size: 0.85rem; margin-top: 10px; line-height: 1.5; }
-  .regras { color: var(--suave); font-size: 0.88rem; line-height: 1.6; padding-left: 18px; }
-  .oculto { display: none; }
-  @media (max-width: 600px) { body { padding: 20px 16px 40px; } .btn { min-height: 44px; } }
+:root { --navy:#102840; --blue:#176b9c; --cyan:#16a5b8; --ink:#1f2d3d; --muted:#64748b; --line:#dbe4ec; --bg:#f3f6f9;
+        --marinho:#1A2740; --azul:#394D73; --azul-claro:#49668C; --tint:#e7f0f6; --zebra:#f7fafc;
+        --laranja:#E8710A; --laranja-texto:#C2560C;
+        --fonte:'IBM Plex Sans','Segoe UI',Arial,sans-serif; --fonte-cond:'IBM Plex Sans Condensed','Segoe UI',Arial,sans-serif; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte); font-size:14px; font-variant-numeric:tabular-nums; }
+.oculto { display:none !important; }
+.top { background:linear-gradient(120deg, var(--navy), #174f70); color:#fff; padding:8px 14px 8px 20px; }
+.top-linha { display:flex; flex-wrap:nowrap; align-items:center; justify-content:space-between; gap:8px 14px; }
+.eyebrow { color:#9fe1e7; font-size:10px; letter-spacing:1.2px; font-weight:700; text-transform:uppercase; }
+.versao { margin-left:6px; padding:0 7px; border-radius:99px; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.4); font-size:9.5px; font-weight:800; color:#fff; text-transform:none; letter-spacing:.6px; }
+.top h1 { margin:0; font-size:14px; font-weight:600; white-space:nowrap; text-wrap:balance; }
+.filtros, .ferramentas { display:flex; gap:6px; align-items:center; }
+.fsel { display:flex; align-items:center; gap:6px; font-size:9px; font-weight:750; text-transform:uppercase; letter-spacing:.2px; color:#c8d6e5; transition:opacity .15s; }
+.fsel select { max-width:102px; text-overflow:ellipsis; border:1px solid rgba(255,255,255,.35); border-radius:8px; background:rgba(255,255,255,.1); color:#fff; padding:5px 6px; font:inherit; font-size:12px; font-weight:400; text-transform:none; letter-spacing:0; }
+.fsel select option { color:#111; }
+.btn-top { display:inline-flex; align-items:center; padding:5px 8px; border-radius:8px; font:inherit; font-size:12px; cursor:pointer; background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.3); text-decoration:none; white-space:nowrap; }
+.btn-top:hover { background:rgba(255,255,255,.22); }
+.btn-top[hidden] { display:none; }
+.btn-top:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+.fonte-status { margin-top:4px; font-size:11.5px; color:#bfe0eb; min-height:16px; }
+.barra { height:8px; margin-top:4px; border-radius:4px; background:rgba(255,255,255,.14); overflow:hidden; }
+.barra-fill { height:100%; width:0; background:linear-gradient(90deg, #16a5b8, #7ee0bc); transition:width .3s; }
+.barra.parada { display:none; }
+.tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; font-weight:700; }
+.tag.ok { background:#dcfce7; color:#166534; }
+.tag.aviso { background:#ffedd5; color:#9a3412; }
+.tag.erro { background:#ffedd5; color:#9a3412; border:1px solid #f59e0b; }
+.nav { padding:0 20px; background:#fff; border-bottom:1px solid var(--line); display:flex; gap:2px; overflow:auto; }
+.tab { border:0; background:none; padding:7px 14px; color:var(--muted); font:650 13px var(--fonte); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; }
+.tab.active { color:var(--blue); border-bottom-color:var(--cyan); }
+.tab:focus-visible, button:focus-visible, select:focus-visible, a:focus-visible { outline:2px solid var(--azul-claro); outline-offset:2px; }
+.view { display:none; padding:0 16px 32px; } .view.ativo { display:block; }
+.card { background:#fff; margin:10px auto; padding:14px 18px; max-width:1800px; border:1px solid var(--line); border-radius:12px; box-shadow:0 3px 12px rgba(17,42,66,.045); overflow-x:auto; }
+.card h2 { font-size:14px; font-weight:600; margin:0 0 8px; color:var(--marinho); text-wrap:balance; }
+.card-titulo { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.nota-secao { margin:-4px 0 8px; font-size:11.5px; line-height:1.35; color:var(--azul-claro); }
+.card.alerta { border-color:var(--laranja); } .card.alerta h2 { color:var(--laranja-texto); }
+.kpis { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:1px; background:var(--line); border-radius:8px; overflow:hidden; border:1px solid var(--line); }
+.kpi { background:#fff; border-top:3px solid var(--marinho); padding:8px 10px; }
+.kpi.neg { border-top-color:var(--laranja); }
+.kpi .rot { font-size:10.5px; font-weight:500; color:var(--azul-claro); }
+.kpi .val { font:600 15px var(--fonte-cond); color:var(--ink); margin-top:2px; }
+.kpi.neg .val { color:var(--laranja-texto); }
+.kpi .sub { font-size:11px; color:var(--azul-claro); margin-top:1px; }
+.tabela-wrap { overflow-x:auto; cursor:grab; scrollbar-width:thin; scrollbar-color:var(--azul-claro) transparent; }
+.tabela-wrap.grabbing { cursor:grabbing; user-select:none; }
+table { border-collapse:collapse; width:100%; font-family:var(--fonte-cond); font-size:12px; font-variant-numeric:tabular-nums; }
+th, td { border:1px solid var(--line); padding:5px 7px; text-align:center; white-space:nowrap; }
+th { background:var(--marinho); color:#fff; font-weight:600; font-size:11.5px; position:sticky; top:0; }
+tbody tr:nth-child(even) td { background:var(--zebra); } tbody tr:hover td { background:var(--tint); }
+tr.linha-total td { font-weight:700; background:var(--tint); }
+td.n, th.n { text-align:right; }
+td.neg { background:#FFC7CE !important; color:#9C0006; }
+.btn-just { padding:6px 12px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--marinho); font:600 12.5px var(--fonte); cursor:pointer; }
+.btn-just:hover { border-color:var(--azul-claro); }
+.mais { display:block; margin:8px auto 0; }
+.regras { margin:8px 0 0; padding-left:18px; font-size:11.5px; line-height:1.5; color:var(--azul-claro); }
+#aviso { position:fixed; right:16px; bottom:16px; z-index:20; display:none; max-width:360px; padding:10px 14px; border-radius:8px; background:var(--marinho); color:#fff; font-size:12.5px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+#aviso.erro { background:#9a3412; }
+@media (max-width:1100px) { .kpis { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+@media (max-width:900px) { .top, .nav { padding-left:16px; padding-right:16px; } .top-linha { flex-wrap:wrap; } .top h1 { white-space:normal; } }
+@media (max-width:560px) { .kpis { grid-template-columns:repeat(2, minmax(0,1fr)); } }
 </style>
 </head>
 <body>
-<div class="pagina">
-  <div class="topo">
-    <h1>SAC · Implantações de ligações <span class="versao" id="versao">V4</span></h1>
-    <div class="acoes">
-      <button class="btn principal" id="btnPasta">Conectar pasta</button>
-      <button class="btn" id="btnReload" hidden>Atualizar</button>
-      <a class="btn" href="index.html">Voltar</a>
+<header class="top">
+  <div class="top-linha">
+    <div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v5</span></div>
+      <h1>SAC: implantações de ligações</h1>
+    </div>
+    <div class="filtros">
+      <label class="fsel"><span>Mês</span><select id="fMes"><option value="">Todos os meses</option></select></label>
+      <label class="fsel"><span>Superintendência</span><select id="fSup"><option value="">Todas</option></select></label>
+      <label class="fsel"><span>Cidade</span><select id="fCid"><option value="">Todas</option></select></label>
+    </div>
+    <div class="ferramentas">
+      <button type="button" class="btn-top" id="btnPasta">📁 Conectar pasta</button>
+      <button type="button" class="btn-top" id="btnReload" hidden>↻ Atualizar</button>
+      <a class="btn-top" href="https://raniere3000-tech.github.io/bookcomercial/">🏠 Menu</a>
     </div>
   </div>
-  <input type="file" id="fileFallback" webkitdirectory multiple style="display:none">
-  <input type="file" id="fileArquivos" accept=".xlsx,.xlsm,.csv" multiple style="display:none">
-
-  <section class="painel">
-    <h2>Pasta e validação dos arquivos</h2>
-    <div class="status" id="status">Nenhuma pasta conectada. Escolha a pasta com os arquivos (.xlsx ou .csv) de implantações, faturamento e arrecadação. Cada arquivo é identificado pelo cabeçalho, não pelo nome.</div>
-    <div class="rolagem oculto" id="boxVal" style="margin-top:14px"><table id="tabVal"></table></div>
-    <p class="nota" id="notaVal"></p>
-  </section>
-
-  <section class="painel oculto" id="boxAnalise">
-    <h2>Quais ligações deveriam estar no SAC</h2>
-    <div class="filtros">
-      <label>Mês da implantação<select id="fMes"></select></label>
-      <label>Superintendência<select id="fSup"></select></label>
-      <label>Cidade<select id="fCid"></select></label>
+  <div class="fonte-status" id="status" aria-live="polite">Nenhuma pasta conectada. Escolha a pasta com os arquivos (.xlsx ou .csv) de implantações, faturamento e arrecadação.</div>
+  <div class="barra parada" id="barra"><div class="barra-fill" id="barraFill"></div></div>
+</header>
+<input type="file" id="fileFallback" webkitdirectory multiple style="display:none">
+<input type="file" id="fileArquivos" accept=".xlsx,.xlsm,.csv" multiple style="display:none">
+<nav class="nav" aria-label="Páginas do painel">
+  <button class="tab active" data-view="resumo" type="button">Resumo</button>
+  <button class="tab" data-view="lista" type="button">Fora do SAC</button>
+  <button class="tab" data-view="dados" type="button">Dados</button>
+</nav>
+<main>
+  <section class="view ativo" id="view-resumo">
+    <div class="card oculto" id="boxAnalise">
+      <h2>Indicadores de implantação</h2>
+      <p class="nota-secao">Matrículas implantadas cruzadas com o faturamento (Ligações de Água) e a arrecadação. Os filtros do cabeçalho valem para todas as telas.</p>
+      <div class="kpis" id="kpis"></div>
     </div>
-    <div class="kpis" id="kpis"></div>
-    <ul class="regras" style="margin-top:16px">
-      <li>No SAC: matrícula com situação final Ativa Faturando ou Cortada na base de faturamento.</li>
-      <li>Pagou: matrícula com arrecadação acumulada maior que zero, ou com dias de pagamento, na planilha de arrecadação.</li>
-      <li>Deveria estar no SAC: pagou e, do mês do primeiro pagamento em diante, a base de faturamento não mostra Ativa Faturando nem Cortada.</li>
-      <li>Faturada: matrícula com linha de DSC_CLASSE Ligações de Água e faturamento indireto de água maior que zero.</li>
-    </ul>
+    <div class="card" id="vazio"><h2>Resumo</h2><p class="nota-secao">Conecte a pasta para ver a análise.</p></div>
+    <div class="card oculto" id="boxMes"><h2>Resumo por mês de implantação</h2><div class="tabela-wrap"><table id="tabMes"></table></div></div>
+    <div class="card oculto" id="boxSup"><h2>Resumo por superintendência</h2><div class="tabela-wrap"><table id="tabSup"></table></div></div>
   </section>
-
-  <section class="painel oculto" id="boxMes">
-    <h2>Resumo por mês de implantação</h2>
-    <div class="rolagem"><table id="tabMes"></table></div>
-  </section>
-
-  <section class="painel oculto" id="boxSup">
-    <h2>Resumo por superintendência</h2>
-    <div class="rolagem"><table id="tabSup"></table></div>
-  </section>
-
-  <section class="painel oculto" id="boxLista">
-    <div class="topo" style="margin-bottom:12px">
-      <h2 style="margin:0">Matrículas que pagaram e ficaram fora do SAC</h2>
-      <button class="btn" id="btnCsv">Exportar CSV</button>
+  <section class="view" id="view-lista">
+    <div class="card alerta oculto" id="boxLista">
+      <div class="card-titulo"><h2>⚠ Pagaram e ficaram fora do SAC</h2><button type="button" class="btn-just" id="btnCsv" title="sac_fora_do_sac.csv" aria-label="Baixar CSV">⬇</button></div>
+      <p class="nota-secao">Matrículas com pagamento na arrecadação que, do mês do primeiro pagamento em diante, não aparecem como Ativa Faturando nem Cortada na base de faturamento.</p>
+      <div class="tabela-wrap"><table id="tabLista"></table></div>
+      <button type="button" class="btn-just mais oculto" id="btnMais"></button>
+      <p class="nota-secao" id="notaLista" style="margin-top:8px"></p>
     </div>
-    <div class="rolagem" style="max-height:480px"><table id="tabLista"></table></div>
-    <p class="nota" id="notaLista"></p>
+    <div class="card" id="vazio2"><h2>Fora do SAC</h2><p class="nota-secao">Conecte a pasta para ver a lista.</p></div>
   </section>
-</div>
+  <section class="view" id="view-dados">
+    <div class="card oculto" id="boxVal">
+      <h2>Validação dos arquivos</h2>
+      <p class="nota-secao">Cada arquivo é identificado pelo cabeçalho, não pelo nome.</p>
+      <div class="tabela-wrap"><table id="tabVal"></table></div>
+      <p class="nota-secao" id="notaVal" style="margin-top:8px"></p>
+    </div>
+    <div class="card">
+      <h2>Regras de cálculo</h2>
+      <ul class="regras">
+        <li>No SAC: matrícula com situação final Ativa Faturando ou Cortada na base de faturamento.</li>
+        <li>Pagou: matrícula com arrecadação acumulada maior que zero, ou com dias de pagamento, na planilha de arrecadação.</li>
+        <li>Deveria estar no SAC: pagou e, do mês do primeiro pagamento em diante, a base de faturamento não mostra Ativa Faturando nem Cortada.</li>
+        <li>Faturada: matrícula com linha de DSC_CLASSE Ligações de Água e faturamento indireto de água maior que zero.</li>
+        <li>Implantações: uma matrícula por linha, com OS repetidas ignoradas.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<div id="aviso" role="status"></div>
 
 <script>
 'use strict';
-// Versão do SAC: aumentar a cada alteração publicada (V3, V4…)
-const VERSAO_SAC = 'V4';
+// Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
+const VERSAO_SAC = 'v5';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
+
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -355,6 +390,11 @@ const ESTADO = { impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new 
 let dirHandle = null, ARQUIVOS = null;
 
 function setStatus(t, erro) { $('#status').innerHTML = erro ? '<span class="tag erro">Erro</span> ' + esc(t) : t; }
+function setProg(pct) { const b = $('#barra'); b.classList.toggle('parada', pct == null); if (pct != null) $('#barraFill').style.width = pct + '%'; }
+function aviso(texto, erro) {
+  const el = $('#aviso'); el.textContent = texto; el.className = erro ? 'erro' : ''; el.style.display = 'block';
+  clearTimeout(aviso.t); aviso.t = setTimeout(() => { el.style.display = 'none'; }, erro ? 9000 : 5000);
+}
 
 async function processar(files) {
   ARQUIVOS = files;
@@ -363,7 +403,7 @@ async function processar(files) {
   const lista = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    setStatus('Validando ' + (i + 1) + ' de ' + files.length + ': ' + esc(f.name));
+    setStatus('Validando ' + (i + 1) + ' de ' + files.length + ': ' + esc(f.name)); setProg(Math.round(i / files.length * 40));
     if (/\.(xls|xlsb)$/i.test(f.name)) { ESTADO.val.push({ arquivo: f.name, aba: '-', tipo: null, linhas: 0, status: 'erro', obs: 'Formato não suportado. Salve como .xlsx ou .csv' }); continue; }
     try {
       const x = await abrirXlsx(f);
@@ -376,7 +416,9 @@ async function processar(files) {
   const ordem = { impl: 0, fat: 1, arr: 2 };
   const reconhecidos = lista.filter(l => l.d).sort((a, b) => ordem[a.d.tipo] - ordem[b.d.tipo]);
   for (const l of lista.filter(l => !l.d)) ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: null, linhas: 0, status: 'aviso', obs: 'Cabeçalho não reconhecido, aba ignorada' });
+  let feitos = 0;
   for (const l of reconhecidos) {
+    setProg(40 + Math.round(feitos++ / Math.max(1, reconhecidos.length) * 60));
     setStatus('Lendo ' + esc(l.f.name) + ' (' + esc(l.aba.nome) + ')');
     if (l.d.faltando.length) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Colunas obrigatórias ausentes: ' + l.d.faltando.join(', ') }); continue; }
     try {
@@ -385,8 +427,10 @@ async function processar(files) {
     } catch (e) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Falha na leitura: ' + e.message }); }
   }
   for (const k of ['impl', 'fat', 'arr']) if (!ESTADO.val.some(v => v.tipo === k && v.status !== 'erro')) ESTADO.avisos.push('Falta a planilha de ' + TIPOS[k].nome.toLowerCase() + ' na pasta.');
-  cruzar(); renderValidacao(); renderAnalise();
-  setStatus('Pasta lida: ' + files.length + ' arquivo(s), ' + fInt(ESTADO.impl.size) + ' matrículas implantadas.');
+  cruzar(); renderValidacao(); renderAnalise(); setProg(null);
+  setStatus('Pasta lida: ' + files.length + ' arquivo(s) · ' + fInt(ESTADO.impl.size) + ' matrículas implantadas · atualizado em ' + new Date().toLocaleString('pt-BR'));
+  const erros = ESTADO.val.filter(v => v.status === 'erro').length + ESTADO.avisos.length;
+  aviso(erros ? 'Pasta lida com ' + erros + ' ponto(s) de atenção. Veja a aba Dados.' : 'Pasta lida e analisada.', !!erros);
 }
 
 const LEITORES = {
@@ -484,8 +528,9 @@ function preencher(sel, valores, rotulo, fmt) {
   if (valores.includes(atual)) sel.value = atual;
 }
 function renderAnalise() {
-  const L = ESTADO.LIN; if (!L.length) { ['boxAnalise', 'boxMes', 'boxSup', 'boxLista'].forEach(i => $('#' + i).classList.add('oculto')); return; }
-  ['boxAnalise', 'boxMes', 'boxSup', 'boxLista'].forEach(i => $('#' + i).classList.remove('oculto'));
+  const L = ESTADO.LIN; const caixas = ['boxAnalise', 'boxMes', 'boxSup', 'boxLista'];
+  caixas.forEach(i => $('#' + i).classList.toggle('oculto', !L.length)); $('#vazio').classList.toggle('oculto', !!L.length); $('#vazio2').classList.toggle('oculto', !!L.length);
+  if (!L.length) return;
   preencher($('#fMes'), [...new Set(L.map(x => x.ym))].sort(), 'Todos os meses', labelYm);
   preencher($('#fSup'), [...new Set(L.map(x => x.sup))].sort(), 'Todas');
   preencher($('#fCid'), [...new Set(L.map(x => x.cidade))].sort(), 'Todas');
@@ -508,7 +553,7 @@ function aplicar() {
     ['Valor faturado (indireto água)', fMoeda(t.valor), 'Ligações de Água', ''],
     ['Clientes que pagaram', fInt(t.pagou), fPct(t.pagou, t.impl) + ' das implantadas', ''],
     ['Pagaram e já estão no SAC', fInt(t.sac), 'Ativa Faturando ou Cortada', ''],
-    ['Pagaram e deveriam estar no SAC', fInt(t.deveria), fInt(t.fora) + ' com base sem a situação, ' + fInt(t.semfat) + ' fora da base', 'alvo']
+    ['Pagaram e deveriam estar no SAC', fInt(t.deveria), fInt(t.fora) + ' com base sem a situação, ' + fInt(t.semfat) + ' fora da base', 'neg']
   ].map(k => '<div class="kpi ' + k[3] + '"><div class="rot">' + k[0] + '</div><div class="val">' + k[1] + '</div><div class="sub">' + k[2] + '</div></div>').join('');
 
   const cab = '<thead><tr><th>@</th><th class="n">Implantadas</th><th class="n">Faturadas</th><th class="n">Valor faturado</th><th class="n">Pagaram</th><th class="n">No SAC</th><th class="n">Deveriam estar no SAC</th><th class="n">Não pagaram</th></tr></thead>';
@@ -517,16 +562,20 @@ function aplicar() {
     const g = new Map(); for (const x of rows) { const k = chave(x); if (!g.has(k)) g.set(k, []); g.get(k).push(x); }
     return [...g.keys()].sort(ord).map(k => linha(fmt(k), resumir(g.get(k)))).join('');
   };
-  $('#tabMes').innerHTML = cab.replace('@', 'Mês') + '<tbody>' + agrupar(x => x.ym, labelYm) + linha('Total', t, 'total') + '</tbody>';
-  $('#tabSup').innerHTML = cab.replace('@', 'Superintendência') + '<tbody>' + agrupar(x => x.sup || '(sem sup)', s => s, (a, b) => a.localeCompare(b)) + linha('Total', t, 'total') + '</tbody>';
+  $('#tabMes').innerHTML = cab.replace('@', 'Mês') + '<tbody>' + agrupar(x => x.ym, labelYm) + linha('Total', t, 'linha-total') + '</tbody>';
+  $('#tabSup').innerHTML = cab.replace('@', 'Superintendência') + '<tbody>' + agrupar(x => x.sup || '(sem sup)', s => s, (a, b) => a.localeCompare(b)) + linha('Total', t, 'linha-total') + '</tbody>';
 
   const lista = rows.filter(x => x.cat === 'fora' || x.cat === 'semfat');
   const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
+  const lim = tudo ? lista.length : 15;
   $('#tabLista').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th class="n">Valor faturado</th><th>Situação atual na base</th><th>Motivo</th></tr></thead><tbody>' +
-    lista.slice(0, 500).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td class="n">' + fMoeda(x.valor) + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + cat[x.cat] + '</td></tr>').join('') + '</tbody>';
-  $('#notaLista').textContent = lista.length > 500 ? 'Mostrando 500 de ' + fInt(lista.length) + ' matrículas. O CSV exporta todas.' : fInt(lista.length) + ' matrícula(s).';
-  $('#btnCsv').dataset.n = lista.length;
+    lista.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td class="n">' + fMoeda(x.valor) + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + cat[x.cat] + '</td></tr>').join('') + '</tbody>';
+  const mais = $('#btnMais'); mais.classList.toggle('oculto', lista.length <= 15);
+  mais.textContent = tudo ? 'Mostrar só os 15 primeiros' : 'Mostrar todos (' + fInt(lista.length) + ')';
+  $('#notaLista').textContent = fInt(lista.length) + ' matrícula(s)' + (tudo && lista.length > 2000 ? '. A tela mostra todas; o CSV traz o mesmo recorte.' : '.');
 }
+let tudo = false;
+$('#btnMais').onclick = () => { tudo = !tudo; aplicar(); };
 ['fMes', 'fSup', 'fCid'].forEach(i => $('#' + i).onchange = aplicar);
 
 $('#btnCsv').onclick = () => {
@@ -573,6 +622,18 @@ $('#btnReload').onclick = atualizar;
 const soXlsx = e => Array.from(e.target.files).filter(f => /\.(xlsx|xlsm|csv|xls|xlsb)$/i.test(f.name) && !f.name.startsWith('~$'));
 $('#fileFallback').onchange = async e => { await processar(soXlsx(e)); e.target.value = ''; };
 $('#fileArquivos').onchange = async e => { await processar(soXlsx(e)); e.target.value = ''; };
+
+document.querySelector('.nav').addEventListener('click', e => {
+  const t = e.target.closest('.tab'); if (!t) return;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === t));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('ativo', v.id === 'view-' + t.dataset.view));
+});
+document.querySelectorAll('.tabela-wrap').forEach(wrap => {
+  let down = false, x0 = 0, sl = 0;
+  wrap.addEventListener('mousedown', e => { down = true; wrap.classList.add('grabbing'); x0 = e.pageX - wrap.offsetLeft; sl = wrap.scrollLeft; });
+  ['mouseleave', 'mouseup'].forEach(ev => wrap.addEventListener(ev, () => { down = false; wrap.classList.remove('grabbing'); }));
+  wrap.addEventListener('mousemove', e => { if (!down) return; e.preventDefault(); wrap.scrollLeft = sl - (e.pageX - wrap.offsetLeft - x0) * 1.5; });
+});
 
 (async function init() {
   if (!window.showDirectoryPicker) return;
