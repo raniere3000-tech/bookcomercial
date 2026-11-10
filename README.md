@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V24 | DRE Histórico: a arrecadação passa a somar todas as cidades da superintendência que estão no arquivo de Arrecadação, inclusive as que não aparecem no Comercial. Antes, com o filtro LESTE, a arrecadação ficava vazia quando o Comercial não trazia cidades da LESTE. O filtro de cidades também lista essas cidades, e o botão da superintendência aparece mesmo quando ela só existe na Arrecadação. |
 | V23 | Ícone de DRE na aba do navegador (painel e página inicial): `icone-dre.svg`, com `icone-dre-32.png` e `icone-dre-180.png` para navegadores sem SVG e atalho no celular. Cores da paleta Águas do Rio (degradê `#102840` → `#174f70`, barra `#16a5b8`). |
 | V22 | Realizado antes do Orçado em todos os quadros: aba DRE (tela e PDF), DRE Mensais, Arrecadação, tabela do Orçado RF e Quadro para apresentação (imagem e tabela). Opção e nome de arquivo passam a “Só Realizado e Orçado” / `_Realizado_Orcado`. |
 | V21 | PDF com cada visão inteira em uma página (a letra diminui até caber; A4 deitado, ou A3 quando não couber). Padrão: um arquivo só com a Visão Normal na página 1 e a Visão Auditoria na página 2 (`..._Visao_Normal_e_Auditoria.pdf`); continua dando para gerar dois arquivos ou uma visão só. No topo de cada página, “Visão Auditoria: Sim (situações)” sai destacado em amarelo. |

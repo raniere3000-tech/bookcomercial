@@ -420,8 +420,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V23';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.06-a';
+const VERSAO_BOOK = 'V24';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.10-a';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -882,6 +882,7 @@ function audSig() { return S.aud ? Array.from(S.audSel).sort().join(',') : '*'; 
 function supList() {
   const s = new Set(); if (D.com) D.com.sups.forEach(x => s.add(x));
   Object.values(D.rf).forEach(r => r.bySup.forEach((_, k) => s.add(k)));
+  if (D.arr) D.arr.byCid.forEach((_, c) => supsOf(c).forEach(x => s.add(x)));   // superintendência que só aparece na Arrecadação
   const l = Array.from(s).sort(); if (l.length > 1) l.push('TODAS'); return l;
 }
 const supOk = (e, sup) => sup === 'TODAS' || e.sups.includes(sup);
@@ -1414,9 +1415,10 @@ function fmtH(v, tipo) {
   if (tipo === 'pct') return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
   return v.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 }
-const histCidades = () => {
-  if (!D.com) return [];
-  const s = new Set(); D.com.entries.forEach(e => { if (supOk(e, S.sup)) s.add(e.cid); });
+const histCidades = () => {   // cidades do Comercial e da Arrecadação (uma cidade pode estar só na Arrecadação)
+  const s = new Set();
+  if (D.com) D.com.entries.forEach(e => { if (supOk(e, S.sup)) s.add(e.cid); });
+  if (D.arr) D.arr.byCid.forEach((_, c) => { if (S.sup === 'TODAS' || supsOf(c).includes(S.sup)) s.add(c); });
   return Array.from(s).sort();
 };
 function histMonths() { return allMonths().filter(m => !D.com || D.com.realMonths.has(m) || (D.arr && D.arr.byYm.has(m))); }
