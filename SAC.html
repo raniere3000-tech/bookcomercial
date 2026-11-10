@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v6</title>
+<title>Águas do Rio | SAC v7</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -70,6 +70,21 @@ td.neg { background:#FFC7CE !important; color:#9C0006; }
 .regras { margin:8px 0 0; padding-left:18px; font-size:11.5px; line-height:1.5; color:var(--azul-claro); }
 #aviso { position:fixed; right:16px; bottom:16px; z-index:20; display:none; max-width:360px; padding:10px 14px; border-radius:8px; background:var(--marinho); color:#fff; font-size:12.5px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
 #aviso.erro { background:#9a3412; }
+td.drill, .kpi.drill { cursor:pointer; }
+td.drill { color:var(--blue); font-weight:600; }
+td.drill:hover { background:#cfe3f0 !important; text-decoration:underline; }
+.kpi.drill:hover { background:#f2f8fc; }
+td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-claro); outline-offset:-2px; }
+#drillFundo { position:fixed; inset:0; z-index:30; background:rgba(16,40,64,.35); }
+#drill { position:fixed; top:0; right:0; bottom:0; z-index:31; width:min(760px,100vw); display:flex; flex-direction:column; background:#fff; border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(17,42,66,.18); }
+.drill-topo { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:12px 16px; background:linear-gradient(120deg, var(--navy), #174f70); color:#fff; }
+.drill-topo h2 { margin:2px 0 0; font-size:15px; font-weight:600; color:#fff; }
+.eyebrow-d { color:#9fe1e7; font-size:10px; letter-spacing:1.2px; font-weight:700; text-transform:uppercase; }
+.drill-acoes { display:flex; gap:6px; }
+.drill-busca { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--line); font-size:11.5px; color:var(--azul-claro); }
+.drill-busca input { flex:1; min-height:34px; padding:0 10px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:12.5px; }
+.drill-corpo { flex:1; overflow:auto; padding:0 16px; }
+#drill .mais { margin:8px auto 12px; }
 @media (max-width:1100px) { .kpis { grid-template-columns:repeat(3, minmax(0,1fr)); } }
 @media (max-width:900px) { .top, .nav { padding-left:16px; padding-right:16px; } .top-linha { flex-wrap:wrap; } .top h1 { white-space:normal; } }
 @media (max-width:560px) { .kpis { grid-template-columns:repeat(2, minmax(0,1fr)); } }
@@ -79,7 +94,7 @@ td.neg { background:#FFC7CE !important; color:#9C0006; }
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v6</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v7</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -148,12 +163,25 @@ td.neg { background:#FFC7CE !important; color:#9C0006; }
     </div>
   </section>
 </main>
+<div id="drillFundo" class="oculto"></div>
+<aside id="drill" class="oculto" role="dialog" aria-modal="true" aria-labelledby="drillTitulo">
+  <div class="drill-topo">
+    <div><div class="eyebrow-d" id="drillSub"></div><h2 id="drillTitulo"></h2></div>
+    <div class="drill-acoes">
+      <button type="button" class="btn-just" id="drillCsv" aria-label="Baixar CSV">⬇</button>
+      <button type="button" class="btn-just" id="drillFechar" aria-label="Fechar">✕</button>
+    </div>
+  </div>
+  <div class="drill-busca"><input type="search" id="drillBusca" placeholder="Filtrar por matrícula ou cidade" aria-label="Filtrar matrículas"><span id="drillCont"></span></div>
+  <div class="drill-corpo"><table id="drillTab"></table></div>
+  <button type="button" class="btn-just mais oculto" id="drillMais"></button>
+</aside>
 <div id="aviso" role="status"></div>
 
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v6';
+const VERSAO_SAC = 'v7';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -593,22 +621,23 @@ function resumir(rows) {
 function aplicar() {
   const rows = filtrado(), t = resumir(rows);
   $('#kpis').innerHTML = [
-    ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', ''],
-    ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', ''],
-    ['Valor faturado (indireto água)', fMoeda(t.valor), 'Ligações de Água', ''],
-    ['Clientes que pagaram', fInt(t.pagou), fPct(t.pagou, t.impl) + ' das implantadas', ''],
-    ['Pagaram e já estão no SAC', fInt(t.sac), 'Ativa Faturando ou Cortada', ''],
-    ['Pagaram e deveriam estar no SAC', fInt(t.deveria), fInt(t.fora) + ' com base sem a situação, ' + fInt(t.semfat) + ' fora da base', 'neg']
-  ].map(k => '<div class="kpi ' + k[3] + '"><div class="rot">' + k[0] + '</div><div class="val">' + k[1] + '</div><div class="sub">' + k[2] + '</div></div>').join('');
+    ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', '', 'impl'],
+    ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', '', 'bill'],
+    ['Valor faturado (indireto água)', fMoeda(t.valor), 'Ligações de Água', '', 'bill'],
+    ['Clientes que pagaram', fInt(t.pagou), fPct(t.pagou, t.impl) + ' das implantadas', '', 'pagou'],
+    ['Pagaram e já estão no SAC', fInt(t.sac), 'Ativa Faturando ou Cortada', '', 'sac'],
+    ['Pagaram e deveriam estar no SAC', fInt(t.deveria), fInt(t.fora) + ' com base sem a situação, ' + fInt(t.semfat) + ' fora da base', 'neg', 'deveria']
+  ].map(k => '<div class="kpi drill ' + k[3] + '" role="button" tabindex="0" data-t="tot" data-k="" data-m="' + k[4] + '" title="Ver matrículas"><div class="rot">' + k[0] + '</div><div class="val">' + k[1] + '</div><div class="sub">' + k[2] + '</div></div>').join('');
 
   const cab = '<thead><tr><th>@</th><th class="n">Implantadas</th><th class="n">Faturadas</th><th class="n">Valor faturado</th><th class="n">Pagaram</th><th class="n">No SAC</th><th class="n">Deveriam estar no SAC</th><th class="n">Não pagaram</th></tr></thead>';
-  const linha = (nome, r, cls) => '<tr class="' + (cls || '') + '"><td>' + esc(nome) + '</td><td class="n">' + fInt(r.impl) + '</td><td class="n">' + fInt(r.bill) + '</td><td class="n">' + fMoeda(r.valor) + '</td><td class="n">' + fInt(r.pagou) + '</td><td class="n">' + fInt(r.sac) + '</td><td class="n">' + fInt(r.deveria) + '</td><td class="n">' + fInt(r.np) + '</td></tr>';
-  const agrupar = (chave, fmt, ord) => {
+  const cel = (t, k, m, txt) => '<td class="n drill" role="button" tabindex="0" data-t="' + t + '" data-k="' + esc(k) + '" data-m="' + m + '" title="Ver matrículas">' + txt + '</td>';
+  const linha = (nome, r, cls, t, k) => '<tr class="' + (cls || '') + '"><td>' + esc(nome) + '</td>' + cel(t, k, 'impl', fInt(r.impl)) + cel(t, k, 'bill', fInt(r.bill)) + cel(t, k, 'bill', fMoeda(r.valor)) + cel(t, k, 'pagou', fInt(r.pagou)) + cel(t, k, 'sac', fInt(r.sac)) + cel(t, k, 'deveria', fInt(r.deveria)) + cel(t, k, 'np', fInt(r.np)) + '</tr>';
+  const agrupar = (tipo, chave, fmt, ord) => {
     const g = new Map(); for (const x of rows) { const k = chave(x); if (!g.has(k)) g.set(k, []); g.get(k).push(x); }
-    return [...g.keys()].sort(ord).map(k => linha(fmt(k), resumir(g.get(k)))).join('');
+    return [...g.keys()].sort(ord).map(k => linha(fmt(k), resumir(g.get(k)), '', tipo, k)).join('');
   };
-  $('#tabMes').innerHTML = cab.replace('@', 'Mês') + '<tbody>' + agrupar(x => x.ym, labelYm) + linha('Total', t, 'linha-total') + '</tbody>';
-  $('#tabSup').innerHTML = cab.replace('@', 'Superintendência') + '<tbody>' + agrupar(x => x.sup || '(sem sup)', s => s, (a, b) => a.localeCompare(b)) + linha('Total', t, 'linha-total') + '</tbody>';
+  $('#tabMes').innerHTML = cab.replace('@', 'Mês') + '<tbody>' + agrupar('mes', x => x.ym, labelYm) + linha('Total', t, 'linha-total', 'tot', '') + '</tbody>';
+  $('#tabSup').innerHTML = cab.replace('@', 'Superintendência') + '<tbody>' + agrupar('sup', x => x.sup || '(sem sup)', s => s, (a, b) => a.localeCompare(b)) + linha('Total', t, 'linha-total', 'tot', '') + '</tbody>';
 
   const lista = rows.filter(x => x.cat === 'fora' || x.cat === 'semfat');
   const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
@@ -620,6 +649,57 @@ function aplicar() {
   $('#notaLista').textContent = fInt(lista.length) + ' matrícula(s)' + (tudo && lista.length > 2000 ? '. A tela mostra todas; o CSV traz o mesmo recorte.' : '.');
 }
 let tudo = false;
+
+/* ---------- drill-down: clicar num número abre as matrículas no painel lateral ---------- */
+const METRICAS = {
+  impl: ['Implantadas', x => true],
+  bill: ['Faturadas', x => x.bill],
+  pagou: ['Pagaram', x => !!x.payYm],
+  sac: ['Pagaram e já no SAC', x => x.cat === 'sac'],
+  deveria: ['Deveriam estar no SAC', x => x.cat === 'fora' || x.cat === 'semfat'],
+  np: ['Não pagaram', x => x.cat === 'np']
+};
+const ROT_CAT = { sac: 'Pagou e está no SAC', fora: 'Pagou, base sem Ativa Faturando/Cortada', semfat: 'Pagou, sem linha no faturamento', np: 'Não pagou' };
+let DRILL = { rows: [], titulo: '', todos: false };
+function linhasDrill(t, k, m) {
+  return filtrado().filter(x => (t === 'tot' || (t === 'mes' ? x.ym === k : (x.sup || '(sem sup)') === k)) && METRICAS[m][1](x));
+}
+function abrirDrill(t, k, m) {
+  const rows = linhasDrill(t, k, m);
+  const grupo = t === 'tot' ? 'Todos os meses e superintendências' : (t === 'mes' ? labelYm(k) : k);
+  DRILL = { rows, todos: false, grupo, metrica: METRICAS[m][0] };
+  $('#drillSub').textContent = grupo; $('#drillTitulo').textContent = METRICAS[m][0] + ' (' + fInt(rows.length) + ')';
+  $('#drillBusca').value = '';
+  $('#drillFundo').classList.remove('oculto'); $('#drill').classList.remove('oculto');
+  desenharDrill(); $('#drillFechar').focus();
+}
+function fecharDrill() { $('#drillFundo').classList.add('oculto'); $('#drill').classList.add('oculto'); }
+function drillFiltrado() {
+  const q = norm($('#drillBusca').value); if (!q) return DRILL.rows;
+  return DRILL.rows.filter(x => x.mat.includes(q) || norm(x.cidade).includes(q));
+}
+function desenharDrill() {
+  const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th class="n">Valor faturado</th><th>1º pagamento</th><th>Situação na base</th><th>Classificação</th></tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td class="n">' + (x.bill ? fMoeda(x.valor) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + ROT_CAT[x.cat] + '</td></tr>').join('') + '</tbody>';
+  $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
+  const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
+  mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
+}
+$('#drillBusca').oninput = desenharDrill;
+$('#drillMais').onclick = () => { DRILL.todos = !DRILL.todos; desenharDrill(); };
+$('#drillFechar').onclick = fecharDrill; $('#drillFundo').onclick = fecharDrill;
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#drill').classList.contains('oculto')) fecharDrill(); });
+$('#drillCsv').onclick = () => {
+  const rows = drillFiltrado(), cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const csv = ['Matrícula;Cidade;Sup;Implantação;Valor faturado;1º pagamento;Situação na base;Classificação'].concat(rows.map(x =>
+    [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), x.bill ? x.valor.toFixed(2).replace('.', ',') : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual), cel(ROT_CAT[x.cat])].join(';'))).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'sac_' + norm(DRILL.metrica).replace(/\W+/g, '_') + '_' + norm(DRILL.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+const clickDrill = e => { const c = e.target.closest('.drill'); if (c && c.dataset.m) abrirDrill(c.dataset.t, c.dataset.k, c.dataset.m); };
+document.addEventListener('click', clickDrill);
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('drill')) { e.preventDefault(); clickDrill(e); } });
 $('#btnMais').onclick = () => { tudo = !tudo; aplicar(); };
 ['fMes', 'fSup', 'fCid'].forEach(i => $('#' + i).onchange = aplicar);
 
