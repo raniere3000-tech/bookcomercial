@@ -420,8 +420,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V24';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.10-a';
+const VERSAO_BOOK = 'V25';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.10-b';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -775,7 +775,7 @@ async function ingestArrec(file) {
   const diag = { file: file.name, linhas: 0, usadas: 0, descTotal: 0, descCidade: 0, descMes: 0, classif: new Set(), semSup: new Set(), somaArrec: 0, linhasMes: new Map(), meses: new Set(), pulos: 0 };
   await readXlsx(file, (r) => {
     if (!col) {
-      const hs = r.map(hnorm); if (!hs.includes('arrecadacao_acumulada') && diag.pulos++ < HDR_MAX) return true;   // pula linhas antes do cabeçalho
+      const hs = r.map(hnorm); if (!(hs.includes('arrecadacao_acumulada') && hs.includes('cidade')) && diag.pulos++ < HDR_MAX) return true;   // pula linhas antes do cabeçalho
       col = {}; r.forEach((h, i) => { if (h != null) col[hnorm(h)] = i; });
       const falta = ['cidade', 'mes_ano', 'arrecadacao_acumulada'].filter(c => !(c in col));
       if (falta.length) throw new Error('Arrecadação: colunas ausentes -> ' + falta.join(', '));
@@ -2073,7 +2073,7 @@ const HDR_MAX = 30;
 function tipoPorCabecalho(r) {
   const hs = r.map(hnorm);
   if (hs.includes('dsc_classe')) return 'com';
-  if (hs.includes('arrecadacao_acumulada')) return 'arr';
+  if (hs.includes('arrecadacao_acumulada') && hs.includes('cidade') && hs.includes('mes_ano')) return 'arr';   // aba de explicação que só cita a coluna não conta
   if (hs.includes('rubrica') || r.slice(2).filter(h => h != null && parseMonth(h)).length >= 3) return 'rf';
   return null;
 }
