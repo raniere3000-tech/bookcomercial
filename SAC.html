@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC V2</title>
+<title>Águas do Rio | SAC V3</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -58,7 +58,7 @@
 <body>
 <div class="pagina">
   <div class="topo">
-    <h1>SAC · Implantações de ligações <span class="versao" id="versao">V2</span></h1>
+    <h1>SAC · Implantações de ligações <span class="versao" id="versao">V3</span></h1>
     <div class="acoes">
       <button class="btn principal" id="btnPasta">Conectar pasta</button>
       <button class="btn" id="btnReload" hidden>Atualizar</button>
@@ -87,7 +87,7 @@
       <li>No SAC: matrícula com situação final Ativa Faturando ou Cortada na base de faturamento.</li>
       <li>Pagou: matrícula com arrecadação acumulada maior que zero, ou com dias de pagamento, na planilha de arrecadação.</li>
       <li>Deveria estar no SAC: pagou e, do mês do primeiro pagamento em diante, a base de faturamento não mostra Ativa Faturando nem Cortada.</li>
-      <li>Faturada: matrícula com linha de DSC_CLASSE Ligação nova e faturamento indireto de água maior que zero.</li>
+      <li>Faturada: matrícula com linha de DSC_CLASSE Ligações de Água e faturamento indireto de água maior que zero.</li>
     </ul>
   </section>
 
@@ -114,7 +114,7 @@
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (V3, V4…)
-const VERSAO_SAC = 'V2';
+const VERSAO_SAC = 'V3';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -131,7 +131,7 @@ const fPct = (a, b) => b ? (a / b * 100).toLocaleString('pt-BR', { maximumFracti
    ===================================================================== */
 const CONFIG = {
   situacoesSac: ['ativa faturando', 'cortada'],   // situação final que entra no SAC
-  classeLigacaoNova: 'ligacao nova'               // DSC_CLASSE das linhas de ligação nova
+  classeLigacaoAgua: 'ligacoes de agua'           // DSC_CLASSE das linhas de implantação de ligação de água
 };
 
 /* Cada tipo é reconhecido pelo cabeçalho: todas as colunas de "chave" precisam existir.
@@ -380,14 +380,14 @@ const LEITORES = {
       let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, st: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
       const sit = String(r[m.sit] ?? '').trim();
       if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
-      if (norm(r[m.classe]).includes(CONFIG.classeLigacaoNova)) {
+      if (norm(r[m.classe]) === CONFIG.classeLigacaoAgua) {
         ligNova++;
         const v = toNum(r[m.indAgua]);
         if (v > 0) { F.bill = true; F.valor += v; if (!F.billYm || ym < F.billYm) F.billYm = ym; }
       }
       return true;
     });
-    if (!ligNova) st.obs.push('Nenhuma linha de matrícula implantada com DSC_CLASSE Ligação nova');
+    if (!ligNova && ESTADO.impl.size) st.obs.push('Nenhuma linha de matrícula implantada com DSC_CLASSE Ligações de Água');
     return st;
   },
   async arr(l) {
@@ -462,7 +462,7 @@ function aplicar() {
   $('#kpis').innerHTML = [
     ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', ''],
     ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', ''],
-    ['Valor faturado (indireto água)', fMoeda(t.valor), 'Ligação nova', ''],
+    ['Valor faturado (indireto água)', fMoeda(t.valor), 'Ligações de Água', ''],
     ['Clientes que pagaram', fInt(t.pagou), fPct(t.pagou, t.impl) + ' das implantadas', ''],
     ['Pagaram e já estão no SAC', fInt(t.sac), 'Ativa Faturando ou Cortada', ''],
     ['Pagaram e deveriam estar no SAC', fInt(t.deveria), fInt(t.fora) + ' com base sem a situação, ' + fInt(t.semfat) + ' fora da base', 'alvo']
