@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v10</title>
+<title>Águas do Rio | SAC v11</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -51,7 +51,7 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .view { display:none; padding:0 16px 32px; } .view.ativo { display:block; }
 .card { background:#fff; margin:10px auto; padding:14px 18px; max-width:1800px; border:1px solid var(--line); border-radius:12px; box-shadow:0 3px 12px rgba(17,42,66,.045); overflow-x:auto; }
 .card h2 { font-size:14px; font-weight:600; margin:0 0 8px; color:var(--marinho); text-wrap:balance; }
-.card-titulo { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.card-titulo { display:flex; align-items:center; justify-content:space-between; gap:8px 10px; flex-wrap:wrap; margin-bottom:6px; }
 .nota-secao { margin:-4px 0 8px; font-size:11.5px; line-height:1.35; color:var(--azul-claro); }
 .card.alerta { border-color:var(--laranja); } .card.alerta h2 { color:var(--laranja-texto); }
 .kpis.c5 { grid-template-columns:repeat(5, minmax(0,1fr)); }
@@ -74,6 +74,7 @@ table { border-collapse:collapse; width:100%; font-family:var(--fonte-cond); fon
 th, td { border:1px solid var(--line); padding:5px 7px; text-align:center; white-space:nowrap; }
 th { background:var(--marinho); color:#fff; font-weight:600; font-size:11.5px; position:sticky; top:0; }
 tbody tr:nth-child(even) td { background:var(--zebra); } tbody tr:hover td { background:var(--tint); }
+tr.header-sub th { background:var(--azul); font-weight:500; }
 tr.linha-total td { font-weight:700; background:var(--tint); }
 td.n, th.n { text-align:right; }
 td.neg { background:#FFC7CE !important; color:#9C0006; }
@@ -107,7 +108,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v10</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v11</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -148,6 +149,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
       <div class="card-titulo">
         <h2>Resumo de faturamento por mês</h2>
         <div class="acoes-seg">
+          <div class="seg" role="group" aria-label="Visualização"><button type="button" id="visV" class="ativo" aria-pressed="true">Valores</button><button type="button" id="visD" aria-pressed="false">Variação</button></div>
           <div class="seg" role="group" aria-label="Tipo de faturamento"><button type="button" id="tipT" class="ativo" aria-pressed="true">Total</button><button type="button" id="tipD" aria-pressed="false">Direto</button><button type="button" id="tipI" aria-pressed="false">Indireto</button></div>
           <div class="seg" role="group" aria-label="Medida"><button type="button" id="medL" class="ativo" aria-pressed="true">Líquido</button><button type="button" id="medB" aria-pressed="false">Bruto</button></div>
         </div>
@@ -222,7 +224,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v10';
+const VERSAO_SAC = 'v11';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -722,7 +724,21 @@ function aplicar() {
 let tudo = false;
 
 /* ---------- resumo de faturamento: geral, auditoria hoje e auditoria corrigida ---------- */
-let FATMED = 'l', FATTIPO = 'tot';
+let FATMED = 'l', FATTIPO = 'tot', FATVIS = 'val';
+const fSinal = (p, casas) => (p > 0 ? '+' : '') + p.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }) + '%';
+function celDif(d) { return '<td class="n ' + (d < 0 ? 'neg' : '') + '">' + (d > 0 ? '▲ ' : d < 0 ? '▼ ' : '') + fMoeda(Math.abs(d)) + '</td>'; }
+function celPct(d, base) { if (!base) return '<td class="n">-</td>'; const p = d / Math.abs(base) * 100; return '<td class="n ' + (d < 0 ? 'neg' : '') + '">' + fSinal(p, 1) + '</td>'; }
+function renderVariacao() {
+  const R = resumoFat(true), mes = $('#fMes').value;
+  const val = o => [o.ger, o.aud, o.aj, o.aud + o.aj];
+  const par = (a, b, rot, cls) => '<tr class="' + (cls || '') + '"><td>' + rot + '</td>' + val(b).map((v, i) => celDif(v - val(a)[i]) + celPct(v - val(a)[i], val(a)[i])).join('') + '</tr>';
+  const vazia = rot => '<tr><td>' + rot + '</td>' + '<td class="n">-</td>'.repeat(8) + '</tr>';
+  let linhas = R.map((o, i) => ({ o, i })).filter(x => !mes || x.o.ym === mes).map(x => x.i ? par(R[x.i - 1], x.o, labelYm(x.o.ym) + ' contra ' + labelYm(R[x.i - 1].ym)) : vazia(labelYm(x.o.ym) + ' (primeiro mês)')).join('');
+  if (!mes && R.length > 1) linhas += par(R[0], R[R.length - 1], 'Período: ' + labelYm(R[0].ym) + ' até ' + labelYm(R[R.length - 1].ym), 'linha-total');
+  const grupo = t => '<th colspan="2">' + t + '</th>';
+  $('#tabFat').innerHTML = '<thead><tr><th rowspan="2">Mês contra o anterior</th>' + grupo('Faturamento geral') + grupo('Visão auditoria hoje') + grupo('Ajuste do SAC') + grupo('Visão auditoria corrigida') + '</tr><tr class="header-sub">' + '<th class="n">Dif. R$</th><th class="n">Dif. %</th>'.repeat(4) + '</tr></thead><tbody>' + linhas + '</tbody>';
+  $('#notaFat').textContent += ' Variação de cada mês contra o mês anterior da lista: ▼ é queda e ▲ é aumento.';
+}
 const CHAVES = { l: ['gl', 'al', 'l'], b: ['gb', 'ab', 'b'], dir: ['gd', 'ad', 'd'], ind: ['gi', 'ai', 'i'] };
 const medida = () => FATTIPO === 'tot' ? FATMED : FATTIPO;      // direto e indireto só existem no bruto
 const SUP_DRE = { 'Interior': ['APERIBE', 'CACHOEIRAS DE MACACU', 'CAMBUCI', 'CANTAGALO', 'CASIMIRO DE ABREU', 'CORDEIRO', 'DUAS BARRAS', 'ITAOCARA', 'MIRACEMA', 'RIO BONITO', 'S.FCO.DO ITABAPOANA', 'S.SEBASTIAO DO ALTO'],
@@ -735,18 +751,18 @@ function supDaCidade(cid) {
   }
   return supDaCidade.mapa.get(cid) || '(sem sup)';
 }
-function ajusteFiltrado() {
-  const a = $('#fMes').value, b = $('#fSup').value, c = $('#fCid').value;
+function ajusteFiltrado(semMes) {
+  const a = semMes ? '' : $('#fMes').value, b = $('#fSup').value, c = $('#fCid').value;
   return ESTADO.AJ.filter(x => (!a || x.ym === a) && (!b || norm(x.sup) === norm(b)) && (!c || norm(x.cidade) === norm(c)));
 }
-function resumoFat() {
-  const a = $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), g = CHAVES[medida()];
+function resumoFat(semMes) {
+  const a = semMes ? '' : $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), g = CHAVES[medida()];
   const meses = new Map(), ev = ym => { let o = meses.get(ym); if (!o) { o = { ym, ger: 0, aud: 0, aj: 0, n: 0, mats: new Set() }; meses.set(ym, o); } return o; };
   for (const e of ESTADO.agg.values()) {
     if (a && e.ym !== a) continue; if (c && e.cid !== c) continue; if (b && norm(supDaCidade(e.cid)) !== b) continue;
     const o = ev(e.ym); o.ger += e[g[0]]; o.aud += e[g[1]];
   }
-  for (const x of ajusteFiltrado()) { const o = ev(x.ym); o.aj += x[g[2]]; o.n++; o.mats.add(x.mat); }
+  for (const x of ajusteFiltrado(semMes)) { const o = ev(x.ym); o.aj += x[g[2]]; o.n++; o.mats.add(x.mat); }
   return [...meses.values()].sort((p, q) => p.ym < q.ym ? -1 : 1);
 }
 function renderFat() {
@@ -759,6 +775,7 @@ function renderFat() {
   const ativoM = dividido ? 'b' : FATMED;
   $('#medL').classList.toggle('ativo', ativoM === 'l'); $('#medB').classList.toggle('ativo', ativoM === 'b');
   $('#medL').setAttribute('aria-pressed', ativoM === 'l'); $('#medB').setAttribute('aria-pressed', ativoM === 'b');
+  for (const [id, v] of [['visV', 'val'], ['visD', 'var']]) { $('#' + id).classList.toggle('ativo', FATVIS === v); $('#' + id).setAttribute('aria-pressed', FATVIS === v); }
   for (const [id, v] of [['tipT', 'tot'], ['tipD', 'dir'], ['tipI', 'ind']]) { $('#' + id).classList.toggle('ativo', FATTIPO === v); $('#' + id).setAttribute('aria-pressed', FATTIPO === v); }
   $('#notaFat').textContent = FATTIPO === 'dir' ? 'Faturamento direto (bruto): colunas diretas de água e esgoto nas classes Contas de Água e Contas de Esgoto.'
     : FATTIPO === 'ind' ? 'Faturamento indireto (bruto): colunas indiretas de água e esgoto, em todas as classes (ligações, religações, cortes, sanções e outras).'
@@ -771,10 +788,12 @@ function renderFat() {
     ['Visão auditoria corrigida', fMoeda(T.aud + T.aj), fPct(T.aud + T.aj, T.ger) + ' do geral', '', ''],
     ['Fora da auditoria depois do ajuste', fMoeda(T.ger - T.aud - T.aj), 'Ainda sem pagamento ou sem situação', '', '']
   ].map(k => '<div class="kpi ' + k[3] + ' ' + k[4] + '"' + (k[4] ? ' role="button" tabindex="0" data-t="fat" data-k="" data-m="ajuste" title="Ver matrículas do ajuste"' : '') + '><div class="rot">' + k[0] + '</div><div class="val">' + k[1] + '</div><div class="sub">' + k[2] + '</div></div>').join('');
+  if (FATVIS === 'var') return renderVariacao();
   const lin = (nome, o, cls, k) => '<tr class="' + cls + '"><td>' + nome + '</td><td class="n">' + fMoeda(o.ger) + '</td><td class="n">' + fMoeda(o.aud) + '</td><td class="n">' + fPct(o.aud, o.ger) + '</td><td class="n drill" role="button" tabindex="0" data-t="fat" data-k="' + k + '" data-m="ajuste" title="Ver matrículas do ajuste">' + fMoeda(o.aj) + '</td><td class="n">' + fMoeda(o.aud + o.aj) + '</td><td class="n">' + fPct(o.aud + o.aj, o.ger) + '</td></tr>';
   $('#tabFat').innerHTML = '<thead><tr><th>Mês</th><th class="n">Faturamento geral</th><th class="n">Visão auditoria hoje</th><th class="n">% do geral</th><th class="n">Ajuste do SAC</th><th class="n">Visão auditoria corrigida</th><th class="n">% do geral</th></tr></thead><tbody>' +
     R.map(o => lin(labelYm(o.ym), o, '', o.ym)).join('') + lin('Total', T, 'linha-total', '') + '</tbody>';
 }
+$('#visV').onclick = () => { FATVIS = 'val'; renderFat(); }; $('#visD').onclick = () => { FATVIS = 'var'; renderFat(); };
 $('#medL').onclick = () => { if (ESTADO.temLiq) { FATMED = 'l'; renderFat(); } };
 $('#tipT').onclick = () => { FATTIPO = 'tot'; renderFat(); }; $('#tipD').onclick = () => { FATTIPO = 'dir'; renderFat(); }; $('#tipI').onclick = () => { FATTIPO = 'ind'; renderFat(); };
 $('#medB').onclick = () => { FATMED = 'b'; renderFat(); };
