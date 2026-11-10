@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v9</title>
+<title>Águas do Rio | SAC v10</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -17,6 +17,12 @@
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte); font-size:14px; font-variant-numeric:tabular-nums; }
 .oculto { display:none !important; }
+.acc { padding-top:4px; padding-bottom:10px; }
+.acc > summary { display:flex; align-items:center; gap:8px; min-height:44px; cursor:pointer; list-style:none; font-size:14px; font-weight:600; color:var(--marinho); }
+.acc > summary::-webkit-details-marker { display:none; }
+.acc > summary::before { content:'▸'; display:inline-block; width:14px; color:var(--azul-claro); }
+.acc[open] > summary::before { content:'▾'; }
+.acc > summary:focus-visible { outline:2px solid var(--azul-claro); outline-offset:2px; border-radius:6px; }
 .top { background:linear-gradient(120deg, var(--navy), #174f70); color:#fff; padding:8px 14px 8px 20px; }
 .top-linha { display:flex; flex-wrap:nowrap; align-items:center; justify-content:space-between; gap:8px 14px; }
 .eyebrow { color:#9fe1e7; font-size:10px; letter-spacing:1.2px; font-weight:700; text-transform:uppercase; }
@@ -101,7 +107,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v9</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v10</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -169,27 +175,33 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     <div class="card" id="vazio2"><h2>Fora do SAC</h2><p class="nota-secao">Conecte a pasta para ver a lista.</p></div>
   </section>
   <section class="view" id="view-dados">
-    <div class="card oculto" id="boxVal">
-      <h2>Validação dos arquivos</h2>
+    <details class="card acc oculto" id="boxVal" open>
+      <summary>Validação dos arquivos</summary>
       <p class="nota-secao">Cada arquivo é identificado pelo cabeçalho, não pelo nome.</p>
       <div class="tabela-wrap"><table id="tabVal"></table></div>
       <p class="nota-secao" id="notaVal" style="margin-top:8px"></p>
-    </div>
-    <div class="card oculto" id="boxDiag">
-      <h2>Diagnóstico do cruzamento</h2>
+    </details>
+    <details class="card acc oculto" id="boxDiag">
+      <summary>Diagnóstico do cruzamento</summary>
       <p class="nota-secao">Mostra onde as matrículas deixam de casar entre as planilhas. Compare as amostras: o formato precisa ser o mesmo.</p>
       <div class="tabela-wrap"><table id="tabDiag"></table></div>
-    </div>
-    <div class="card">
-      <h2>Regras de cálculo</h2>
+    </details>
+    <details class="card acc oculto" id="boxDesc">
+      <summary>Faturamento: linhas somadas e descartadas</summary>
+      <p class="nota-secao">O faturamento só soma linhas que têm matrícula. O que ficou de fora aparece aqui, com o valor.</p>
+      <div class="tabela-wrap"><table id="tabDesc"></table></div>
+    </details>
+    <details class="card acc">
+      <summary>Regras de cálculo</summary>
       <ul class="regras">
         <li>No SAC: matrícula com situação final Ativa Faturando ou Cortada na base de faturamento.</li>
         <li>Pagou: matrícula com arrecadação acumulada maior que zero, ou com dias de pagamento, na planilha de arrecadação.</li>
         <li>Deveria estar no SAC: pagou e, do mês do primeiro pagamento em diante, a base de faturamento não mostra Ativa Faturando nem Cortada.</li>
         <li>Faturada: matrícula com linha de DSC_CLASSE Ligações de Água e faturamento indireto de água maior que zero.</li>
         <li>Implantações: uma matrícula por linha, com OS repetidas ignoradas.</li>
+        <li>Faturamento (resumo por mês): só entram linhas com matrícula, sem a linha de total do arquivo e sem classe 0 ou vazia.</li>
       </ul>
-    </div>
+    </details>
   </section>
 </main>
 <div id="drillFundo" class="oculto"></div>
@@ -210,7 +222,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v9';
+const VERSAO_SAC = 'v10';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -453,7 +465,8 @@ async function inspecionarAba(x, aba) {
    LEITURA E CRUZAMENTO
    ===================================================================== */
 const DIAG = { impl: {}, fat: {}, arr: {} };
-const ESTADO = { agg: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
+const novoDesc = () => ({ somadas: 0, total: 0, classe0: 0, semCidade: 0, semMes: 0, sci: 0, semMat: { n: 0, b: 0, l: 0 } });
+const ESTADO = { desc: novoDesc(), agg: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
 let dirHandle = null, ARQUIVOS = null;
 
 function setStatus(t, erro) { $('#status').innerHTML = erro ? '<span class="tag erro">Erro</span> ' + esc(t) : t; }
@@ -466,7 +479,7 @@ function aviso(texto, erro) {
 async function processar(files) {
   ARQUIVOS = files;
   DIAG.impl = {}; DIAG.fat = {}; DIAG.arr = {};
-  Object.assign(ESTADO, { agg: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
+  Object.assign(ESTADO, { desc: novoDesc(), agg: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
   if (!files.length) { setStatus('Nenhum arquivo .xlsx ou .csv encontrado na pasta.', true); return; }
   const lista = [];
   for (let i = 0; i < files.length; i++) {
@@ -495,7 +508,7 @@ async function processar(files) {
     } catch (e) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Falha na leitura: ' + e.message }); }
   }
   for (const k of ['impl', 'fat', 'arr']) if (!ESTADO.val.some(v => v.tipo === k && v.status !== 'erro')) ESTADO.avisos.push('Falta a planilha de ' + TIPOS[k].nome.toLowerCase() + ' na pasta.');
-  supDaCidade.mapa = null; cruzar(); renderValidacao(); renderDiag(); renderAnalise(); renderFat(); setProg(null);
+  supDaCidade.mapa = null; cruzar(); renderValidacao(); renderDiag(); renderDesc(); renderAnalise(); renderFat(); setProg(null);
   setStatus('Pasta lida: ' + files.length + ' arquivo(s) · ' + fInt(ESTADO.impl.size) + ' matrículas implantadas · atualizado em ' + new Date().toLocaleString('pt-BR'));
   const erros = ESTADO.val.filter(v => v.status === 'erro').length + ESTADO.avisos.length;
   aviso(erros ? 'Pasta lida com ' + erros + ' ponto(s) de atenção. Veja a aba Dados.' : 'Pasta lida e analisada.', !!erros);
@@ -549,16 +562,19 @@ const LEITORES = {
     const num = (r, k) => m[k] != null ? toNum(r[m[k]]) : 0;
     await lerAba(l.x, l.aba.path, (r, n) => {
       if (n <= l.d.hdr) return true;
-      if (m.total != null && (r[m.total] === true || norm(r[m.total]) === 'true')) return true;   // linha de total geral
-      const cls = norm(r[m.classe]); if (cls === '' || cls === '0') return true;                    // total sem abertura
-      const cid = m.cidade != null ? norm(r[m.cidade]) : ''; if (m.cidade != null && (!cid || cid === '0')) return true;
-      const ym = toYm(r[m.ym]); if (!ym) { c.semMes++; return true; }
+      const D = ESTADO.desc;
+      if (m.total != null && (r[m.total] === true || norm(r[m.total]) === 'true')) { D.total++; return true; }   // linha de total geral
+      const cls = norm(r[m.classe]); if (cls === '' || cls === '0') { D.classe0++; return true; }                    // total sem abertura
+      const cid = m.cidade != null ? norm(r[m.cidade]) : ''; if (m.cidade != null && (!cid || cid === '0')) { D.semCidade++; return true; }
+      const ym = toYm(r[m.ym]); if (!ym) { c.semMes++; D.semMes++; return true; }
       const sit = String(r[m.sit] ?? '').trim(), ok = sac.has(norm(sit));
       const bd = direta.has(cls) ? num(r, 'dirA') + num(r, 'dirE') : 0, bi = num(r, 'indAgua') + num(r, 'indEsg'), bm = bd + bi, lm = num(r, 'liq');
+      const mat = lerMat(r[m.mat], c);
+      if (!mat) { D.semMat.n++; D.semMat.b += bm; D.semMat.l += lm; if (toMat(r[m.mat]) === 'CIENTIFICA') D.sci++; return true; }   // só soma linha com matrícula
+      D.somadas++;
       const key = ym + '|' + cid; let g = ESTADO.agg.get(key);
       if (!g) { g = { ym, cid, gb: 0, gl: 0, ab: 0, al: 0, gd: 0, gi: 0, ad: 0, ai: 0 }; ESTADO.agg.set(key, g); }
       g.gb += bm; g.gl += lm; g.gd += bd; g.gi += bi; if (ok) { g.ab += bm; g.al += lm; g.ad += bd; g.ai += bi; }
-      const mat = lerMat(r[m.mat], c); if (!mat) return true;
       st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
       c.casam.add(mat);
@@ -619,6 +635,17 @@ function cruzar() {
 /* =====================================================================
    TELA
    ===================================================================== */
+function renderDesc() {
+  const D = ESTADO.desc, tem = ESTADO.agg.size > 0 || D.semMat.n > 0;
+  $('#boxDesc').classList.toggle('oculto', !tem); if (!tem) return;
+  let sb = 0, sl = 0; for (const e of ESTADO.agg.values()) { sb += e.gb; sl += e.gl; }
+  const lin = (nome, n, b, l, cls) => '<tr class="' + (cls || '') + '"><td style="text-align:left">' + nome + '</td><td class="n">' + fInt(n) + '</td><td class="n">' + (b == null ? '-' : fMoeda(b)) + '</td><td class="n">' + (l == null ? '-' : fMoeda(l)) + '</td></tr>';
+  $('#tabDesc').innerHTML = '<thead><tr><th>Linhas do faturamento</th><th class="n">Quantidade</th><th class="n">Bruto</th><th class="n">Líquido</th></tr></thead><tbody>' +
+    lin('Somadas no resumo (com matrícula)', D.somadas, sb, sl, 'linha-total') +
+    lin('Descartadas: sem matrícula' + (D.sci ? ' (' + fInt(D.sci) + ' em notação científica)' : ''), D.semMat.n, D.semMat.b, D.semMat.l) +
+    lin('Descartadas: linha de total do arquivo', D.total) + lin('Descartadas: classe 0 ou vazia', D.classe0) +
+    lin('Descartadas: sem cidade', D.semCidade) + lin('Descartadas: mês não reconhecido', D.semMes) + '</tbody>';
+}
 function renderDiag() {
   const I = ESTADO.impl.size; $('#boxDiag').classList.toggle('oculto', !I && !DIAG.impl.linhas);
   const nPag = [...ESTADO.arr.values()].filter(a => a.payYm).length;
