@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC V3</title>
+<title>Águas do Rio | SAC V4</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -58,7 +58,7 @@
 <body>
 <div class="pagina">
   <div class="topo">
-    <h1>SAC · Implantações de ligações <span class="versao" id="versao">V3</span></h1>
+    <h1>SAC · Implantações de ligações <span class="versao" id="versao">V4</span></h1>
     <div class="acoes">
       <button class="btn principal" id="btnPasta">Conectar pasta</button>
       <button class="btn" id="btnReload" hidden>Atualizar</button>
@@ -66,11 +66,11 @@
     </div>
   </div>
   <input type="file" id="fileFallback" webkitdirectory multiple style="display:none">
-  <input type="file" id="fileArquivos" accept=".xlsx" multiple style="display:none">
+  <input type="file" id="fileArquivos" accept=".xlsx,.xlsm,.csv" multiple style="display:none">
 
   <section class="painel">
     <h2>Pasta e validação dos arquivos</h2>
-    <div class="status" id="status">Nenhuma pasta conectada. Escolha a pasta com os Excel de implantações, faturamento e arrecadação. Cada arquivo é identificado pelo cabeçalho, não pelo nome.</div>
+    <div class="status" id="status">Nenhuma pasta conectada. Escolha a pasta com os arquivos (.xlsx ou .csv) de implantações, faturamento e arrecadação. Cada arquivo é identificado pelo cabeçalho, não pelo nome.</div>
     <div class="rolagem oculto" id="boxVal" style="margin-top:14px"><table id="tabVal"></table></div>
     <p class="nota" id="notaVal"></p>
   </section>
@@ -114,7 +114,7 @@
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (V3, V4…)
-const VERSAO_SAC = 'V3';
+const VERSAO_SAC = 'V4';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -160,7 +160,48 @@ function decodeEnt(s) {
 }
 function colIdx(letters) { let n = 0; for (let i = 0; i < letters.length; i++) n = n * 26 + letters.charCodeAt(i) - 64; return n - 1; }
 
+/* CSV: leitura em blocos, detecta separador (; , tab) e codificação (UTF-8 ou Windows-1252) */
+async function lerCsv(file, onRow) {
+  const reader = file.stream().getReader();
+  let dec = null, delim = null, inQ = false, pq = false, field = '', row = [], count = 0, stopped = false;
+  const fim = () => {
+    row.push(field); field = ''; const r = row; row = [];
+    if (r.length === 1 && r[0] === '') return true;
+    count++; if (onRow(r, count) === false) { stopped = true; return false; } return true;
+  };
+  while (!stopped) {
+    const { done, value } = await reader.read();
+    let txt;
+    if (done) txt = dec ? dec.decode() : '';
+    else {
+      if (!dec) {
+        let enc = 'utf-8'; try { new TextDecoder('utf-8', { fatal: true }).decode(value, { stream: true }); } catch (e) { enc = 'windows-1252'; }
+        dec = new TextDecoder(enc);
+      }
+      txt = dec.decode(value, { stream: true });
+    }
+    if (delim === null && txt) {
+      txt = txt.replace(/^\ufeff/, '');
+      const l1 = txt.split('\n')[0]; const c = d => l1.split(d).length;
+      delim = c(';') >= c('\t') && c(';') >= c(',') ? ';' : (c('\t') >= c(',') ? '\t' : ',');
+    }
+    for (let i = 0; i < txt.length && !stopped; i++) {
+      const c = txt[i];
+      if (pq) { pq = false; if (c === '"') { field += '"'; continue; } inQ = false; }
+      if (inQ) { if (c === '"') pq = true; else field += c; continue; }
+      if (c === '"' && field === '') inQ = true;
+      else if (c === delim) { row.push(field); field = ''; }
+      else if (c === '\n') { if (!fim()) break; }
+      else if (c !== '\r') field += c;
+    }
+    if (done) { if (!stopped && (field !== '' || row.length)) fim(); break; }
+  }
+  if (stopped) { try { await reader.cancel(); } catch (e) {} }
+  return count;
+}
+
 async function abrirXlsx(file) {
+  if (/\.csv$/i.test(file.name)) return { csv: true, file, abas: [{ nome: 'CSV', path: 'csv' }] };
   const zip = await JSZip.loadAsync(file);
   const shared = [], sst = zip.file('xl/sharedStrings.xml');
   if (sst) {
@@ -190,6 +231,7 @@ async function abrirXlsx(file) {
 
 /* Lê uma aba linha a linha. onRow(linha, nº) devolve false para parar. */
 async function lerAba(x, path, onRow) {
+  if (x.csv) return lerCsv(x.file, onRow);
   const cellRe = /<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
   let count = 0, stopped = false;
   const parseRow = body => {
@@ -317,11 +359,12 @@ function setStatus(t, erro) { $('#status').innerHTML = erro ? '<span class="tag 
 async function processar(files) {
   ARQUIVOS = files;
   Object.assign(ESTADO, { impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
-  if (!files.length) { setStatus('Nenhum arquivo .xlsx encontrado na pasta.', true); return; }
+  if (!files.length) { setStatus('Nenhum arquivo .xlsx ou .csv encontrado na pasta.', true); return; }
   const lista = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     setStatus('Validando ' + (i + 1) + ' de ' + files.length + ': ' + esc(f.name));
+    if (/\.(xls|xlsb)$/i.test(f.name)) { ESTADO.val.push({ arquivo: f.name, aba: '-', tipo: null, linhas: 0, status: 'erro', obs: 'Formato não suportado. Salve como .xlsx ou .csv' }); continue; }
     try {
       const x = await abrirXlsx(f);
       for (const aba of x.abas) {
@@ -507,7 +550,7 @@ const idb = {
 async function coletar(handle, depth = 0) {
   const out = [];
   for await (const [name, h] of handle.entries()) {
-    if (h.kind === 'file' && /\.xlsx$/i.test(name) && !name.startsWith('~$')) out.push(await h.getFile());
+    if (h.kind === 'file' && /\.(xlsx|xlsm|csv|xls|xlsb)$/i.test(name) && !name.startsWith('~$')) out.push(await h.getFile());
     else if (h.kind === 'directory' && depth < 5) out.push(...await coletar(h, depth + 1));
   }
   return out;
@@ -527,7 +570,7 @@ async function atualizar() {
 }
 $('#btnPasta').onclick = escolherPasta;
 $('#btnReload').onclick = atualizar;
-const soXlsx = e => Array.from(e.target.files).filter(f => /\.xlsx$/i.test(f.name) && !f.name.startsWith('~$'));
+const soXlsx = e => Array.from(e.target.files).filter(f => /\.(xlsx|xlsm|csv|xls|xlsb)$/i.test(f.name) && !f.name.startsWith('~$'));
 $('#fileFallback').onchange = async e => { await processar(soXlsx(e)); e.target.value = ''; };
 $('#fileArquivos').onchange = async e => { await processar(soXlsx(e)); e.target.value = ''; };
 
