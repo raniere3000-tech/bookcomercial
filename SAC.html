@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v21</title>
+<title>Águas do Rio | SAC v22</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -79,6 +79,14 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .graf .hit:hover { fill:rgba(16,40,64,.05); }
 .graf-tip { position:absolute; pointer-events:none; background:#fff; border-radius:8px; box-shadow:0 4px 16px rgba(17,42,66,.18); padding:7px 10px; font-size:12px; color:var(--ink); white-space:nowrap; z-index:5; }
 .graf-tip b { color:var(--marinho); }
+.sel-claro { min-height:40px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--marinho); font:400 13px var(--fonte); padding:6px 10px; }
+.exec-kpis { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin:6px 0 16px; }
+.exec-kpis div { border-radius:10px; background:var(--zebra); padding:10px 12px; }
+.exec-kpis small { display:block; font-size:11.5px; color:var(--muted); }
+.exec-kpis strong { display:block; font-size:20px; font-weight:600; color:var(--marinho); font-variant-numeric:tabular-nums; }
+.exec-kpis strong.dest { color:var(--laranja-texto); }
+.exec-texto tr.tot td { font-weight:600; background:var(--tint); }
+@media (max-width:700px) { .exec-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 .btn-acao { min-height:40px; padding:0 14px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--marinho); font:600 12.5px var(--fonte); cursor:pointer; transition:background-color .12s; }
 .btn-acao:hover { background:var(--tint); }
 .acoes-exec { display:flex; gap:8px; flex-wrap:wrap; }
@@ -154,7 +162,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v21</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v22</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -237,7 +245,8 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     <div class="card oculto" id="boxExec">
       <div class="card-titulo"><h2 id="execTitulo">Resumo executivo</h2>
         <div class="acoes-exec"><button type="button" class="btn-acao" id="execCopiar">Copiar texto</button><button type="button" class="btn-acao" id="execImprimir">Imprimir ou salvar PDF</button></div></div>
-      <p class="nota-secao">Gerado com os arquivos conectados e os filtros de Mês, Superintendência e Cidade do cabeçalho. Valores em medida bruta.</p>
+      <div class="fsel claro"><span>Mês de implantação</span><select id="execMes" class="sel-claro"></select></div>
+      <p class="nota-secao" style="margin-top:8px">Faturamento e SAC sempre do mês seguinte ao da implantação. Usa os filtros de Superintendência e Cidade do cabeçalho. Valores em medida bruta.</p>
       <div id="execTexto" class="exec-texto"></div>
     </div>
     <div class="card" id="vazio4"><h2>Resumo executivo</h2><p class="nota-secao">Conecte a pasta para gerar o resumo.</p></div>
@@ -291,7 +300,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v21';
+const VERSAO_SAC = 'v22';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -651,6 +660,8 @@ const LEITORES = {
       c.casam.add(mat);
       let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, dirYm: null, st: new Map(), nok: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
       if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
+      { if (!F.mes) F.mes = new Map(); let mm = F.mes.get(ym); if (!mm) { mm = { ok: { da: 0, de: 0, ia: 0, ie: 0 }, nok: { da: 0, de: 0, ia: 0, ie: 0 } }; F.mes.set(ym, mm); }
+        const z = ok ? mm.ok : mm.nok; if (direta.has(cls)) { z.da += num(r, 'dirA'); z.de += num(r, 'dirE'); } z.ia += num(r, 'indAgua'); z.ie += num(r, 'indEsg'); }
       if (!ok) { const kq = ym + '|' + cid + '|' + cls; let q = F.nok.get(kq); if (!q) { q = { ym, cid, cidade: m.cidade != null ? String(r[m.cidade]).trim() : '', cls, b: 0, l: 0, d: 0, i: 0, da: 0, ia: 0, sit: '' }; F.nok.set(kq, q); } q.b += bm; q.l += lm; q.d += bd; q.i += bi; q.da += da; q.ia += ia; q.sit = sit; }
       if (direta.has(cls) && num(r, 'dirA') > 0 && (!F.dirYm || ym < F.dirYm)) F.dirYm = ym;   // 1º faturamento direto de água
       if (cls === CONFIG.classeLigacaoAgua) {
@@ -701,7 +712,7 @@ function cruzar() {
       }
     }
     if (payYm && F && !sac.has(norm(F.lastSit))) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), da: Math.max(0, q.da), ia: Math.max(0, q.ia), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
-    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, payYm, sitAtual, cat };
+    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
 
@@ -860,46 +871,56 @@ function renderJornada(rows) {
   graficoCoorte($('#grafCoorteFat'), rows, x => !!x.dirYm, 'var(--g-dir)', 'Já faturadas (direto água)', 'Ainda sem faturamento direto');
 }
 /* ---------- resumo executivo para a diretoria ---------- */
-function dadosExec() {
-  const a = fs('fMes'), b = fs('fSup', norm), c = fs('fCid', norm);
-  const L = filtrado(), t = resumir(L), T = { gda: 0, gia: 0, ada: 0, aia: 0, da: 0, ia: 0 }, mats = new Set();
-  for (const e of ESTADO.agg.values()) {
-    if (a && !a.has(e.ym)) continue; if (c && !c.has(e.cid)) continue; if (b && !b.has(norm(supDaCidade(e.cid)))) continue;
-    T.gda += e.gda; T.gia += e.gia; T.ada += e.ada; T.aia += e.aia;
-  }
-  for (const x of ESTADO.AJ) {
-    if (a && !a.has(x.ym)) continue; if (c && !c.has(x.cid || norm(x.cidade))) continue; if (b && !b.has(norm(x.cid ? supDaCidade(x.cid) : x.sup))) continue;
-    T.da += x.da; T.ia += x.ia; if (x.da > 0 || x.ia > 0) mats.add(x.mat);
-  }
-  const ms = L.map(x => x.ym).sort();
-  return { t, T, matsAj: mats.size, de: ms[0], ate: ms[ms.length - 1] };
-}
 const pp = (a, b) => b ? (a / b * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-';
-const ganhoPp = (a1, a2, g) => g ? ((a2 - a1) / g * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' p.p.' : '-';
+const proxYm = ym => { const [a, m] = ym.split('-').map(Number); return m === 12 ? (a + 1) + '-01' : a + '-' + String(m + 1).padStart(2, '0'); };
+const COLS_EXEC = [['da', 'Direta de água'], ['de', 'Direta de esgoto'], ['ia', 'Indireta de água'], ['ie', 'Indireta de esgoto']];
 function renderExec() {
   const tem = ESTADO.LIN.length > 0;
   $('#boxExec').classList.toggle('oculto', !tem); $('#vazio4').classList.toggle('oculto', tem);
   if (!tem) return;
-  const { t, T, matsAj, de, ate } = dadosExec();
-  const per = de === ate ? labelYm(de) : labelYm(de) + ' a ' + labelYm(ate);
+  const b = fs('fSup'), c = fs('fCid'), base = ESTADO.LIN.filter(x => (!b || b.has(x.sup)) && (!c || c.has(x.cidade)));
+  const meses = [...new Set(ESTADO.LIN.map(x => x.ym))].sort(), fatMeses = new Set([...ESTADO.agg.values()].map(e => e.ym));
+  const sel = $('#execMes'), atual = sel.value;
+  sel.innerHTML = meses.map(m => '<option value="' + m + '">' + labelYm(m) + ' (faturamento de ' + labelYm(proxYm(m)) + (fatMeses.has(proxYm(m)) ? '' : ', ainda sem dados') + ')</option>').join('');
+  sel.value = meses.includes(atual) ? atual : ([...meses].reverse().find(m => fatMeses.has(proxYm(m))) || meses[meses.length - 1]);
+  const M = sel.value, R = proxYm(M), L = base.filter(x => x.ym === M), t = resumir(L);
+  const z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), G = z(), H = z(), A = z(); let comFat = 0, matsAj = 0;
+  for (const x of L) {
+    const mm = x.mes && x.mes.get(R); if (!mm) continue;
+    let fat = false, aj = false;
+    for (const [k] of COLS_EXEC) {
+      G[k] += mm.ok[k] + mm.nok[k]; H[k] += mm.ok[k]; if (mm.ok[k] + mm.nok[k] > 0) fat = true;
+      if (x.payYm && x.payYm <= R && !x.sitOk && mm.nok[k] > 0) { A[k] += mm.nok[k]; aj = true; }   // mesma regra do ajuste do SAC
+    }
+    if (fat) comFat++; if (aj) matsAj++;
+  }
+  const soma = o => o.da + o.de + o.ia + o.ie;
   const filtros = [['fSup', 'Superintendência'], ['fCid', 'Cidade']].map(([id, n]) => { const f = fs(id); return f ? n + ': ' + [...f].join(', ') : ''; }).filter(Boolean).join('; ');
-  $('#execTitulo').textContent = 'Resumo executivo: matrículas que pagaram e estão fora da visão da auditoria';
-  const linha = (nome, g, h, aj) => '<tr><td>' + nome + '</td><td>' + fMoeda(g) + '</td><td>' + fMoeda(h) + ' (' + pp(h, g) + ')</td><td class="dest">' + fMoeda(aj) + '</td><td>' + fMoeda(h + aj) + ' (' + pp(h + aj, g) + ')</td></tr>';
-  let h = '<p>Período de implantação: ' + per + (filtros ? '. ' + esc(filtros) : '') + '.</p>';
-  h += '<p>Das <b>' + fInt(t.impl) + '</b> matrículas implantadas no período, <b>' + fInt(t.pagou) + '</b> já pagaram ao menos uma conta (' + fPct(t.pagou, t.impl) + '). Dessas, <span class="dest">' + fInt(t.deveria) + ' matrículas (' + fPct(t.deveria, t.pagou) + ' das que pagaram)</span> ainda não estão como Ativa Faturando nem Cortada na base de faturamento, que é o recorte usado pela visão da auditoria. ' +
-    fInt(t.fora) + ' aparecem na base com outra situação' + (t.semfat ? ', e ' + fInt(t.semfat) + ' não têm nenhuma linha no faturamento' : '') + '.</p>';
-  h += '<h3>Impacto no faturamento de água</h3>';
-  h += '<p>O faturamento dessas matrículas, do mês do primeiro pagamento em diante, soma <span class="dest">' + fMoeda(T.da) + '</span> em faturamento direto de água e <span class="dest">' + fMoeda(T.ia) + '</span> em indireto de água, em ' + fInt(matsAj) + ' matrículas com valor. A visão da auditoria de hoje deixa esse valor de fora.</p>';
-  h += '<table><thead><tr><th>Água</th><th>Faturamento geral</th><th>Visão auditoria hoje</th><th>Ajuste do SAC</th><th>Visão do SAC (corrigida)</th></tr></thead><tbody>' +
-    linha('Direta de água', T.gda, T.ada, T.da) + linha('Indireta de água', T.gia, T.aia, T.ia) + linha('Total água', T.gda + T.gia, T.ada + T.aia, T.da + T.ia) + '</tbody></table>';
-  h += '<p>Com o ajuste, a parte do faturamento direto de água reconhecida pela auditoria passa de ' + pp(T.ada, T.gda) + ' para ' + pp(T.ada + T.da, T.gda) + ' do geral (' + ganhoPp(T.ada, T.ada + T.da, T.gda) + '). No indireto de água, vai de ' + pp(T.aia, T.gia) + ' para ' + pp(T.aia + T.ia, T.gia) + ' (' + ganhoPp(T.aia, T.aia + T.ia, T.gia) + ').</p>';
-  h += '<h3>Encaminhamento</h3><p>Reclassificar na base as ' + fInt(t.fora) + ' matrículas que pagaram e estão com outra situação' + (t.semfat ? ', e checar no cadastro por que ' + fInt(t.semfat) + ' matrículas com pagamento não aparecem no faturamento' : '') + '. A lista com matrícula, cidade e situação está na aba Fora do SAC.</p>';
+  $('#execTitulo').textContent = 'Resumo executivo: implantações de ' + labelYm(M) + ' e faturamento de ' + labelYm(R);
+  const lin = (nome, g, h, a, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + nome + '</td><td>' + fMoeda(g) + '</td><td>' + fMoeda(h) + ' (' + pp(h, g) + ')</td><td class="dest">' + fMoeda(a) + '</td><td>' + fMoeda(h + a) + ' (' + pp(h + a, g) + ')</td><td>' + fMoeda(g - h - a) + '</td></tr>';
+  let h = '<div class="exec-kpis">' +
+    '<div><small>Ligações implantadas em ' + labelYm(M) + '</small><strong>' + fInt(t.impl) + '</strong></div>' +
+    '<div><small>Com faturamento em ' + labelYm(R) + '</small><strong>' + fInt(comFat) + '</strong></div>' +
+    '<div><small>Já pagaram</small><strong>' + fInt(t.pagou) + '</strong></div>' +
+    '<div><small>Pagaram e estão fora da auditoria</small><strong class="dest">' + fInt(t.deveria) + '</strong></div></div>';
+  if (filtros) h += '<p>' + esc(filtros) + '.</p>';
+  if (!fatMeses.has(R)) h += '<p class="dest">A base de faturamento ainda não tem ' + labelYm(R) + '. Os valores abaixo ficam zerados até o arquivo desse mês entrar na pasta.</p>';
+  h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(t.impl) + '</b> ligações. Em ' + labelYm(R) + ', mês seguinte, ' + fInt(comFat) + ' delas tiveram faturamento, num total de <b>' + fMoeda(soma(G)) + '</b>. ' +
+    'A visão da auditoria de hoje, que só considera Ativa Faturando e Cortada, enxerga ' + fMoeda(soma(H)) + ' (' + pp(soma(H), soma(G)) + ').</p>';
+  h += '<p>Das ligações do mês, ' + fInt(t.pagou) + ' já pagaram ao menos uma conta, e <span class="dest">' + fInt(t.deveria) + '</span> delas ainda não estão como Ativa Faturando nem Cortada' + (t.semfat ? ' (' + fInt(t.semfat) + ' sem nenhuma linha no faturamento)' : '') + '. ' +
+    'Reclassificar essas matrículas soma <span class="dest">' + fMoeda(soma(A)) + '</span> ao faturamento de ' + labelYm(R) + ' na visão do SAC, levando a cobertura para ' + pp(soma(H) + soma(A), soma(G)) + '.</p>';
+  h += '<h3>Faturamento de ' + labelYm(R) + ' das ligações implantadas em ' + labelYm(M) + '</h3>';
+  h += '<table><thead><tr><th>Componente</th><th>Faturamento</th><th>Visão auditoria hoje</th><th>Ajuste do SAC</th><th>Visão do SAC (corrigida)</th><th>Ainda fora</th></tr></thead><tbody>' +
+    COLS_EXEC.map(([k, n]) => lin(n, G[k], H[k], A[k])).join('') + lin('Total', soma(G), soma(H), soma(A), 'tot') + '</tbody></table>';
+  h += '<p>Ajuste do SAC: faturamento de ' + labelYm(R) + ' das matrículas que pagaram até esse mês e cuja situação mais recente na base não é Ativa Faturando nem Cortada (' + fInt(matsAj) + ' matrículas com valor). "Ainda fora" é o que continua sem pagamento ou sem situação.</p>';
+  h += '<h3>Encaminhamento</h3><p>Reclassificar na base as ' + fInt(t.fora) + ' matrículas de ' + labelYm(M) + ' que pagaram e estão com outra situação' + (t.semfat ? ', e checar no cadastro por que ' + fInt(t.semfat) + ' matrículas com pagamento não aparecem no faturamento' : '') + '. A lista está na aba Fora do SAC, filtrando o mês ' + labelYm(M) + '.</p>';
   $('#execTexto').innerHTML = h;
 }
+$('#execMes').onchange = renderExec;
 $('#execImprimir').onclick = () => window.print();
 $('#execCopiar').onclick = async () => {
   const el = $('#execTexto'), html = '<h2>' + esc($('#execTitulo').textContent) + '</h2>' + el.innerHTML.replace(/class="dest"/g, 'style="color:#C2560C;font-weight:600"').replace(/<thead><tr>/, '<thead><tr style="background:#1A2740;color:#fff">');
-  const txt = $('#execTitulo').textContent + '\n\n' + [...el.children].map(n => n.tagName === 'TABLE' ? [...n.rows].map(r => [...r.cells].map(c => c.textContent).join(' | ')).join('\n') : n.textContent).join('\n\n');
+  const txt = $('#execTitulo').textContent + '\n\n' + [...el.children].map(n => n.classList.contains('exec-kpis') ? [...n.children].map(d => d.children[0].textContent + ': ' + d.children[1].textContent).join('\n') : n.tagName === 'TABLE' ? [...n.rows].map(r => [...r.cells].map(c => c.textContent).join(' | ')).join('\n') : n.textContent).join('\n\n');
   const b = $('#execCopiar');
   try { await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([txt], { type: 'text/plain' }) })]); b.textContent = 'Copiado'; }
   catch { try { await navigator.clipboard.writeText(txt); b.textContent = 'Copiado'; } catch { b.textContent = 'Não foi possível copiar'; } }
