@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v16</title>
+<title>Águas do Rio | SAC v17</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -52,6 +52,18 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .tab:focus-visible, button:focus-visible, select:focus-visible, a:focus-visible { outline:2px solid var(--azul-claro); outline-offset:2px; }
 .view { display:none; padding:0 16px 32px; } .view.ativo { display:block; }
 .card { background:#fff; margin:10px auto; padding:14px 18px; max-width:1800px; border:1px solid var(--line); border-radius:12px; box-shadow:0 3px 12px rgba(17,42,66,.045); overflow-x:auto; }
+:root { --g-fat:#176b9c; --g-pag:#E8710A; }
+.graf-grade { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px; }
+.graf { margin:0; position:relative; }
+.graf figcaption { font-size:12.5px; font-weight:600; color:var(--marinho); }
+.graf-leg { display:flex; gap:14px; margin:4px 0 2px; font-size:11.5px; color:var(--muted); }
+.graf-leg i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+.graf svg { display:block; width:100%; height:auto; overflow:visible; }
+.graf svg text { font-family:var(--fonte); font-size:11px; fill:var(--muted); }
+.graf .hit { fill:transparent; cursor:default; }
+.graf .hit:hover { fill:rgba(16,40,64,.05); }
+.graf-tip { position:absolute; pointer-events:none; background:#fff; border-radius:8px; box-shadow:0 4px 16px rgba(17,42,66,.18); padding:7px 10px; font-size:12px; color:var(--ink); white-space:nowrap; z-index:5; }
+.graf-tip b { color:var(--marinho); }
 .card h2 { font-size:14px; font-weight:600; margin:0 0 8px; color:var(--marinho); text-wrap:balance; }
 .card-titulo { display:flex; align-items:center; justify-content:space-between; gap:8px 10px; flex-wrap:wrap; margin-bottom:6px; }
 .nota-secao { margin:-4px 0 8px; font-size:11.5px; line-height:1.35; color:var(--azul-claro); }
@@ -110,7 +122,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v16</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v17</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -144,6 +156,14 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     </div>
     <div class="card" id="vazio"><h2>Resumo</h2><p class="nota-secao">Conecte a pasta para ver a análise.</p></div>
     <div class="card oculto" id="boxMes"><h2>Resumo por mês de implantação</h2><div class="tabela-wrap"><table id="tabMes"></table></div></div>
+    <div class="card oculto" id="boxJornada">
+      <h2>Da implantação ao primeiro pagamento</h2>
+      <p class="nota-secao" id="notaJornada"></p>
+      <div class="graf-grade">
+        <figure class="graf"><figcaption>Meses entre a implantação e cada etapa (quantidade de matrículas)</figcaption><div class="graf-leg"><span><i style="background:var(--g-fat)"></i>1º faturamento</span><span><i style="background:var(--g-pag)"></i>1º pagamento</span></div><div id="grafLag"></div></figure>
+        <figure class="graf"><figcaption>Por mês de implantação: quanto já faturou e já pagou</figcaption><div class="graf-leg"><span><i style="background:var(--g-fat)"></i>% faturadas</span><span><i style="background:var(--g-pag)"></i>% pagaram</span></div><div id="grafCoorte"></div></figure>
+      </div>
+    </div>
     <div class="card oculto" id="boxSup"><h2>Resumo por superintendência</h2><div class="tabela-wrap"><table id="tabSup"></table></div></div>
   </section>
   <section class="view" id="view-fat">
@@ -227,7 +247,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v16';
+const VERSAO_SAC = 'v17';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -677,7 +697,7 @@ function preencher(sel, valores, rotulo, fmt) {
   if (valores.includes(atual)) sel.value = atual;
 }
 function renderAnalise() {
-  const L = ESTADO.LIN; const caixas = ['boxAnalise', 'boxMes', 'boxSup', 'boxLista'];
+  const L = ESTADO.LIN; const caixas = ['boxAnalise', 'boxMes', 'boxJornada', 'boxSup', 'boxLista'];
   if (!L.length) renderFat();
   caixas.forEach(i => $('#' + i).classList.toggle('oculto', !L.length)); $('#vazio').classList.toggle('oculto', !!L.length); $('#vazio2').classList.toggle('oculto', !!L.length);
   if (!L.length) return;
@@ -685,6 +705,67 @@ function renderAnalise() {
   preencher($('#fSup'), [...new Set(L.map(x => x.sup))].sort(), 'Todas');
   preencher($('#fCid'), [...new Set(L.map(x => x.cidade))].sort(), 'Todas');
   aplicar();
+}
+/* ---------- gráficos: implantação, 1º faturamento e 1º pagamento ---------- */
+const difMes = (a, b) => { const [y1, m1] = a.split('-').map(Number), [y2, m2] = b.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); };
+function mediana(v) { if (!v.length) return null; const o = [...v].sort((p, q) => p - q), h = o.length >> 1; return o.length % 2 ? o[h] : (o[h - 1] + o[h]) / 2; }
+const fMeses = n => n == null ? '-' : n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + (n === 1 ? ' mês' : ' meses');
+function dicaGraf(box, html, ev) {
+  let t = box.querySelector('.graf-tip'); if (!t) { t = document.createElement('div'); t.className = 'graf-tip'; box.appendChild(t); }
+  if (!html) { t.remove(); return; }
+  t.innerHTML = html; const rb = box.getBoundingClientRect();
+  let x = ev.clientX - rb.left + 12; if (x + t.offsetWidth > rb.width) x = ev.clientX - rb.left - t.offsetWidth - 12;
+  t.style.left = Math.max(0, x) + 'px'; t.style.top = (ev.clientY - rb.top - t.offsetHeight - 8) + 'px';
+}
+function ligarDicas(el, dicas) {
+  el.querySelectorAll('.hit').forEach(h => {
+    h.onmousemove = e => dicaGraf(el.parentNode, dicas[+h.dataset.i], e);
+    h.onmouseleave = () => dicaGraf(el.parentNode, '');
+  });
+}
+function eixoY(W, ml, mt, ph, max, fmt) {
+  let g = ''; for (let k = 0; k <= 4; k++) { const v = max * k / 4, y = mt + ph - ph * k / 4;
+    g += '<line x1="' + ml + '" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="' + (k ? '#eef2f6' : '#cbd5e1') + '"/><text x="' + (ml - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + fmt(v) + '</text>'; }
+  return g;
+}
+function renderJornada(rows) {
+  const lagF = [], lagP = [], B = 7, cF = Array(B).fill(0), cP = Array(B).fill(0);
+  for (const x of rows) {
+    if (x.billYm) { const d = Math.max(0, difMes(x.ym, x.billYm)); lagF.push(d); cF[Math.min(d, B - 1)]++; }
+    if (x.payYm) { const d = Math.max(0, difMes(x.ym, x.payYm)); lagP.push(d); cP[Math.min(d, B - 1)]++; }
+  }
+  $('#notaJornada').textContent = 'Mediana até o 1º faturamento: ' + fMeses(mediana(lagF)) + ' (' + fInt(lagF.length) + ' de ' + fInt(rows.length) + ' implantadas). Mediana até o 1º pagamento: ' + fMeses(mediana(lagP)) + ' (' + fInt(lagP.length) + ' pagaram). Mês 0 é o próprio mês da implantação.';
+  // barras agrupadas por defasagem
+  const W = 560, H = 230, ml = 44, mt = 10, mb = 28, pw = W - ml, ph = H - mt - mb, max = Math.max(1, ...cF, ...cP), pot = Math.pow(10, Math.floor(Math.log10(max / 4))), passoY = [1, 2, 2.5, 5, 10].map(k => k * pot).find(k => k * 4 >= max), top = passoY * 4;
+  const bw = pw / B, bar = Math.min(22, (bw - 14) / 2), rot = i => i === B - 1 ? (B - 1) + '+' : String(i);
+  let g = eixoY(W, ml, mt, ph, top, v => fInt(Math.round(v))), dicas = [];
+  for (let i = 0; i < B; i++) {
+    const x0 = ml + i * bw + (bw - 2 * bar - 2) / 2;
+    [[cF[i], 'var(--g-fat)', 0], [cP[i], 'var(--g-pag)', 1]].forEach(([v, cor, k]) => {
+      const h = ph * v / top, x = x0 + k * (bar + 2), y = mt + ph - h;
+      if (h > 0) g += '<path d="M' + x + ',' + (mt + ph) + 'V' + (y + Math.min(4, h)) + 'q0,-' + Math.min(4, h) + ' ' + Math.min(4, bar / 2) + ',-' + Math.min(4, h) + 'H' + (x + bar - Math.min(4, bar / 2)) + 'q' + Math.min(4, bar / 2) + ',0 ' + Math.min(4, bar / 2) + ',' + Math.min(4, h) + 'V' + (mt + ph) + 'Z" fill="' + cor + '"/>';
+    });
+    g += '<text x="' + (ml + i * bw + bw / 2) + '" y="' + (H - 8) + '" text-anchor="middle">' + rot(i) + '</text>';
+    g += '<rect class="hit" data-i="' + i + '" x="' + (ml + i * bw) + '" y="' + mt + '" width="' + bw + '" height="' + ph + '"/>';
+    dicas.push('<b>' + (i === B - 1 ? (B - 1) + ' meses ou mais' : i === 0 ? 'No mês da implantação' : i + (i === 1 ? ' mês' : ' meses') + ' depois') + '</b><br>1º faturamento: ' + fInt(cF[i]) + ' (' + fPct(cF[i], lagF.length) + ')<br>1º pagamento: ' + fInt(cP[i]) + ' (' + fPct(cP[i], lagP.length) + ')');
+  }
+  const el1 = $('#grafLag'); el1.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Quantidade de matrículas por meses entre implantação, 1º faturamento e 1º pagamento">' + g + '</svg>'; ligarDicas(el1, dicas);
+  // linhas por mês de implantação
+  const coh = new Map(); for (const x of rows) { let o = coh.get(x.ym); if (!o) { o = { ym: x.ym, n: 0, f: 0, p: 0 }; coh.set(x.ym, o); } o.n++; if (x.billYm) o.f++; if (x.payYm) o.p++; }
+  const C = [...coh.values()].sort((a, b) => a.ym < b.ym ? -1 : 1), n = C.length, sx = n > 1 ? pw / (n - 1) : 0, X = i => ml + (n > 1 ? i * sx : pw / 2), Y = v => mt + ph - ph * v / 100;
+  let g2 = eixoY(W, ml, mt, ph, 100, v => Math.round(v) + '%'), d2 = [];
+  const passo = Math.ceil(n / 8);
+  [['f', 'var(--g-fat)'], ['p', 'var(--g-pag)']].forEach(([k, cor]) => {
+    const pts = C.map((o, i) => [X(i), Y(o.n ? o[k] / o.n * 100 : 0)]);
+    g2 += '<polyline fill="none" stroke="' + cor + '" stroke-width="2" stroke-linejoin="round" points="' + pts.map(q => q.join(',')).join(' ') + '"/>';
+    pts.forEach(q => g2 += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="4" fill="' + cor + '" stroke="#fff" stroke-width="2"/>');
+  });
+  C.forEach((o, i) => {
+    if (i % passo === 0 || i === n - 1) g2 += '<text x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + labelYm(o.ym) + '</text>';
+    const w = n > 1 ? sx : pw; g2 += '<rect class="hit" data-i="' + i + '" x="' + (X(i) - w / 2) + '" y="' + mt + '" width="' + w + '" height="' + ph + '"/>';
+    d2.push('<b>Implantadas em ' + labelYm(o.ym) + ': ' + fInt(o.n) + '</b><br>Faturadas: ' + fInt(o.f) + ' (' + fPct(o.f, o.n) + ')<br>Pagaram: ' + fInt(o.p) + ' (' + fPct(o.p, o.n) + ')');
+  });
+  const el2 = $('#grafCoorte'); el2.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Percentual de faturadas e de pagantes por mês de implantação">' + g2 + '</svg>'; ligarDicas(el2, d2);
 }
 function filtrado() {
   const a = $('#fMes').value, b = $('#fSup').value, c = $('#fCid').value;
@@ -698,6 +779,7 @@ function resumir(rows) {
 function aplicar() {
   renderFat();
   const rows = filtrado(), t = resumir(rows);
+  renderJornada(rows);
   $('#kpis').innerHTML = [
     ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', '', 'impl'],
     ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', '', 'bill'],
