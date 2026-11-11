@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v24</title>
+<title>Águas do Rio | SAC v25</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -85,6 +85,7 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .exec-kpis small { display:block; font-size:11.5px; color:var(--muted); }
 .exec-kpis strong { display:block; font-size:20px; font-weight:600; color:var(--marinho); font-variant-numeric:tabular-nums; }
 .exec-kpis strong.dest { color:var(--laranja-texto); }
+.exec-kpis .sub-k { display:block; margin-top:2px; font-size:11px; color:var(--azul-claro); }
 .exec-texto tr.tot td { font-weight:600; background:var(--tint); }
 @media (max-width:700px) { .exec-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 .btn-acao { min-height:40px; padding:0 14px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--marinho); font:600 12.5px var(--fonte); cursor:pointer; transition:background-color .12s; }
@@ -162,7 +163,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v24</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v25</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -300,7 +301,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v24';
+const VERSAO_SAC = 'v25';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -712,7 +713,7 @@ function cruzar() {
       }
     }
     if (payYm && F && !sac.has(norm(F.lastSit))) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), da: Math.max(0, q.da), ia: Math.max(0, q.ia), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
-    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat };
+    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, sts: F ? F.st : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
 
@@ -884,33 +885,46 @@ function renderExec() {
   sel.innerHTML = meses.map(m => '<option value="' + m + '">' + labelYm(m) + ' (faturamento de ' + labelYm(proxYm(m)) + (fatMeses.has(proxYm(m)) ? '' : ', ainda sem dados') + ')</option>').join('');
   sel.value = meses.includes(atual) ? atual : ([...meses].reverse().find(m => fatMeses.has(proxYm(m))) || meses[meses.length - 1]);
   const M = sel.value, R = proxYm(M), L = base.filter(x => x.ym === M), t = resumir(L);
-  const z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), G = z(), H = z(), A = z(); let comFat = 0, matsAj = 0, fatCoorte = 0;
+  const z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), G = z(), H = z(), A = z(); let comFat = 0, matsAj = 0, fatCoorte = 0; const SIT = {};
   for (const x of L) {
     const mm = x.mes && x.mes.get(R); if (!mm) continue;
-    let fat = false, aj = false;
+    let fat = false, aj = false, vx = 0;
     for (const [k] of COLS_EXEC) {
-      fatCoorte += mm.ok[k] + mm.nok[k]; if (mm.ok[k] + mm.nok[k] > 0) fat = true;
+      fatCoorte += mm.ok[k] + mm.nok[k]; vx += mm.ok[k] + mm.nok[k]; if (mm.ok[k] + mm.nok[k] > 0) fat = true;
       if (x.payYm && x.payYm <= R && !x.sitOk && mm.nok[k] > 0) { A[k] += mm.nok[k]; aj = true; }   // mesma regra do ajuste do SAC
     }
-    if (fat) comFat++; if (aj) matsAj++;
+    if (fat) {
+      comFat++;
+      const ss = x.sts && x.sts.get(R), cap = t => t.charAt(0).toUpperCase() + t.slice(1);   // situação final do mês do faturamento
+      const nome = ss && ss.has('ativa faturando') ? 'Ativa Faturando' : ss && ss.has('cortada') ? 'Cortada' : ss && ss.size ? cap([...ss][0]) : 'Sem situação';
+      const o = SIT[nome] || (SIT[nome] = { n: 0, pagou: 0, v: 0 }); o.n++; if (x.payYm) o.pagou++; o.v += vx;
+    }
+    if (aj) matsAj++;
   }
   for (const e of ESTADO.agg.values()) if (e.ym === R) {   // faturamento bruto total da base no mês, sem filtro nenhum
     G.da += e.gda; G.de += e.gde; G.ia += e.gia; G.ie += e.gie; H.da += e.ada; H.de += e.ade; H.ia += e.aia; H.ie += e.aie;
   }
   const soma = o => o.da + o.de + o.ia + o.ie;
+  const naAud = ((SIT['Ativa Faturando'] || {}).n || 0) + ((SIT['Cortada'] || {}).n || 0);
   const filtros = [['fSup', 'Superintendência'], ['fCid', 'Cidade']].map(([id, n]) => { const f = fs(id); return f ? n + ': ' + [...f].join(', ') : ''; }).filter(Boolean).join('; ');
   $('#execTitulo').textContent = 'Resumo executivo: implantações de ' + labelYm(M) + ' e faturamento de ' + labelYm(R);
   const lin = (nome, g, h, a, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + nome + '</td><td>' + fMoeda(g) + '</td><td>' + fMoeda(h) + '</td><td class="dest">' + fMoeda(a) + '</td><td>' + fMoeda(g - h - a) + '</td></tr>';
   let h = '<div class="exec-kpis">' +
     '<div><small>Ligações implantadas em ' + labelYm(M) + '</small><strong>' + fInt(t.impl) + '</strong></div>' +
-    '<div><small>Com faturamento em ' + labelYm(R) + '</small><strong>' + fInt(comFat) + '</strong></div>' +
+    '<div><small>Com faturamento em ' + labelYm(R) + ' (qualquer situação)</small><strong>' + fInt(comFat) + '</strong><span class="sub-k">' + fInt(naAud) + ' em Ativa Faturando ou Cortada</span></div>' +
     '<div><small>Já pagaram</small><strong>' + fInt(t.pagou) + '</strong></div>' +
     '<div><small>Pagaram e estão fora da auditoria</small><strong class="dest">' + fInt(t.deveria) + '</strong></div></div>';
   if (filtros) h += '<p>' + esc(filtros) + '.</p>';
   if (!fatMeses.has(R)) h += '<p class="dest">A base de faturamento ainda não tem ' + labelYm(R) + '. Os valores abaixo ficam zerados até o arquivo desse mês entrar na pasta.</p>';
   h += '<p>O faturamento bruto total de ' + labelYm(R) + ', somando direta e indireta de água e de esgoto de todas as matrículas da base, foi de <b>' + fMoeda(soma(G)) + '</b>. ' +
     'A visão da auditoria de hoje, que só considera Ativa Faturando e Cortada, enxerga ' + fMoeda(soma(H)) + ' (' + pp(soma(H), soma(G)) + ').</p>';
-  h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(t.impl) + '</b> ligações; ' + fInt(comFat) + ' delas faturaram em ' + labelYm(R) + ', somando ' + fMoeda(fatCoorte) + '.</p>';
+  h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(t.impl) + '</b> ligações; ' + fInt(comFat) + ' delas tiveram faturamento em ' + labelYm(R) + ', somando ' + fMoeda(fatCoorte) + '. Por situação na base, Ativa Faturando ou Cortada (a visão da auditoria): <b>' + fInt(naAud) + '</b> de ' + fInt(comFat) + ' (' + pp(naAud, comFat) + '). Outra situação: ' + fInt(comFat - naAud) + '.</p>';
+  const ordem = Object.keys(SIT).sort((a, b2) => (a === 'Ativa Faturando' ? -2 : a === 'Cortada' ? -1 : 0) - (b2 === 'Ativa Faturando' ? -2 : b2 === 'Cortada' ? -1 : 0) || SIT[b2].n - SIT[a].n);
+  const tp = ordem.reduce((a, k) => a + SIT[k].pagou, 0), tv = ordem.reduce((a, k) => a + SIT[k].v, 0);
+  h += '<h3>As ' + fInt(comFat) + ' ligações de ' + labelYm(M) + ' com faturamento em ' + labelYm(R) + ', por situação na base</h3>';
+  h += '<table><thead><tr><th>Situação final na base</th><th>Ligações</th><th>% das faturadas</th><th>Já pagaram</th><th>Faturado em ' + labelYm(R) + '</th></tr></thead><tbody>' +
+    ordem.map(k => '<tr><td>' + esc(k) + (k === 'Ativa Faturando' || k === 'Cortada' ? ' (auditoria)' : '') + '</td><td>' + fInt(SIT[k].n) + '</td><td>' + pp(SIT[k].n, comFat) + '</td><td>' + fInt(SIT[k].pagou) + '</td><td>' + fMoeda(SIT[k].v) + '</td></tr>').join('') +
+    '<tr class="tot"><td>Total</td><td>' + fInt(comFat) + '</td><td>' + pp(comFat, comFat) + '</td><td>' + fInt(tp) + '</td><td>' + fMoeda(tv) + '</td></tr></tbody></table>';
   h += '<p>Das ligações do mês, ' + fInt(t.pagou) + ' já pagaram ao menos uma conta, e <span class="dest">' + fInt(t.deveria) + '</span> delas ainda não estão como Ativa Faturando nem Cortada' + (t.semfat ? ' (' + fInt(t.semfat) + ' sem nenhuma linha no faturamento)' : '') + '. ' +
     'Reclassificar essas matrículas soma <span class="dest">' + fMoeda(soma(A)) + '</span> ao faturamento de ' + labelYm(R) + ' na visão do SAC, e a cobertura do faturamento total passa de ' + pp(soma(H), soma(G)) + ' para ' + pp(soma(H) + soma(A), soma(G)) + '.</p>';
   h += '<h3>Faturamento bruto total de ' + labelYm(R) + ' e ajuste das ligações implantadas em ' + labelYm(M) + '</h3>';
