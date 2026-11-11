@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v20</title>
+<title>Águas do Rio | SAC v21</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -79,6 +79,23 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .graf .hit:hover { fill:rgba(16,40,64,.05); }
 .graf-tip { position:absolute; pointer-events:none; background:#fff; border-radius:8px; box-shadow:0 4px 16px rgba(17,42,66,.18); padding:7px 10px; font-size:12px; color:var(--ink); white-space:nowrap; z-index:5; }
 .graf-tip b { color:var(--marinho); }
+.btn-acao { min-height:40px; padding:0 14px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--marinho); font:600 12.5px var(--fonte); cursor:pointer; transition:background-color .12s; }
+.btn-acao:hover { background:var(--tint); }
+.acoes-exec { display:flex; gap:8px; flex-wrap:wrap; }
+.exec-texto { max-width:860px; font-size:14px; line-height:1.55; color:var(--ink); }
+.exec-texto p { margin:0 0 12px; }
+.exec-texto h3 { font-size:13px; font-weight:600; color:var(--marinho); margin:18px 0 6px; text-wrap:balance; }
+.exec-texto table { border-collapse:collapse; width:100%; font-size:13px; margin:4px 0 14px; font-variant-numeric:tabular-nums; }
+.exec-texto th, .exec-texto td { padding:7px 10px; border-bottom:1px solid var(--line); text-align:right; }
+.exec-texto th:first-child, .exec-texto td:first-child { text-align:left; }
+.exec-texto thead th { background:var(--marinho); color:#fff; font-weight:600; }
+.exec-texto .dest { color:var(--laranja-texto); font-weight:600; }
+@media print {
+  body { background:#fff; }
+  .top, .nav, .view:not(#view-exec), .acoes-exec, #view-exec .nota-secao, #drill, #drillFundo { display:none !important; }
+  #view-exec { display:block !important; }
+  #boxExec { border:0; box-shadow:none; margin:0; padding:0; }
+}
 .card h2 { font-size:14px; font-weight:600; margin:0 0 8px; color:var(--marinho); text-wrap:balance; }
 .card-titulo { display:flex; align-items:center; justify-content:space-between; gap:8px 10px; flex-wrap:wrap; margin-bottom:6px; }
 .nota-secao { margin:-4px 0 8px; font-size:11.5px; line-height:1.35; color:var(--azul-claro); }
@@ -137,7 +154,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v20</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v21</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -160,6 +177,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
   <button class="tab active" data-view="resumo" type="button">Resumo</button>
   <button class="tab" data-view="fat" type="button">Faturamento</button>
   <button class="tab" data-view="lista" type="button">Fora do SAC</button>
+  <button class="tab" data-view="exec" type="button">Resumo executivo</button>
   <button class="tab" data-view="dados" type="button">Dados</button>
 </nav>
 <main>
@@ -215,6 +233,15 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     </div>
     <div class="card" id="vazio2"><h2>Fora do SAC</h2><p class="nota-secao">Conecte a pasta para ver a lista.</p></div>
   </section>
+  <section class="view" id="view-exec">
+    <div class="card oculto" id="boxExec">
+      <div class="card-titulo"><h2 id="execTitulo">Resumo executivo</h2>
+        <div class="acoes-exec"><button type="button" class="btn-acao" id="execCopiar">Copiar texto</button><button type="button" class="btn-acao" id="execImprimir">Imprimir ou salvar PDF</button></div></div>
+      <p class="nota-secao">Gerado com os arquivos conectados e os filtros de Mês, Superintendência e Cidade do cabeçalho. Valores em medida bruta.</p>
+      <div id="execTexto" class="exec-texto"></div>
+    </div>
+    <div class="card" id="vazio4"><h2>Resumo executivo</h2><p class="nota-secao">Conecte a pasta para gerar o resumo.</p></div>
+  </section>
   <section class="view" id="view-dados">
     <details class="card acc oculto" id="boxVal" open>
       <summary>Validação dos arquivos</summary>
@@ -264,7 +291,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v20';
+const VERSAO_SAC = 'v21';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -616,14 +643,15 @@ const LEITORES = {
       D.somadas++;
       if (!ESTADO.cls.has(cls)) ESTADO.cls.set(cls, String(r[m.classe]).trim());
       const key = ym + '|' + cid + '|' + cls; let g = ESTADO.agg.get(key);
-      if (!g) { g = { ym, cid, cls, gb: 0, gl: 0, ab: 0, al: 0, gd: 0, gi: 0, ad: 0, ai: 0 }; ESTADO.agg.set(key, g); }
-      g.gb += bm; g.gl += lm; g.gd += bd; g.gi += bi; if (ok) { g.ab += bm; g.al += lm; g.ad += bd; g.ai += bi; }
+      if (!g) { g = { ym, cid, cls, gb: 0, gl: 0, ab: 0, al: 0, gd: 0, gi: 0, ad: 0, ai: 0, gda: 0, gia: 0, ada: 0, aia: 0 }; ESTADO.agg.set(key, g); }
+      const da = direta.has(cls) ? num(r, 'dirA') : 0, ia = num(r, 'indAgua');
+      g.gb += bm; g.gl += lm; g.gd += bd; g.gi += bi; g.gda += da; g.gia += ia; if (ok) { g.ab += bm; g.al += lm; g.ad += bd; g.ai += bi; g.ada += da; g.aia += ia; }
       st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
       c.casam.add(mat);
       let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, dirYm: null, st: new Map(), nok: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
       if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
-      if (!ok) { const kq = ym + '|' + cid + '|' + cls; let q = F.nok.get(kq); if (!q) { q = { ym, cid, cidade: m.cidade != null ? String(r[m.cidade]).trim() : '', cls, b: 0, l: 0, d: 0, i: 0, sit: '' }; F.nok.set(kq, q); } q.b += bm; q.l += lm; q.d += bd; q.i += bi; q.sit = sit; }
+      if (!ok) { const kq = ym + '|' + cid + '|' + cls; let q = F.nok.get(kq); if (!q) { q = { ym, cid, cidade: m.cidade != null ? String(r[m.cidade]).trim() : '', cls, b: 0, l: 0, d: 0, i: 0, da: 0, ia: 0, sit: '' }; F.nok.set(kq, q); } q.b += bm; q.l += lm; q.d += bd; q.i += bi; q.da += da; q.ia += ia; q.sit = sit; }
       if (direta.has(cls) && num(r, 'dirA') > 0 && (!F.dirYm || ym < F.dirYm)) F.dirYm = ym;   // 1º faturamento direto de água
       if (cls === CONFIG.classeLigacaoAgua) {
         ligNova++;
@@ -672,7 +700,7 @@ function cruzar() {
         cat = ok ? 'sac' : 'fora';
       }
     }
-    if (payYm && F && !sac.has(norm(F.lastSit))) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
+    if (payYm && F && !sac.has(norm(F.lastSit))) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), da: Math.max(0, q.da), ia: Math.max(0, q.ia), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
     return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, payYm, sitAtual, cat };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
@@ -831,6 +859,52 @@ function renderJornada(rows) {
   graficoCoorte($('#grafCoorte'), rows, x => !!x.payYm, 'var(--g-pag)', 'Já pagaram', 'Ainda não pagaram');
   graficoCoorte($('#grafCoorteFat'), rows, x => !!x.dirYm, 'var(--g-dir)', 'Já faturadas (direto água)', 'Ainda sem faturamento direto');
 }
+/* ---------- resumo executivo para a diretoria ---------- */
+function dadosExec() {
+  const a = fs('fMes'), b = fs('fSup', norm), c = fs('fCid', norm);
+  const L = filtrado(), t = resumir(L), T = { gda: 0, gia: 0, ada: 0, aia: 0, da: 0, ia: 0 }, mats = new Set();
+  for (const e of ESTADO.agg.values()) {
+    if (a && !a.has(e.ym)) continue; if (c && !c.has(e.cid)) continue; if (b && !b.has(norm(supDaCidade(e.cid)))) continue;
+    T.gda += e.gda; T.gia += e.gia; T.ada += e.ada; T.aia += e.aia;
+  }
+  for (const x of ESTADO.AJ) {
+    if (a && !a.has(x.ym)) continue; if (c && !c.has(x.cid || norm(x.cidade))) continue; if (b && !b.has(norm(x.cid ? supDaCidade(x.cid) : x.sup))) continue;
+    T.da += x.da; T.ia += x.ia; if (x.da > 0 || x.ia > 0) mats.add(x.mat);
+  }
+  const ms = L.map(x => x.ym).sort();
+  return { t, T, matsAj: mats.size, de: ms[0], ate: ms[ms.length - 1] };
+}
+const pp = (a, b) => b ? (a / b * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-';
+const ganhoPp = (a1, a2, g) => g ? ((a2 - a1) / g * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' p.p.' : '-';
+function renderExec() {
+  const tem = ESTADO.LIN.length > 0;
+  $('#boxExec').classList.toggle('oculto', !tem); $('#vazio4').classList.toggle('oculto', tem);
+  if (!tem) return;
+  const { t, T, matsAj, de, ate } = dadosExec();
+  const per = de === ate ? labelYm(de) : labelYm(de) + ' a ' + labelYm(ate);
+  const filtros = [['fSup', 'Superintendência'], ['fCid', 'Cidade']].map(([id, n]) => { const f = fs(id); return f ? n + ': ' + [...f].join(', ') : ''; }).filter(Boolean).join('; ');
+  $('#execTitulo').textContent = 'Resumo executivo: matrículas que pagaram e estão fora da visão da auditoria';
+  const linha = (nome, g, h, aj) => '<tr><td>' + nome + '</td><td>' + fMoeda(g) + '</td><td>' + fMoeda(h) + ' (' + pp(h, g) + ')</td><td class="dest">' + fMoeda(aj) + '</td><td>' + fMoeda(h + aj) + ' (' + pp(h + aj, g) + ')</td></tr>';
+  let h = '<p>Período de implantação: ' + per + (filtros ? '. ' + esc(filtros) : '') + '.</p>';
+  h += '<p>Das <b>' + fInt(t.impl) + '</b> matrículas implantadas no período, <b>' + fInt(t.pagou) + '</b> já pagaram ao menos uma conta (' + fPct(t.pagou, t.impl) + '). Dessas, <span class="dest">' + fInt(t.deveria) + ' matrículas (' + fPct(t.deveria, t.pagou) + ' das que pagaram)</span> ainda não estão como Ativa Faturando nem Cortada na base de faturamento, que é o recorte usado pela visão da auditoria. ' +
+    fInt(t.fora) + ' aparecem na base com outra situação' + (t.semfat ? ', e ' + fInt(t.semfat) + ' não têm nenhuma linha no faturamento' : '') + '.</p>';
+  h += '<h3>Impacto no faturamento de água</h3>';
+  h += '<p>O faturamento dessas matrículas, do mês do primeiro pagamento em diante, soma <span class="dest">' + fMoeda(T.da) + '</span> em faturamento direto de água e <span class="dest">' + fMoeda(T.ia) + '</span> em indireto de água, em ' + fInt(matsAj) + ' matrículas com valor. A visão da auditoria de hoje deixa esse valor de fora.</p>';
+  h += '<table><thead><tr><th>Água</th><th>Faturamento geral</th><th>Visão auditoria hoje</th><th>Ajuste do SAC</th><th>Visão do SAC (corrigida)</th></tr></thead><tbody>' +
+    linha('Direta de água', T.gda, T.ada, T.da) + linha('Indireta de água', T.gia, T.aia, T.ia) + linha('Total água', T.gda + T.gia, T.ada + T.aia, T.da + T.ia) + '</tbody></table>';
+  h += '<p>Com o ajuste, a parte do faturamento direto de água reconhecida pela auditoria passa de ' + pp(T.ada, T.gda) + ' para ' + pp(T.ada + T.da, T.gda) + ' do geral (' + ganhoPp(T.ada, T.ada + T.da, T.gda) + '). No indireto de água, vai de ' + pp(T.aia, T.gia) + ' para ' + pp(T.aia + T.ia, T.gia) + ' (' + ganhoPp(T.aia, T.aia + T.ia, T.gia) + ').</p>';
+  h += '<h3>Encaminhamento</h3><p>Reclassificar na base as ' + fInt(t.fora) + ' matrículas que pagaram e estão com outra situação' + (t.semfat ? ', e checar no cadastro por que ' + fInt(t.semfat) + ' matrículas com pagamento não aparecem no faturamento' : '') + '. A lista com matrícula, cidade e situação está na aba Fora do SAC.</p>';
+  $('#execTexto').innerHTML = h;
+}
+$('#execImprimir').onclick = () => window.print();
+$('#execCopiar').onclick = async () => {
+  const el = $('#execTexto'), html = '<h2>' + esc($('#execTitulo').textContent) + '</h2>' + el.innerHTML.replace(/class="dest"/g, 'style="color:#C2560C;font-weight:600"').replace(/<thead><tr>/, '<thead><tr style="background:#1A2740;color:#fff">');
+  const txt = $('#execTitulo').textContent + '\n\n' + [...el.children].map(n => n.tagName === 'TABLE' ? [...n.rows].map(r => [...r.cells].map(c => c.textContent).join(' | ')).join('\n') : n.textContent).join('\n\n');
+  const b = $('#execCopiar');
+  try { await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([txt], { type: 'text/plain' }) })]); b.textContent = 'Copiado'; }
+  catch { try { await navigator.clipboard.writeText(txt); b.textContent = 'Copiado'; } catch { b.textContent = 'Não foi possível copiar'; } }
+  setTimeout(() => b.textContent = 'Copiar texto', 1800);
+};
 function filtrado() {
   const a = fs('fMes'), b = fs('fSup'), c = fs('fCid');
   return ESTADO.LIN.filter(x => (!a || a.has(x.ym)) && (!b || b.has(x.sup)) && (!c || c.has(x.cidade)));
@@ -843,7 +917,7 @@ function resumir(rows) {
 function aplicar() {
   renderFat();
   const rows = filtrado(), t = resumir(rows);
-  renderJornada(rows);
+  renderJornada(rows); renderExec();
   $('#kpis').innerHTML = [
     ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', '', 'impl'],
     ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', '', 'bill'],
