@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v15</title>
+<title>Águas do Rio | SAC v16</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -110,7 +110,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v15</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v16</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -163,7 +163,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
       <ul class="regras">
         <li>Faturamento geral: tudo o que foi faturado no mês na base de faturamento, de todas as matrículas. Total, Direto e Indireto usam a medida bruta; só o Total tem versão líquida.</li>
         <li>Visão auditoria hoje: só as linhas com situação final Ativa Faturando ou Cortada.</li>
-        <li>Ajuste do SAC: faturamento das matrículas implantadas que já pagaram e, do mês do primeiro pagamento em diante, estão fora de Ativa Faturando e Cortada. O ajuste sempre soma: se a matrícula fechar o mês negativa por cancelamento, entra zero.</li>
+        <li>Ajuste do SAC: faturamento das matrículas implantadas que já pagaram e, do mês do primeiro pagamento em diante, estão fora de Ativa Faturando e Cortada. Se a situação mais recente da matrícula na base já é Ativa Faturando ou Cortada, ela é considerada correta e não entra no ajuste. O ajuste sempre soma: se a matrícula fechar o mês negativa por cancelamento, entra zero.</li>
         <li>Visão auditoria corrigida: visão auditoria hoje mais o ajuste do SAC. O Mês do cabeçalho filtra o mês do faturamento, Superintendência e Cidade filtram pela cidade da linha de faturamento, e DSC_CLASSE filtra a classe; o ajuste usa os mesmos filtros do geral, então a visão corrigida nunca passa do faturamento geral.</li>
       </ul>
     </div>
@@ -227,7 +227,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v15';
+const VERSAO_SAC = 'v16';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -634,7 +634,7 @@ function cruzar() {
         cat = ok ? 'sac' : 'fora';
       }
     }
-    if (payYm && F) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
+    if (payYm && F && !sac.has(norm(F.lastSit))) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
     return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, payYm, sitAtual, cat };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
