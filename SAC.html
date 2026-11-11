@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v18</title>
+<title>Águas do Rio | SAC v19</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -32,6 +32,21 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .fsel { display:flex; align-items:center; gap:6px; font-size:9px; font-weight:750; text-transform:uppercase; letter-spacing:.2px; color:#c8d6e5; transition:opacity .15s; }
 .fsel select { max-width:102px; text-overflow:ellipsis; border:1px solid rgba(255,255,255,.35); border-radius:8px; background:rgba(255,255,255,.1); color:#fff; padding:5px 6px; font:inherit; font-size:12px; font-weight:400; text-transform:none; letter-spacing:0; }
 .fsel select option { color:#111; }
+.ms { position:relative; }
+.ms-btn { display:flex; align-items:center; gap:6px; min-height:32px; max-width:180px; border:1px solid rgba(255,255,255,.35); border-radius:8px; background:rgba(255,255,255,.1); color:#fff; padding:5px 8px; font:400 12px var(--fonte); text-transform:none; letter-spacing:0; cursor:pointer; transition:background-color .12s; }
+.ms-btn:hover { background:rgba(255,255,255,.18); }
+.ms-btn span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ms-btn::after { content:''; flex:none; margin-left:auto; width:6px; height:6px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:translateY(-2px) rotate(45deg); }
+.fsel.claro .ms-btn { max-width:280px; min-height:40px; border-color:var(--line); background:#fff; color:var(--marinho); font-size:13px; padding:6px 10px; }
+.fsel.claro .ms-btn:hover { background:var(--zebra); }
+.ms-pop { position:absolute; top:calc(100% + 4px); left:0; z-index:60; width:260px; background:#fff; color:var(--ink); border-radius:10px; box-shadow:0 8px 28px rgba(17,42,66,.22); padding:6px; text-transform:none; letter-spacing:0; font-size:13px; font-weight:400; }
+.ms-pop input[type=search] { width:100%; min-height:34px; margin-bottom:4px; padding:0 8px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+.ms-lista { max-height:300px; overflow:auto; }
+.ms-op { display:flex; align-items:center; gap:8px; min-height:34px; padding:0 8px; border-radius:6px; cursor:pointer; }
+.ms-op:hover { background:var(--tint); }
+.ms-op input { width:16px; height:16px; margin:0; accent-color:var(--azul); }
+.ms-todos { font-weight:600; color:var(--marinho); border-bottom:1px solid var(--line); border-radius:6px 6px 0 0; margin-bottom:2px; }
+@media (max-width:900px) { .ms-btn { min-height:44px; } .ms-op { min-height:44px; } }
 .fsel.claro { color:var(--marinho); font-size:11px; margin-top:4px; }
 .fsel.claro select { max-width:260px; min-height:40px; border:1px solid var(--line); background:#fff; color:var(--marinho); font-size:13px; padding:6px 10px; }
 .btn-top { display:inline-flex; align-items:center; padding:5px 8px; border-radius:8px; font:inherit; font-size:12px; cursor:pointer; background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.3); text-decoration:none; white-space:nowrap; }
@@ -122,13 +137,13 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v18</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v19</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
-      <label class="fsel"><span>Mês</span><select id="fMes"><option value="">Todos os meses</option></select></label>
-      <label class="fsel"><span>Superintendência</span><select id="fSup"><option value="">Todas</option></select></label>
-      <label class="fsel"><span>Cidade</span><select id="fCid"><option value="">Todas</option></select></label>
+      <div class="fsel"><span id="fMes-rot">Mês</span><select id="fMes" multiple hidden aria-hidden="true"></select></div>
+      <div class="fsel"><span id="fSup-rot">Superintendência</span><select id="fSup" multiple hidden aria-hidden="true"></select></div>
+      <div class="fsel"><span id="fCid-rot">Cidade</span><select id="fCid" multiple hidden aria-hidden="true"></select></div>
     </div>
     <div class="ferramentas">
       <button type="button" class="btn-top" id="btnPasta">📁 Conectar pasta</button>
@@ -176,7 +191,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
           <div class="seg" role="group" aria-label="Medida"><button type="button" id="medL" class="ativo" aria-pressed="true">Líquido</button><button type="button" id="medB" aria-pressed="false">Bruto</button></div>
         </div>
       </div>
-      <label class="fsel claro"><span>DSC_CLASSE</span><select id="fCls"><option value="">Todas</option></select></label>
+      <div class="fsel claro"><span id="fCls-rot">DSC_CLASSE</span><select id="fCls" multiple hidden aria-hidden="true"></select></div>
       <p class="nota-secao" id="notaFat"></p>
       <div class="kpis c5" id="kpisFat"></div>
       <div class="tabela-wrap" style="margin-top:12px"><table id="tabFat"></table></div>
@@ -247,7 +262,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v18';
+const VERSAO_SAC = 'v19';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -691,11 +706,53 @@ function renderValidacao() {
   $('#notaVal').textContent = ESTADO.avisos.join(' ');
 }
 
+/* ---------- filtros com várias opções: o <select multiple> guarda o estado; nenhuma marcada = todos ---------- */
 function preencher(sel, valores, rotulo, fmt) {
-  const atual = sel.value;
-  sel.innerHTML = '<option value="">' + rotulo + '</option>' + valores.map(v => '<option value="' + esc(v) + '">' + esc(fmt ? fmt(v) : v) + '</option>').join('');
-  if (valores.includes(atual)) sel.value = atual;
+  const atual = new Set([...sel.selectedOptions].map(o => o.value));
+  sel.innerHTML = valores.map(v => '<option value="' + esc(v) + '"' + (atual.has(v) ? ' selected' : '') + '>' + esc(fmt ? fmt(v) : v) + '</option>').join('');
+  sel.dataset.todos = rotulo; msRotulo(sel);
 }
+function fs(id, f) {   // Set dos valores marcados, ou null quando é tudo
+  const sel = $('#' + id), v = [...sel.selectedOptions].map(o => f ? f(o.value) : o.value);
+  return v.length && v.length < sel.options.length ? new Set(v) : null;
+}
+function msRotulo(sel) {
+  const b = sel.parentNode.querySelector('.ms-btn'); if (!b) return;
+  const m = [...sel.selectedOptions], n = sel.options.length;
+  b.firstChild.textContent = !m.length || m.length === n ? (sel.dataset.todos || 'Todos') : m.length === 1 ? m[0].textContent : m.length + ' selecionados';
+}
+function msMontar(id) {
+  const sel = $('#' + id), box = document.createElement('div'); box.className = 'ms';
+  box.innerHTML = '<button type="button" class="ms-btn" aria-haspopup="true" aria-expanded="false" aria-labelledby="' + id + '-rot ' + id + '-btn" id="' + id + '-btn"><span>Todos</span></button>';
+  sel.after(box); const btn = box.firstChild; let pop = null;
+  const fechar = () => { if (!pop) return; pop.remove(); pop = null; btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('mousedown', fora); };
+  const fora = e => { if (!box.contains(e.target)) fechar(); };
+  const desenhar = q => {
+    const ops = [...sel.options], vis = ops.filter(o => !q || norm(o.textContent).includes(norm(q))), marc = ops.filter(o => o.selected).length, tudo = !marc || marc === ops.length;
+    pop.querySelector('.ms-lista').innerHTML = '<label class="ms-op ms-todos"><input type="checkbox" data-v="*"' + (tudo ? ' checked' : '') + '>Selecionar todos</label>' +
+      vis.map(o => '<label class="ms-op"><input type="checkbox" data-v="' + esc(o.value) + '"' + (tudo || o.selected ? ' checked' : '') + '>' + esc(o.textContent) + '</label>').join('');
+  };
+  btn.onclick = () => {
+    if (pop) return fechar();
+    pop = document.createElement('div'); pop.className = 'ms-pop'; pop.setAttribute('role', 'dialog');
+    pop.innerHTML = (sel.options.length > 8 ? '<input type="search" placeholder="Buscar" aria-label="Buscar opção">' : '') + '<div class="ms-lista"></div>';
+    box.appendChild(pop); btn.setAttribute('aria-expanded', 'true'); desenhar('');
+    const busca = pop.querySelector('input[type=search]'); if (busca) { busca.oninput = () => desenhar(busca.value); busca.focus(); }
+    pop.onchange = e => {
+      const v = e.target.dataset.v, ops = [...sel.options], tudo = !ops.some(o => o.selected) || ops.every(o => o.selected);
+      if (v === '*') ops.forEach(o => o.selected = false);                     // marcar ou desmarcar todos volta para "todos"
+      else {
+        if (tudo) ops.forEach(o => o.selected = true);                         // saindo do "todos": parte de tudo marcado
+        ops.find(o => o.value === v).selected = e.target.checked;
+        if (ops.every(o => o.selected) || !ops.some(o => o.selected)) ops.forEach(o => o.selected = false);
+      }
+      desenhar(busca ? busca.value : ''); msRotulo(sel); sel.dispatchEvent(new Event('change'));
+    };
+    setTimeout(() => document.addEventListener('mousedown', fora));
+  };
+  box.onkeydown = e => { if (e.key === 'Escape' && pop) { fechar(); btn.focus(); } };
+}
+['fMes', 'fSup', 'fCid', 'fCls'].forEach(msMontar);
 function renderAnalise() {
   const L = ESTADO.LIN; const caixas = ['boxAnalise', 'boxMes', 'boxJornada', 'boxSup', 'boxLista'];
   if (!L.length) renderFat();
@@ -769,8 +826,8 @@ function renderJornada(rows) {
   const el2 = $('#grafCoorte'); el2.innerHTML = '<svg viewBox="0 0 ' + W2 + ' ' + H2 + '" role="img" aria-label="Implantadas e já pagaram por mês de implantação">' + g2 + '</svg>'; ligarDicas(el2, d2);
 }
 function filtrado() {
-  const a = $('#fMes').value, b = $('#fSup').value, c = $('#fCid').value;
-  return ESTADO.LIN.filter(x => (!a || x.ym === a) && (!b || x.sup === b) && (!c || x.cidade === c));
+  const a = fs('fMes'), b = fs('fSup'), c = fs('fCid');
+  return ESTADO.LIN.filter(x => (!a || a.has(x.ym)) && (!b || b.has(x.sup)) && (!c || c.has(x.cidade)));
 }
 function resumir(rows) {
   const r = { impl: rows.length, os: 0, bill: 0, valor: 0, pagou: 0, sac: 0, fora: 0, semfat: 0, np: 0 };
@@ -817,11 +874,11 @@ const fSinal = (p, casas) => (p > 0 ? '+' : '') + p.toLocaleString('pt-BR', { mi
 function celDif(d) { return '<td class="n ' + (d < 0 ? 'neg' : '') + '">' + (d > 0 ? '▲ ' : d < 0 ? '▼ ' : '') + fMoeda(Math.abs(d)) + '</td>'; }
 function celPct(d, base) { if (!base) return '<td class="n">-</td>'; const p = d / Math.abs(base) * 100; return '<td class="n ' + (d < 0 ? 'neg' : '') + '">' + fSinal(p, 1) + '</td>'; }
 function renderVariacao() {
-  const R = resumoFat(true), mes = $('#fMes').value;
+  const R = resumoFat(true), mes = fs('fMes');
   const val = o => [o.ger, o.aud, o.aj, o.aud + o.aj];
   const par = (a, b, rot, cls) => '<tr class="' + (cls || '') + '"><td>' + rot + '</td>' + val(b).map((v, i) => celDif(v - val(a)[i]) + celPct(v - val(a)[i], val(a)[i])).join('') + '</tr>';
   const vazia = rot => '<tr><td>' + rot + '</td>' + '<td class="n">-</td>'.repeat(8) + '</tr>';
-  let linhas = R.map((o, i) => ({ o, i })).filter(x => !mes || x.o.ym === mes).map(x => x.i ? par(R[x.i - 1], x.o, labelYm(x.o.ym) + ' contra ' + labelYm(R[x.i - 1].ym)) : vazia(labelYm(x.o.ym) + ' (primeiro mês)')).join('');
+  let linhas = R.map((o, i) => ({ o, i })).filter(x => !mes || mes.has(x.o.ym)).map(x => x.i ? par(R[x.i - 1], x.o, labelYm(x.o.ym) + ' contra ' + labelYm(R[x.i - 1].ym)) : vazia(labelYm(x.o.ym) + ' (primeiro mês)')).join('');
   if (!mes && R.length > 1) linhas += par(R[0], R[R.length - 1], 'Período: ' + labelYm(R[0].ym) + ' até ' + labelYm(R[R.length - 1].ym), 'linha-total');
   const grupo = t => '<th colspan="2">' + t + '</th>';
   $('#tabFat').innerHTML = '<thead><tr><th rowspan="2">Mês contra o anterior</th>' + grupo('Faturamento geral') + grupo('Visão auditoria hoje') + grupo('Ajuste do SAC') + grupo('Visão auditoria corrigida') + '</tr><tr class="header-sub">' + '<th class="n">Dif. R$</th><th class="n">Dif. %</th>'.repeat(4) + '</tr></thead><tbody>' + linhas + '</tbody>';
@@ -840,15 +897,15 @@ function supDaCidade(cid) {
   return supDaCidade.mapa.get(cid) || '(sem sup)';
 }
 function ajusteFiltrado(semMes) {
-  const a = semMes ? '' : $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), k = $('#fCls').value;
+  const a = semMes ? null : fs('fMes'), b = fs('fSup', norm), c = fs('fCid', norm), k = fs('fCls');
   // mesmo filtro do faturamento geral: cidade da linha de faturamento, sup dessa cidade e DSC_CLASSE
-  return ESTADO.AJ.filter(x => (!a || x.ym === a) && (!k || x.cls === k) && (!c || (x.cid || norm(x.cidade)) === c) && (!b || norm(x.cid ? supDaCidade(x.cid) : x.sup) === b));
+  return ESTADO.AJ.filter(x => (!a || a.has(x.ym)) && (!k || k.has(x.cls)) && (!c || c.has(x.cid || norm(x.cidade))) && (!b || b.has(norm(x.cid ? supDaCidade(x.cid) : x.sup))));
 }
 function resumoFat(semMes) {
-  const a = semMes ? '' : $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), k = $('#fCls').value, g = CHAVES[medida()];
+  const a = semMes ? null : fs('fMes'), b = fs('fSup', norm), c = fs('fCid', norm), k = fs('fCls'), g = CHAVES[medida()];
   const meses = new Map(), ev = ym => { let o = meses.get(ym); if (!o) { o = { ym, ger: 0, aud: 0, aj: 0, n: 0, mats: new Set() }; meses.set(ym, o); } return o; };
   for (const e of ESTADO.agg.values()) {
-    if (a && e.ym !== a) continue; if (k && e.cls !== k) continue; if (c && e.cid !== c) continue; if (b && norm(supDaCidade(e.cid)) !== b) continue;
+    if (a && !a.has(e.ym)) continue; if (k && !k.has(e.cls)) continue; if (c && !c.has(e.cid)) continue; if (b && !b.has(norm(supDaCidade(e.cid)))) continue;
     const o = ev(e.ym); o.ger += e[g[0]]; o.aud += e[g[1]];
   }
   for (const x of ajusteFiltrado(semMes)) { const o = ev(x.ym); o.aj += x[g[2]]; o.n++; o.mats.add(x.mat); }
@@ -859,8 +916,8 @@ function renderFat() {
   $('#boxFat').classList.toggle('oculto', !tem); $('#vazio3').classList.toggle('oculto', tem);
   if (!tem) return;
   if (!ESTADO.temLiq && FATMED === 'l') FATMED = 'b';
-  const selC = $('#fCls'), atual = selC.value;
-  selC.innerHTML = '<option value="">Todas</option>' + [...ESTADO.cls].sort((p, q) => p[1].localeCompare(q[1], 'pt-BR')).map(([k, v]) => '<option value="' + esc(k) + '"' + (k === atual ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
+  const clsOrd = [...ESTADO.cls].sort((p, q) => p[1].localeCompare(q[1], 'pt-BR'));
+  preencher($('#fCls'), clsOrd.map(c => c[0]), 'Todas', k => ESTADO.cls.get(k));
   const dividido = FATTIPO !== 'tot';
   $('#medL').disabled = !ESTADO.temLiq || dividido; $('#medB').disabled = dividido;
   const ativoM = dividido ? 'b' : FATMED;
