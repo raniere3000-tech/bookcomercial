@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v25</title>
+<title>Águas do Rio | SAC v26</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -163,7 +163,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v25</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v26</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -245,9 +245,9 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
   <section class="view" id="view-exec">
     <div class="card oculto" id="boxExec">
       <div class="card-titulo"><h2 id="execTitulo">Resumo executivo</h2>
-        <div class="acoes-exec"><button type="button" class="btn-acao" id="execCopiar">Copiar texto</button><button type="button" class="btn-acao" id="execImprimir">Imprimir ou salvar PDF</button></div></div>
+        <div class="acoes-exec"><button type="button" class="btn-acao" id="execVer">Ver as matrículas</button><button type="button" class="btn-acao" id="execCopiar">Copiar texto</button><button type="button" class="btn-acao" id="execImprimir">Imprimir ou salvar PDF</button></div></div>
       <div class="fsel claro"><span>Mês de implantação</span><select id="execMes" class="sel-claro"></select></div>
-      <p class="nota-secao" style="margin-top:8px">Faturamento e SAC sempre do mês seguinte ao da implantação. Faturamento bruto total e visão auditoria hoje vêm da base inteira do mês, sem filtro. Os filtros de Superintendência e Cidade do cabeçalho valem só para as ligações implantadas e o ajuste do SAC.</p>
+      <p class="nota-secao" style="margin-top:8px">O faturamento é sempre do mês seguinte ao da implantação. Os filtros de Superintendência e Cidade do cabeçalho valem para as ligações implantadas. O faturamento bruto total da base não é filtrado.</p>
       <div id="execTexto" class="exec-texto"></div>
     </div>
     <div class="card" id="vazio4"><h2>Resumo executivo</h2><p class="nota-secao">Conecte a pasta para gerar o resumo.</p></div>
@@ -301,7 +301,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v25';
+const VERSAO_SAC = 'v26';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -884,57 +884,72 @@ function renderExec() {
   const sel = $('#execMes'), atual = sel.value;
   sel.innerHTML = meses.map(m => '<option value="' + m + '">' + labelYm(m) + ' (faturamento de ' + labelYm(proxYm(m)) + (fatMeses.has(proxYm(m)) ? '' : ', ainda sem dados') + ')</option>').join('');
   sel.value = meses.includes(atual) ? atual : ([...meses].reverse().find(m => fatMeses.has(proxYm(m))) || meses[meses.length - 1]);
-  const M = sel.value, R = proxYm(M), L = base.filter(x => x.ym === M), t = resumir(L);
-  const z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), G = z(), H = z(), A = z(); let comFat = 0, matsAj = 0, fatCoorte = 0; const SIT = {};
+  const M = sel.value, R = proxYm(M), L = base.filter(x => x.ym === M);
+  const sac = new Set(CONFIG.situacoesSac), z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), V = z(), G = z(), H = z();
+  let P = 0, A = 0, Q = 0, Qv = 0, Qs = 0; EXECQ = [];
   for (const x of L) {
-    const mm = x.mes && x.mes.get(R); if (!mm) continue;
-    let fat = false, aj = false, vx = 0;
-    for (const [k] of COLS_EXEC) {
-      fatCoorte += mm.ok[k] + mm.nok[k]; vx += mm.ok[k] + mm.nok[k]; if (mm.ok[k] + mm.nok[k] > 0) fat = true;
-      if (x.payYm && x.payYm <= R && !x.sitOk && mm.nok[k] > 0) { A[k] += mm.nok[k]; aj = true; }   // mesma regra do ajuste do SAC
-    }
-    if (fat) {
-      comFat++;
-      const ss = x.sts && x.sts.get(R), cap = t => t.charAt(0).toUpperCase() + t.slice(1);   // situação final do mês do faturamento
-      const nome = ss && ss.has('ativa faturando') ? 'Ativa Faturando' : ss && ss.has('cortada') ? 'Cortada' : ss && ss.size ? cap([...ss][0]) : 'Sem situação';
-      const o = SIT[nome] || (SIT[nome] = { n: 0, pagou: 0, v: 0 }); o.n++; if (x.payYm) o.pagou++; o.v += vx;
-    }
-    if (aj) matsAj++;
+    if (!x.payYm || x.payYm > R) continue;                                  // pagou até o mês do faturamento
+    P++;
+    const ss = x.sts && x.sts.get(R), noSac = !!ss && [...ss].some(t => sac.has(t));   // situação no mês do faturamento
+    if (noSac) { A++; continue; }
+    Q++;
+    const mm = x.mes && x.mes.get(R); let v = 0;
+    if (mm) for (const [k] of COLS_EXEC) { V[k] += mm.nok[k] + mm.ok[k]; v += mm.nok[k] + mm.ok[k]; }
+    if (v > 0) Qv++; else Qs++;
+    EXECQ.push({ mat: x.mat, cidade: x.cidade, sup: x.sup, ym: x.ym, payYm: x.payYm, ref: R, sit: ss && ss.size ? [...ss][0].replace(/^./, c => c.toUpperCase()) : '', v });
   }
+  EXECQ.sort((p, q) => q.v - p.v);
   for (const e of ESTADO.agg.values()) if (e.ym === R) {   // faturamento bruto total da base no mês, sem filtro nenhum
     G.da += e.gda; G.de += e.gde; G.ia += e.gia; G.ie += e.gie; H.da += e.ada; H.de += e.ade; H.ia += e.aia; H.ie += e.aie;
   }
-  const soma = o => o.da + o.de + o.ia + o.ie;
-  const naAud = ((SIT['Ativa Faturando'] || {}).n || 0) + ((SIT['Cortada'] || {}).n || 0);
+  const soma = o => o.da + o.de + o.ia + o.ie, N = L.length, vt = soma(V);
   const filtros = [['fSup', 'Superintendência'], ['fCid', 'Cidade']].map(([id, n]) => { const f = fs(id); return f ? n + ': ' + [...f].join(', ') : ''; }).filter(Boolean).join('; ');
-  $('#execTitulo').textContent = 'Resumo executivo: implantações de ' + labelYm(M) + ' e faturamento de ' + labelYm(R);
-  const lin = (nome, g, h, a, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + nome + '</td><td>' + fMoeda(g) + '</td><td>' + fMoeda(h) + '</td><td class="dest">' + fMoeda(a) + '</td><td>' + fMoeda(g - h - a) + '</td></tr>';
+  $('#execTitulo').textContent = 'Resumo executivo: implantações de ' + labelYm(M) + ' e impacto no faturamento de ' + labelYm(R);
+  $('#execVer').disabled = !Q;
   let h = '<div class="exec-kpis">' +
-    '<div><small>Ligações implantadas em ' + labelYm(M) + '</small><strong>' + fInt(t.impl) + '</strong></div>' +
-    '<div><small>Com faturamento em ' + labelYm(R) + ' (qualquer situação)</small><strong>' + fInt(comFat) + '</strong><span class="sub-k">' + fInt(naAud) + ' em Ativa Faturando ou Cortada</span></div>' +
-    '<div><small>Já pagaram</small><strong>' + fInt(t.pagou) + '</strong></div>' +
-    '<div><small>Pagaram e estão fora da auditoria</small><strong class="dest">' + fInt(t.deveria) + '</strong></div></div>';
+    '<div><small>1. Ligações implantadas em ' + labelYm(M) + '</small><strong>' + fInt(N) + '</strong><span class="sub-k">ligações executadas no mês</span></div>' +
+    '<div><small>2. Pagaram até ' + labelYm(R) + '</small><strong>' + fInt(P) + '</strong><span class="sub-k">' + pp(P, N) + ' das implantadas</span></div>' +
+    '<div><small>3. Pagaram e não estão como Ativa Faturando ou Cortada</small><strong class="dest">' + fInt(Q) + '</strong><span class="sub-k">' + pp(Q, P) + ' das que pagaram</span></div>' +
+    '<div><small>4. Impacto no faturamento de ' + labelYm(R) + '</small><strong class="dest">' + fMoeda(vt) + '</strong><span class="sub-k">faturamento das matrículas do passo 3</span></div></div>';
   if (filtros) h += '<p>' + esc(filtros) + '.</p>';
-  if (!fatMeses.has(R)) h += '<p class="dest">A base de faturamento ainda não tem ' + labelYm(R) + '. Os valores abaixo ficam zerados até o arquivo desse mês entrar na pasta.</p>';
-  h += '<p>O faturamento bruto total de ' + labelYm(R) + ', somando direta e indireta de água e de esgoto de todas as matrículas da base, foi de <b>' + fMoeda(soma(G)) + '</b>. ' +
-    'A visão da auditoria de hoje, que só considera Ativa Faturando e Cortada, enxerga ' + fMoeda(soma(H)) + ' (' + pp(soma(H), soma(G)) + ').</p>';
-  h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(t.impl) + '</b> ligações; ' + fInt(comFat) + ' delas tiveram faturamento em ' + labelYm(R) + ', somando ' + fMoeda(fatCoorte) + '. Por situação na base, Ativa Faturando ou Cortada (a visão da auditoria): <b>' + fInt(naAud) + '</b> de ' + fInt(comFat) + ' (' + pp(naAud, comFat) + '). Outra situação: ' + fInt(comFat - naAud) + '.</p>';
-  const ordem = Object.keys(SIT).sort((a, b2) => (a === 'Ativa Faturando' ? -2 : a === 'Cortada' ? -1 : 0) - (b2 === 'Ativa Faturando' ? -2 : b2 === 'Cortada' ? -1 : 0) || SIT[b2].n - SIT[a].n);
-  const tp = ordem.reduce((a, k) => a + SIT[k].pagou, 0), tv = ordem.reduce((a, k) => a + SIT[k].v, 0);
-  h += '<h3>As ' + fInt(comFat) + ' ligações de ' + labelYm(M) + ' com faturamento em ' + labelYm(R) + ', por situação na base</h3>';
-  h += '<table><thead><tr><th>Situação final na base</th><th>Ligações</th><th>% das faturadas</th><th>Já pagaram</th><th>Faturado em ' + labelYm(R) + '</th></tr></thead><tbody>' +
-    ordem.map(k => '<tr><td>' + esc(k) + (k === 'Ativa Faturando' || k === 'Cortada' ? ' (auditoria)' : '') + '</td><td>' + fInt(SIT[k].n) + '</td><td>' + pp(SIT[k].n, comFat) + '</td><td>' + fInt(SIT[k].pagou) + '</td><td>' + fMoeda(SIT[k].v) + '</td></tr>').join('') +
-    '<tr class="tot"><td>Total</td><td>' + fInt(comFat) + '</td><td>' + pp(comFat, comFat) + '</td><td>' + fInt(tp) + '</td><td>' + fMoeda(tv) + '</td></tr></tbody></table>';
-  h += '<p>Das ligações do mês, ' + fInt(t.pagou) + ' já pagaram ao menos uma conta, e <span class="dest">' + fInt(t.deveria) + '</span> delas ainda não estão como Ativa Faturando nem Cortada' + (t.semfat ? ' (' + fInt(t.semfat) + ' sem nenhuma linha no faturamento)' : '') + '. ' +
-    'Reclassificar essas matrículas soma <span class="dest">' + fMoeda(soma(A)) + '</span> ao faturamento de ' + labelYm(R) + ' na visão do SAC, e a cobertura do faturamento total passa de ' + pp(soma(H), soma(G)) + ' para ' + pp(soma(H) + soma(A), soma(G)) + '.</p>';
-  h += '<h3>Faturamento bruto total de ' + labelYm(R) + ' e ajuste das ligações implantadas em ' + labelYm(M) + '</h3>';
-  h += '<table><thead><tr><th>Componente</th><th>Faturamento bruto total</th><th>Visão auditoria hoje</th><th>Ajuste do SAC</th><th>Ainda fora</th></tr></thead><tbody>' +
-    COLS_EXEC.map(([k, n]) => lin(n, G[k], H[k], A[k])).join('') + lin('Total', soma(G), soma(H), soma(A), 'tot') + '</tbody></table>';
-  h += '<p>Ajuste do SAC: faturamento de ' + labelYm(R) + ' das matrículas que pagaram até esse mês e cuja situação mais recente na base não é Ativa Faturando nem Cortada (' + fInt(matsAj) + ' matrículas com valor). Faturamento bruto total e visão auditoria hoje são da base inteira do mês, sem filtro. "Ainda fora" é o faturamento do mês que continua fora da visão do SAC.</p>';
-  h += '<h3>Encaminhamento</h3><p>Reclassificar na base as ' + fInt(t.fora) + ' matrículas de ' + labelYm(M) + ' que pagaram e estão com outra situação' + (t.semfat ? ', e checar no cadastro por que ' + fInt(t.semfat) + ' matrículas com pagamento não aparecem no faturamento' : '') + '. A lista está na aba Fora do SAC, filtrando o mês ' + labelYm(M) + '.</p>';
+  if (!fatMeses.has(R)) h += '<p class="dest">A base de faturamento ainda não tem ' + labelYm(R) + '. O impacto fica zerado até o arquivo desse mês entrar na pasta.</p>';
+  h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(N) + '</b> ligações. Até ' + labelYm(R) + ', <b>' + fInt(P) + '</b> já pagaram. Dessas ' + fInt(P) + ', ' + fInt(A) + (A === 1 ? ' está' : ' estão') + ' como Ativa Faturando ou Cortada e ' + (A === 1 ? 'entra' : 'entram') + ' no SAC, e <span class="dest">' + fInt(Q) + '</span> ' + (Q === 1 ? 'não está' : 'não estão') + '. ' +
+    'O faturamento de ' + labelYm(R) + ' ' + (Q === 1 ? 'dessa matrícula' : 'dessas matrículas') + ' é de <span class="dest">' + fMoeda(vt) + '</span>: é o valor que entra no faturamento do SAC quando a situação ' + (Q === 1 ? 'dela' : 'delas') + ' for corrigida.</p>';
+  h += '<h3>Do implantado ao impacto</h3><table><thead><tr><th>Etapa</th><th>Ligações</th><th>% das implantadas</th><th>% das que pagaram</th></tr></thead><tbody>' +
+    '<tr><td>Ligações implantadas em ' + labelYm(M) + '</td><td>' + fInt(N) + '</td><td>' + pp(N, N) + '</td><td>-</td></tr>' +
+    '<tr><td>Pagaram até ' + labelYm(R) + '</td><td>' + fInt(P) + '</td><td>' + pp(P, N) + '</td><td>' + pp(P, P) + '</td></tr>' +
+    '<tr><td>Dessas, já estão como Ativa Faturando ou Cortada</td><td>' + fInt(A) + '</td><td>' + pp(A, N) + '</td><td>' + pp(A, P) + '</td></tr>' +
+    '<tr class="tot"><td>Dessas, não estão (fora da auditoria)</td><td>' + fInt(Q) + '</td><td>' + pp(Q, N) + '</td><td>' + pp(Q, P) + '</td></tr>' +
+    '<tr><td>Fora da auditoria e com faturamento em ' + labelYm(R) + '</td><td>' + fInt(Qv) + '</td><td>' + pp(Qv, N) + '</td><td>' + pp(Qv, P) + '</td></tr>' +
+    '<tr><td>Fora da auditoria e sem faturamento em ' + labelYm(R) + '</td><td>' + fInt(Qs) + '</td><td>' + pp(Qs, N) + '</td><td>' + pp(Qs, P) + '</td></tr></tbody></table>';
+  h += '<h3>Impacto no faturamento de ' + labelYm(R) + ' das matrículas fora da auditoria</h3><table><thead><tr><th>Componente</th><th>Valor</th></tr></thead><tbody>' +
+    COLS_EXEC.map(([k, n]) => '<tr><td>' + n + '</td><td>' + fMoeda(V[k]) + '</td></tr>').join('') + '<tr class="tot"><td>Total</td><td>' + fMoeda(vt) + '</td></tr></tbody></table>';
+  h += '<h3>Efeito na visão da auditoria de ' + labelYm(R) + '</h3><table><thead><tr><th>Visão</th><th>Valor</th></tr></thead><tbody>' +
+    '<tr><td>Faturamento bruto total da base (todas as matrículas)</td><td>' + fMoeda(soma(G)) + '</td></tr>' +
+    '<tr><td>Visão da auditoria hoje (só Ativa Faturando e Cortada)</td><td>' + fMoeda(soma(H)) + '</td></tr>' +
+    '<tr><td>Impacto das matrículas fora da auditoria</td><td class="dest">' + fMoeda(vt) + '</td></tr>' +
+    '<tr class="tot"><td>Visão da auditoria corrigida</td><td>' + fMoeda(soma(H) + vt) + '</td></tr></tbody></table>';
+  h += '<p>Como ler: pagou é ter arrecadação na planilha de arrecadação até ' + labelYm(R) + '. Fora da auditoria é a situação final em ' + labelYm(R) + ' diferente de Ativa Faturando e Cortada. Impacto é o faturamento bruto de ' + labelYm(R) + ' (direta e indireta, água e esgoto) dessas matrículas. O botão Ver as matrículas lista cada uma com o valor.</p>';
   $('#execTexto').innerHTML = h;
 }
+let EXECQ = [];
+function abrirDrillExec() {
+  DRILL = { rows: EXECQ, todos: false, modo: 'exec', grupo: EXECQ.length ? 'Implantadas em ' + labelYm(EXECQ[0].ym) : '', metrica: 'Fora da auditoria' };
+  $('#drillSub').textContent = DRILL.grupo; $('#drillBusca').value = '';
+  $('#drillFundo').classList.remove('oculto'); $('#drill').classList.remove('oculto');
+  desenharDrill(); $('#drillFechar').focus();
+}
+function desenharExec() {
+  const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100, ref = rows.length ? labelYm(rows[0].ref) : '';
+  $('#drillTitulo').textContent = 'Pagaram e fora da auditoria: ' + fMoeda(rows.reduce((a, x) => a + x.v, 0));
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th>Situação em ' + ref + '</th><th class="n">Faturado em ' + ref + '</th></tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td>' + esc(x.sit || 'Sem linha no mês') + '</td><td class="n">' + fMoeda(x.v) + '</td></tr>').join('') + '</tbody>';
+  $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
+  const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
+  mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
+}
 $('#execMes').onchange = renderExec;
+$('#execVer').onclick = () => abrirDrillExec();
 $('#execImprimir').onclick = () => window.print();
 $('#execCopiar').onclick = async () => {
   const el = $('#execTexto'), html = '<h2>' + esc($('#execTitulo').textContent) + '</h2>' + el.innerHTML.replace(/class="dest"/g, 'style="color:#C2560C;font-weight:600"').replace(/<thead><tr>/, '<thead><tr style="background:#1A2740;color:#fff">');
@@ -1114,6 +1129,7 @@ function drillFiltrado() {
 }
 function desenharDrill() {
   if (DRILL.modo === 'ajuste') return desenharAjuste();
+  if (DRILL.modo === 'exec') return desenharExec();
   const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
   $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th class="n">Valor faturado</th><th>1º pagamento</th><th>Situação na base</th><th>Classificação</th></tr></thead><tbody>' +
     rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td class="n">' + (x.bill ? fMoeda(x.valor) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + ROT_CAT[x.cat] + '</td></tr>').join('') + '</tbody>';
@@ -1127,6 +1143,11 @@ $('#drillFechar').onclick = fecharDrill; $('#drillFundo').onclick = fecharDrill;
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#drill').classList.contains('oculto')) fecharDrill(); });
 $('#drillCsv').onclick = () => {
   const rows = drillFiltrado(), cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  if (DRILL.modo === 'exec') {
+    const csv = ['Matrícula;Cidade;Sup;Implantação;1º pagamento;Situação no mês do faturamento;Faturado no mês'].concat(rows.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x.v.toFixed(2).replace('.', ',')].join(';'))).join('\r\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'sac_fora_da_auditoria_' + norm(DRILL.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
+  }
   if (DRILL.modo === 'ajuste') {
     const k = CHAVES[medida()][2];
     const csv = ['Matrícula;Cidade;Sup;Mês do faturamento;1º pagamento;Situação na base;Valor do ajuste'].concat(rows.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x[k].toFixed(2).replace('.', ',')].join(';'))).join('\r\n');

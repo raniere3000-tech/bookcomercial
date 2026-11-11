@@ -80,3 +80,5 @@ Histórico anterior à renumeração:
 | v3 | DRE Histórico passa para depois do Orçado RF. Ordem das abas: DRE, Arrecadação, Receita, Drivers comerciais, DRE Mensais, Orçado RF, DRE Histórico, Dados. |
 | v4 | Varredura da pasta: lê todos os arquivos de cada tipo (Comercial, Arrecadação, RF), combina os meses e mostra na aba Dados o que foi encontrado em cada arquivo e uma matriz mês × arquivo. Mês repetido entre arquivos: prevalece o arquivo mais recente (ou soma, à escolha). Arquivo com problema ou sem coluna de mês não derruba os demais; o mês pode ser informado por arquivo. |
 | v5 | Página inicial (`index.html`) com plano de fundo `Gemini_Generated_Image_.jpeg`, ajustado para a logo ficar sempre visível no canto superior esquerdo (computador, tablet e celular); botão renomeado para "DRE - Comercial". |
+
+O Resumo executivo mostra um funil por mês de implantação: ligações implantadas, quantas pagaram até o mês do faturamento (mês seguinte), quantas dessas não estão como Ativa Faturando ou Cortada nesse mês e o faturamento bruto dessas matrículas, que é o impacto no SAC. O botão Ver as matrículas lista cada uma com o valor.
