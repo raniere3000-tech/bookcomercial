@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v12</title>
+<title>Águas do Rio | SAC v13</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -32,6 +32,8 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .fsel { display:flex; align-items:center; gap:6px; font-size:9px; font-weight:750; text-transform:uppercase; letter-spacing:.2px; color:#c8d6e5; transition:opacity .15s; }
 .fsel select { max-width:102px; text-overflow:ellipsis; border:1px solid rgba(255,255,255,.35); border-radius:8px; background:rgba(255,255,255,.1); color:#fff; padding:5px 6px; font:inherit; font-size:12px; font-weight:400; text-transform:none; letter-spacing:0; }
 .fsel select option { color:#111; }
+.fsel.claro { color:var(--marinho); font-size:11px; margin-top:4px; }
+.fsel.claro select { max-width:260px; min-height:40px; border:1px solid var(--line); background:#fff; color:var(--marinho); font-size:13px; padding:6px 10px; }
 .btn-top { display:inline-flex; align-items:center; padding:5px 8px; border-radius:8px; font:inherit; font-size:12px; cursor:pointer; background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.3); text-decoration:none; white-space:nowrap; }
 .btn-top:hover { background:rgba(255,255,255,.22); }
 .btn-top[hidden] { display:none; }
@@ -108,7 +110,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v12</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v13</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -154,7 +156,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
           <div class="seg" role="group" aria-label="Medida"><button type="button" id="medL" class="ativo" aria-pressed="true">Líquido</button><button type="button" id="medB" aria-pressed="false">Bruto</button></div>
         </div>
       </div>
-      <label class="fsel"><span>DSC_CLASSE</span><select id="fCls"><option value="">Todas</option></select></label>
+      <label class="fsel claro"><span>DSC_CLASSE</span><select id="fCls"><option value="">Todas</option></select></label>
       <p class="nota-secao" id="notaFat"></p>
       <div class="kpis c5" id="kpisFat"></div>
       <div class="tabela-wrap" style="margin-top:12px"><table id="tabFat"></table></div>
@@ -225,7 +227,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v12';
+const VERSAO_SAC = 'v13';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
