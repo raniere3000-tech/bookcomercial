@@ -154,6 +154,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
           <div class="seg" role="group" aria-label="Medida"><button type="button" id="medL" class="ativo" aria-pressed="true">Líquido</button><button type="button" id="medB" aria-pressed="false">Bruto</button></div>
         </div>
       </div>
+      <label class="fsel"><span>DSC_CLASSE</span><select id="fCls"><option value="">Todas</option></select></label>
       <p class="nota-secao" id="notaFat"></p>
       <div class="kpis c5" id="kpisFat"></div>
       <div class="tabela-wrap" style="margin-top:12px"><table id="tabFat"></table></div>
@@ -161,7 +162,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
         <li>Faturamento geral: tudo o que foi faturado no mês na base de faturamento, de todas as matrículas. Total, Direto e Indireto usam a medida bruta; só o Total tem versão líquida.</li>
         <li>Visão auditoria hoje: só as linhas com situação final Ativa Faturando ou Cortada.</li>
         <li>Ajuste do SAC: faturamento das matrículas implantadas que já pagaram e, do mês do primeiro pagamento em diante, estão fora de Ativa Faturando e Cortada.</li>
-        <li>Visão auditoria corrigida: visão auditoria hoje mais o ajuste do SAC. O Mês do cabeçalho filtra o mês do faturamento, e Superintendência e Cidade filtram pela cidade.</li>
+        <li>Visão auditoria corrigida: visão auditoria hoje mais o ajuste do SAC. O Mês do cabeçalho filtra o mês do faturamento, Superintendência e Cidade filtram pela cidade da linha de faturamento, e DSC_CLASSE filtra a classe; o ajuste usa os mesmos filtros do geral, então a visão corrigida nunca passa do faturamento geral.</li>
       </ul>
     </div>
     <div class="card" id="vazio3"><h2>Faturamento</h2><p class="nota-secao">Conecte a pasta para ver o resumo.</p></div>
@@ -468,7 +469,7 @@ async function inspecionarAba(x, aba) {
    ===================================================================== */
 const DIAG = { impl: {}, fat: {}, arr: {} };
 const novoDesc = () => ({ somadas: 0, total: 0, classe0: 0, semCidade: 0, semMes: 0, sci: 0, semMat: { n: 0, b: 0, l: 0 } });
-const ESTADO = { desc: novoDesc(), agg: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
+const ESTADO = { desc: novoDesc(), agg: new Map(), cls: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
 let dirHandle = null, ARQUIVOS = null;
 
 function setStatus(t, erro) { $('#status').innerHTML = erro ? '<span class="tag erro">Erro</span> ' + esc(t) : t; }
@@ -481,7 +482,7 @@ function aviso(texto, erro) {
 async function processar(files) {
   ARQUIVOS = files;
   DIAG.impl = {}; DIAG.fat = {}; DIAG.arr = {};
-  Object.assign(ESTADO, { desc: novoDesc(), agg: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
+  Object.assign(ESTADO, { desc: novoDesc(), agg: new Map(), cls: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
   if (!files.length) { setStatus('Nenhum arquivo .xlsx ou .csv encontrado na pasta.', true); return; }
   const lista = [];
   for (let i = 0; i < files.length; i++) {
@@ -574,15 +575,16 @@ const LEITORES = {
       const mat = lerMat(r[m.mat], c);
       if (!mat) { D.semMat.n++; D.semMat.b += bm; D.semMat.l += lm; if (toMat(r[m.mat]) === 'CIENTIFICA') D.sci++; return true; }   // só soma linha com matrícula
       D.somadas++;
-      const key = ym + '|' + cid; let g = ESTADO.agg.get(key);
-      if (!g) { g = { ym, cid, gb: 0, gl: 0, ab: 0, al: 0, gd: 0, gi: 0, ad: 0, ai: 0 }; ESTADO.agg.set(key, g); }
+      if (!ESTADO.cls.has(cls)) ESTADO.cls.set(cls, String(r[m.classe]).trim());
+      const key = ym + '|' + cid + '|' + cls; let g = ESTADO.agg.get(key);
+      if (!g) { g = { ym, cid, cls, gb: 0, gl: 0, ab: 0, al: 0, gd: 0, gi: 0, ad: 0, ai: 0 }; ESTADO.agg.set(key, g); }
       g.gb += bm; g.gl += lm; g.gd += bd; g.gi += bi; if (ok) { g.ab += bm; g.al += lm; g.ad += bd; g.ai += bi; }
       st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
       c.casam.add(mat);
       let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, st: new Map(), nok: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
       if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
-      if (!ok) { let q = F.nok.get(ym); if (!q) { q = { b: 0, l: 0, d: 0, i: 0, sit: '' }; F.nok.set(ym, q); } q.b += bm; q.l += lm; q.d += bd; q.i += bi; q.sit = sit; }
+      if (!ok) { const kq = ym + '|' + cid + '|' + cls; let q = F.nok.get(kq); if (!q) { q = { ym, cid, cidade: m.cidade != null ? String(r[m.cidade]).trim() : '', cls, b: 0, l: 0, d: 0, i: 0, sit: '' }; F.nok.set(kq, q); } q.b += bm; q.l += lm; q.d += bd; q.i += bi; q.sit = sit; }
       if (cls === CONFIG.classeLigacaoAgua) {
         ligNova++;
         const v = num(r, 'indAgua');
@@ -629,7 +631,7 @@ function cruzar() {
         cat = ok ? 'sac' : 'fora';
       }
     }
-    if (payYm && F) for (const [ym, q] of F.nok) if (ym >= payYm) ESTADO.AJ.push({ mat: o.mat, cidade: o.cidade, sup: o.sup, ym, payYm, b: q.b, l: q.l, d: q.d, i: q.i, sit: q.sit });
+    if (payYm && F) for (const q of F.nok.values()) if (q.ym >= payYm) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: q.b, l: q.l, d: q.d, i: q.i, sit: q.sit });
     return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, payYm, sitAtual, cat };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
@@ -752,14 +754,15 @@ function supDaCidade(cid) {
   return supDaCidade.mapa.get(cid) || '(sem sup)';
 }
 function ajusteFiltrado(semMes) {
-  const a = semMes ? '' : $('#fMes').value, b = $('#fSup').value, c = $('#fCid').value;
-  return ESTADO.AJ.filter(x => (!a || x.ym === a) && (!b || norm(x.sup) === norm(b)) && (!c || norm(x.cidade) === norm(c)));
+  const a = semMes ? '' : $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), k = $('#fCls').value;
+  // mesmo filtro do faturamento geral: cidade da linha de faturamento, sup dessa cidade e DSC_CLASSE
+  return ESTADO.AJ.filter(x => (!a || x.ym === a) && (!k || x.cls === k) && (!c || (x.cid || norm(x.cidade)) === c) && (!b || norm(x.cid ? supDaCidade(x.cid) : x.sup) === b));
 }
 function resumoFat(semMes) {
-  const a = semMes ? '' : $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), g = CHAVES[medida()];
+  const a = semMes ? '' : $('#fMes').value, b = norm($('#fSup').value), c = norm($('#fCid').value), k = $('#fCls').value, g = CHAVES[medida()];
   const meses = new Map(), ev = ym => { let o = meses.get(ym); if (!o) { o = { ym, ger: 0, aud: 0, aj: 0, n: 0, mats: new Set() }; meses.set(ym, o); } return o; };
   for (const e of ESTADO.agg.values()) {
-    if (a && e.ym !== a) continue; if (c && e.cid !== c) continue; if (b && norm(supDaCidade(e.cid)) !== b) continue;
+    if (a && e.ym !== a) continue; if (k && e.cls !== k) continue; if (c && e.cid !== c) continue; if (b && norm(supDaCidade(e.cid)) !== b) continue;
     const o = ev(e.ym); o.ger += e[g[0]]; o.aud += e[g[1]];
   }
   for (const x of ajusteFiltrado(semMes)) { const o = ev(x.ym); o.aj += x[g[2]]; o.n++; o.mats.add(x.mat); }
@@ -770,6 +773,8 @@ function renderFat() {
   $('#boxFat').classList.toggle('oculto', !tem); $('#vazio3').classList.toggle('oculto', tem);
   if (!tem) return;
   if (!ESTADO.temLiq && FATMED === 'l') FATMED = 'b';
+  const selC = $('#fCls'), atual = selC.value;
+  selC.innerHTML = '<option value="">Todas</option>' + [...ESTADO.cls].sort((p, q) => p[1].localeCompare(q[1], 'pt-BR')).map(([k, v]) => '<option value="' + esc(k) + '"' + (k === atual ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
   const dividido = FATTIPO !== 'tot';
   $('#medL').disabled = !ESTADO.temLiq || dividido; $('#medB').disabled = dividido;
   const ativoM = dividido ? 'b' : FATMED;
@@ -797,6 +802,7 @@ $('#visV').onclick = () => { FATVIS = 'val'; renderFat(); }; $('#visD').onclick 
 $('#medL').onclick = () => { if (ESTADO.temLiq) { FATMED = 'l'; renderFat(); } };
 $('#tipT').onclick = () => { FATTIPO = 'tot'; renderFat(); }; $('#tipD').onclick = () => { FATTIPO = 'dir'; renderFat(); }; $('#tipI').onclick = () => { FATTIPO = 'ind'; renderFat(); };
 $('#medB').onclick = () => { FATMED = 'b'; renderFat(); };
+$('#fCls').onchange = () => renderFat();
 function abrirDrillAjuste(ym) {
   const rows = ajusteFiltrado().filter(x => !ym || x.ym === ym);
   DRILL = { rows, todos: false, modo: 'ajuste', grupo: ym ? labelYm(ym) : 'Todos os meses', metrica: 'Ajuste do SAC' };
