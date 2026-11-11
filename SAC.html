@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v23</title>
+<title>Águas do Rio | SAC v24</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -162,7 +162,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v23</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v24</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -300,7 +300,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v23';
+const VERSAO_SAC = 'v24';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -900,7 +900,7 @@ function renderExec() {
   const soma = o => o.da + o.de + o.ia + o.ie;
   const filtros = [['fSup', 'Superintendência'], ['fCid', 'Cidade']].map(([id, n]) => { const f = fs(id); return f ? n + ': ' + [...f].join(', ') : ''; }).filter(Boolean).join('; ');
   $('#execTitulo').textContent = 'Resumo executivo: implantações de ' + labelYm(M) + ' e faturamento de ' + labelYm(R);
-  const lin = (nome, g, h, a, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + nome + '</td><td>' + fMoeda(g) + '</td><td>' + fMoeda(h) + ' (' + pp(h, g) + ')</td><td class="dest">' + fMoeda(a) + '</td><td>' + fMoeda(h + a) + ' (' + pp(h + a, g) + ')</td><td>' + fMoeda(g - h - a) + '</td></tr>';
+  const lin = (nome, g, h, a, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + nome + '</td><td>' + fMoeda(g) + '</td><td>' + fMoeda(h) + '</td><td class="dest">' + fMoeda(a) + '</td><td>' + fMoeda(g - h - a) + '</td></tr>';
   let h = '<div class="exec-kpis">' +
     '<div><small>Ligações implantadas em ' + labelYm(M) + '</small><strong>' + fInt(t.impl) + '</strong></div>' +
     '<div><small>Com faturamento em ' + labelYm(R) + '</small><strong>' + fInt(comFat) + '</strong></div>' +
@@ -914,7 +914,7 @@ function renderExec() {
   h += '<p>Das ligações do mês, ' + fInt(t.pagou) + ' já pagaram ao menos uma conta, e <span class="dest">' + fInt(t.deveria) + '</span> delas ainda não estão como Ativa Faturando nem Cortada' + (t.semfat ? ' (' + fInt(t.semfat) + ' sem nenhuma linha no faturamento)' : '') + '. ' +
     'Reclassificar essas matrículas soma <span class="dest">' + fMoeda(soma(A)) + '</span> ao faturamento de ' + labelYm(R) + ' na visão do SAC, e a cobertura do faturamento total passa de ' + pp(soma(H), soma(G)) + ' para ' + pp(soma(H) + soma(A), soma(G)) + '.</p>';
   h += '<h3>Faturamento bruto total de ' + labelYm(R) + ' e ajuste das ligações implantadas em ' + labelYm(M) + '</h3>';
-  h += '<table><thead><tr><th>Componente</th><th>Faturamento bruto total</th><th>Visão auditoria hoje</th><th>Ajuste do SAC</th><th>Visão do SAC (corrigida)</th><th>Ainda fora</th></tr></thead><tbody>' +
+  h += '<table><thead><tr><th>Componente</th><th>Faturamento bruto total</th><th>Visão auditoria hoje</th><th>Ajuste do SAC</th><th>Ainda fora</th></tr></thead><tbody>' +
     COLS_EXEC.map(([k, n]) => lin(n, G[k], H[k], A[k])).join('') + lin('Total', soma(G), soma(H), soma(A), 'tot') + '</tbody></table>';
   h += '<p>Ajuste do SAC: faturamento de ' + labelYm(R) + ' das matrículas que pagaram até esse mês e cuja situação mais recente na base não é Ativa Faturando nem Cortada (' + fInt(matsAj) + ' matrículas com valor). Faturamento bruto total e visão auditoria hoje são da base inteira do mês, sem filtro. "Ainda fora" é o faturamento do mês que continua fora da visão do SAC.</p>';
   h += '<h3>Encaminhamento</h3><p>Reclassificar na base as ' + fInt(t.fora) + ' matrículas de ' + labelYm(M) + ' que pagaram e estão com outra situação' + (t.semfat ? ', e checar no cadastro por que ' + fInt(t.semfat) + ' matrículas com pagamento não aparecem no faturamento' : '') + '. A lista está na aba Fora do SAC, filtrando o mês ' + labelYm(M) + '.</p>';
