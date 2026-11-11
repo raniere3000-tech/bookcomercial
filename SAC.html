@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v22</title>
+<title>Águas do Rio | SAC v23</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -162,7 +162,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v22</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v23</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -246,7 +246,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
       <div class="card-titulo"><h2 id="execTitulo">Resumo executivo</h2>
         <div class="acoes-exec"><button type="button" class="btn-acao" id="execCopiar">Copiar texto</button><button type="button" class="btn-acao" id="execImprimir">Imprimir ou salvar PDF</button></div></div>
       <div class="fsel claro"><span>Mês de implantação</span><select id="execMes" class="sel-claro"></select></div>
-      <p class="nota-secao" style="margin-top:8px">Faturamento e SAC sempre do mês seguinte ao da implantação. Usa os filtros de Superintendência e Cidade do cabeçalho. Valores em medida bruta.</p>
+      <p class="nota-secao" style="margin-top:8px">Faturamento e SAC sempre do mês seguinte ao da implantação. Faturamento bruto total e visão auditoria hoje vêm da base inteira do mês, sem filtro. Os filtros de Superintendência e Cidade do cabeçalho valem só para as ligações implantadas e o ajuste do SAC.</p>
       <div id="execTexto" class="exec-texto"></div>
     </div>
     <div class="card" id="vazio4"><h2>Resumo executivo</h2><p class="nota-secao">Conecte a pasta para gerar o resumo.</p></div>
@@ -300,7 +300,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v22';
+const VERSAO_SAC = 'v23';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -652,9 +652,9 @@ const LEITORES = {
       D.somadas++;
       if (!ESTADO.cls.has(cls)) ESTADO.cls.set(cls, String(r[m.classe]).trim());
       const key = ym + '|' + cid + '|' + cls; let g = ESTADO.agg.get(key);
-      if (!g) { g = { ym, cid, cls, gb: 0, gl: 0, ab: 0, al: 0, gd: 0, gi: 0, ad: 0, ai: 0, gda: 0, gia: 0, ada: 0, aia: 0 }; ESTADO.agg.set(key, g); }
-      const da = direta.has(cls) ? num(r, 'dirA') : 0, ia = num(r, 'indAgua');
-      g.gb += bm; g.gl += lm; g.gd += bd; g.gi += bi; g.gda += da; g.gia += ia; if (ok) { g.ab += bm; g.al += lm; g.ad += bd; g.ai += bi; g.ada += da; g.aia += ia; }
+      if (!g) { g = { ym, cid, cls, gb: 0, gl: 0, ab: 0, al: 0, gd: 0, gi: 0, ad: 0, ai: 0, gda: 0, gia: 0, ada: 0, aia: 0, gde: 0, gie: 0, ade: 0, aie: 0 }; ESTADO.agg.set(key, g); }
+      const da = direta.has(cls) ? num(r, 'dirA') : 0, ia = num(r, 'indAgua'), de = direta.has(cls) ? num(r, 'dirE') : 0, ie = num(r, 'indEsg');
+      g.gb += bm; g.gl += lm; g.gd += bd; g.gi += bi; g.gda += da; g.gia += ia; g.gde += de; g.gie += ie; if (ok) { g.ade += de; g.aie += ie; g.ab += bm; g.al += lm; g.ad += bd; g.ai += bi; g.ada += da; g.aia += ia; }
       st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
       c.casam.add(mat);
@@ -884,15 +884,18 @@ function renderExec() {
   sel.innerHTML = meses.map(m => '<option value="' + m + '">' + labelYm(m) + ' (faturamento de ' + labelYm(proxYm(m)) + (fatMeses.has(proxYm(m)) ? '' : ', ainda sem dados') + ')</option>').join('');
   sel.value = meses.includes(atual) ? atual : ([...meses].reverse().find(m => fatMeses.has(proxYm(m))) || meses[meses.length - 1]);
   const M = sel.value, R = proxYm(M), L = base.filter(x => x.ym === M), t = resumir(L);
-  const z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), G = z(), H = z(), A = z(); let comFat = 0, matsAj = 0;
+  const z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), G = z(), H = z(), A = z(); let comFat = 0, matsAj = 0, fatCoorte = 0;
   for (const x of L) {
     const mm = x.mes && x.mes.get(R); if (!mm) continue;
     let fat = false, aj = false;
     for (const [k] of COLS_EXEC) {
-      G[k] += mm.ok[k] + mm.nok[k]; H[k] += mm.ok[k]; if (mm.ok[k] + mm.nok[k] > 0) fat = true;
+      fatCoorte += mm.ok[k] + mm.nok[k]; if (mm.ok[k] + mm.nok[k] > 0) fat = true;
       if (x.payYm && x.payYm <= R && !x.sitOk && mm.nok[k] > 0) { A[k] += mm.nok[k]; aj = true; }   // mesma regra do ajuste do SAC
     }
     if (fat) comFat++; if (aj) matsAj++;
+  }
+  for (const e of ESTADO.agg.values()) if (e.ym === R) {   // faturamento bruto total da base no mês, sem filtro nenhum
+    G.da += e.gda; G.de += e.gde; G.ia += e.gia; G.ie += e.gie; H.da += e.ada; H.de += e.ade; H.ia += e.aia; H.ie += e.aie;
   }
   const soma = o => o.da + o.de + o.ia + o.ie;
   const filtros = [['fSup', 'Superintendência'], ['fCid', 'Cidade']].map(([id, n]) => { const f = fs(id); return f ? n + ': ' + [...f].join(', ') : ''; }).filter(Boolean).join('; ');
@@ -905,14 +908,15 @@ function renderExec() {
     '<div><small>Pagaram e estão fora da auditoria</small><strong class="dest">' + fInt(t.deveria) + '</strong></div></div>';
   if (filtros) h += '<p>' + esc(filtros) + '.</p>';
   if (!fatMeses.has(R)) h += '<p class="dest">A base de faturamento ainda não tem ' + labelYm(R) + '. Os valores abaixo ficam zerados até o arquivo desse mês entrar na pasta.</p>';
-  h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(t.impl) + '</b> ligações. Em ' + labelYm(R) + ', mês seguinte, ' + fInt(comFat) + ' delas tiveram faturamento, num total de <b>' + fMoeda(soma(G)) + '</b>. ' +
+  h += '<p>O faturamento bruto total de ' + labelYm(R) + ', somando direta e indireta de água e de esgoto de todas as matrículas da base, foi de <b>' + fMoeda(soma(G)) + '</b>. ' +
     'A visão da auditoria de hoje, que só considera Ativa Faturando e Cortada, enxerga ' + fMoeda(soma(H)) + ' (' + pp(soma(H), soma(G)) + ').</p>';
+  h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(t.impl) + '</b> ligações; ' + fInt(comFat) + ' delas faturaram em ' + labelYm(R) + ', somando ' + fMoeda(fatCoorte) + '.</p>';
   h += '<p>Das ligações do mês, ' + fInt(t.pagou) + ' já pagaram ao menos uma conta, e <span class="dest">' + fInt(t.deveria) + '</span> delas ainda não estão como Ativa Faturando nem Cortada' + (t.semfat ? ' (' + fInt(t.semfat) + ' sem nenhuma linha no faturamento)' : '') + '. ' +
-    'Reclassificar essas matrículas soma <span class="dest">' + fMoeda(soma(A)) + '</span> ao faturamento de ' + labelYm(R) + ' na visão do SAC, levando a cobertura para ' + pp(soma(H) + soma(A), soma(G)) + '.</p>';
-  h += '<h3>Faturamento de ' + labelYm(R) + ' das ligações implantadas em ' + labelYm(M) + '</h3>';
-  h += '<table><thead><tr><th>Componente</th><th>Faturamento</th><th>Visão auditoria hoje</th><th>Ajuste do SAC</th><th>Visão do SAC (corrigida)</th><th>Ainda fora</th></tr></thead><tbody>' +
+    'Reclassificar essas matrículas soma <span class="dest">' + fMoeda(soma(A)) + '</span> ao faturamento de ' + labelYm(R) + ' na visão do SAC, e a cobertura do faturamento total passa de ' + pp(soma(H), soma(G)) + ' para ' + pp(soma(H) + soma(A), soma(G)) + '.</p>';
+  h += '<h3>Faturamento bruto total de ' + labelYm(R) + ' e ajuste das ligações implantadas em ' + labelYm(M) + '</h3>';
+  h += '<table><thead><tr><th>Componente</th><th>Faturamento bruto total</th><th>Visão auditoria hoje</th><th>Ajuste do SAC</th><th>Visão do SAC (corrigida)</th><th>Ainda fora</th></tr></thead><tbody>' +
     COLS_EXEC.map(([k, n]) => lin(n, G[k], H[k], A[k])).join('') + lin('Total', soma(G), soma(H), soma(A), 'tot') + '</tbody></table>';
-  h += '<p>Ajuste do SAC: faturamento de ' + labelYm(R) + ' das matrículas que pagaram até esse mês e cuja situação mais recente na base não é Ativa Faturando nem Cortada (' + fInt(matsAj) + ' matrículas com valor). "Ainda fora" é o que continua sem pagamento ou sem situação.</p>';
+  h += '<p>Ajuste do SAC: faturamento de ' + labelYm(R) + ' das matrículas que pagaram até esse mês e cuja situação mais recente na base não é Ativa Faturando nem Cortada (' + fInt(matsAj) + ' matrículas com valor). Faturamento bruto total e visão auditoria hoje são da base inteira do mês, sem filtro. "Ainda fora" é o faturamento do mês que continua fora da visão do SAC.</p>';
   h += '<h3>Encaminhamento</h3><p>Reclassificar na base as ' + fInt(t.fora) + ' matrículas de ' + labelYm(M) + ' que pagaram e estão com outra situação' + (t.semfat ? ', e checar no cadastro por que ' + fInt(t.semfat) + ' matrículas com pagamento não aparecem no faturamento' : '') + '. A lista está na aba Fora do SAC, filtrando o mês ' + labelYm(M) + '.</p>';
   $('#execTexto').innerHTML = h;
 }
