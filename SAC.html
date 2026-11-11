@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v14</title>
+<title>Águas do Rio | SAC v15</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -110,7 +110,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v14</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v15</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -201,7 +201,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
       <ul class="regras">
         <li>No SAC: matrícula com situação final Ativa Faturando ou Cortada na base de faturamento.</li>
         <li>Pagou: matrícula com arrecadação acumulada maior que zero, ou com dias de pagamento, na planilha de arrecadação.</li>
-        <li>Deveria estar no SAC: pagou e, do mês do primeiro pagamento em diante, a base de faturamento não mostra Ativa Faturando nem Cortada.</li>
+        <li>Deveria estar no SAC: pagou e, do mês do primeiro pagamento em diante, a base de faturamento não mostra Ativa Faturando nem Cortada, e a situação mais recente da matrícula na base também não é uma delas.</li>
         <li>Faturada: matrícula com linha de DSC_CLASSE Ligações de Água e faturamento indireto de água maior que zero.</li>
         <li>Implantações: uma matrícula por linha, com OS repetidas ignoradas.</li>
         <li>Faturamento (resumo por mês): só entram linhas com matrícula, sem a linha de total do arquivo e sem classe 0 ou vazia.</li>
@@ -227,7 +227,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v14';
+const VERSAO_SAC = 'v15';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -630,6 +630,7 @@ function cruzar() {
       if (!F || !F.st.size) cat = 'semfat';
       else {
         let ok = false; for (const [ym, set] of F.st) if (ym >= payYm && [...set].some(s => sac.has(s))) { ok = true; break; }
+        if (sac.has(norm(F.lastSit))) ok = true;   // situação mais recente na base já é Ativa Faturando ou Cortada
         cat = ok ? 'sac' : 'fora';
       }
     }
