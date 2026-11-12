@@ -82,3 +82,5 @@ Histórico anterior à renumeração:
 | v5 | Página inicial (`index.html`) com plano de fundo `Gemini_Generated_Image_.jpeg`, ajustado para a logo ficar sempre visível no canto superior esquerdo (computador, tablet e celular); botão renomeado para "DRE - Comercial". |
 
 O Resumo executivo mostra um funil por mês de implantação: ligações implantadas, quantas pagaram até o mês do faturamento (mês seguinte), quantas dessas não estão como Ativa Faturando ou Cortada nesse mês e o faturamento bruto dessas matrículas, que é o impacto no SAC. O botão Ver as matrículas lista cada uma com o valor.
+
+Na aba Dados, o botão Baixar bases compiladas gera um .zip com quatro CSV sem filtro: matrículas implantadas cruzadas com faturamento e arrecadação, faturamento mensal das implantadas (auditoria e fora, em direta e indireta de água e de esgoto), ajuste do SAC e faturamento por mês, cidade e classe.

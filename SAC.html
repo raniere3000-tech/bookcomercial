@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v26</title>
+<title>Águas do Rio | SAC v27</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -163,7 +163,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v26</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v27</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -253,6 +253,10 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     <div class="card" id="vazio4"><h2>Resumo executivo</h2><p class="nota-secao">Conecte a pasta para gerar o resumo.</p></div>
   </section>
   <section class="view" id="view-dados">
+    <div class="card oculto" id="boxBaixar">
+      <div class="card-titulo"><h2>Bases compiladas</h2><button type="button" class="btn-acao" id="btnBaixarBases">Baixar bases compiladas (.zip)</button></div>
+      <p class="nota-secao">Um arquivo .zip com quatro CSV, sem filtro: matrículas implantadas cruzadas com faturamento e arrecadação, faturamento mensal das implantadas, ajuste do SAC e faturamento por mês, cidade e classe. Abre no Excel (separador ponto e vírgula).</p>
+    </div>
     <details class="card acc oculto" id="boxVal" open>
       <summary>Validação dos arquivos</summary>
       <p class="nota-secao">Cada arquivo é identificado pelo cabeçalho, não pelo nome.</p>
@@ -301,7 +305,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v26';
+const VERSAO_SAC = 'v27';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -971,7 +975,7 @@ function resumir(rows) {
 function aplicar() {
   renderFat();
   const rows = filtrado(), t = resumir(rows);
-  renderJornada(rows); renderExec();
+  renderJornada(rows); renderExec(); $('#boxBaixar').classList.remove('oculto');
   $('#kpis').innerHTML = [
     ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', '', 'impl'],
     ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', '', 'bill'],
@@ -1165,6 +1169,31 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
 $('#btnMais').onclick = () => { tudo = !tudo; aplicar(); };
 ['fMes', 'fSup', 'fCid'].forEach(i => $('#' + i).onchange = aplicar);
 
+/* ---------- download das bases compiladas ---------- */
+$('#btnBaixarBases').onclick = async () => {
+  const btn = $('#btnBaixarBases'); btn.disabled = true; btn.textContent = 'Gerando...';
+  try {
+    const cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"', num = v => (Number(v) || 0).toFixed(2).replace('.', ','), ym = v => v ? labelYm(v) : '';
+    const csv = (cab, linhas) => '﻿' + [cab.join(';')].concat(linhas.map(l => l.join(';'))).join('\r\n');
+    const CAT = { sac: 'Pagou e está no SAC', fora: 'Pagou, base sem Ativa Faturando/Cortada', semfat: 'Pagou, sem linha no faturamento', np: 'Não pagou' };
+    const z = new JSZip();
+    z.file('1_matriculas_compiladas.csv', csv(['Matrícula', 'Cidade', 'Superintendência', 'Mês da implantação', 'Qtde OS', 'Faturada (ligação de água)', 'Valor da ligação (indireto água)', '1º faturamento da ligação', '1º faturamento direto de água', '1º pagamento', 'Meses até 1º faturamento direto', 'Meses até 1º pagamento', 'Situação mais recente', 'Classificação SAC'],
+      ESTADO.LIN.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), ym(x.ym), x.nOS || 0, x.bill ? 'Sim' : 'Não', num(x.valor), ym(x.billYm), ym(x.dirYm), ym(x.payYm), x.dirYm ? difMes(x.ym, x.dirYm) : '', x.payYm ? difMes(x.ym, x.payYm) : '', cel(x.sitAtual), cel(CAT[x.cat])])));
+    const fm = [];
+    for (const x of ESTADO.LIN) if (x.mes) for (const [m, mm] of [...x.mes].sort((a, b) => a[0] < b[0] ? -1 : 1))
+      fm.push([cel(x.mat), cel(x.cidade), cel(x.sup), ym(x.ym), ym(m), num(mm.ok.da), num(mm.ok.de), num(mm.ok.ia), num(mm.ok.ie), num(mm.nok.da), num(mm.nok.de), num(mm.nok.ia), num(mm.nok.ie)]);
+    z.file('2_faturamento_mensal_implantadas.csv', csv(['Matrícula', 'Cidade', 'Superintendência', 'Mês da implantação', 'Mês do faturamento',
+      'Auditoria: direta água', 'Auditoria: direta esgoto', 'Auditoria: indireta água', 'Auditoria: indireta esgoto', 'Fora: direta água', 'Fora: direta esgoto', 'Fora: indireta água', 'Fora: indireta esgoto'], fm));
+    z.file('3_ajuste_sac.csv', csv(['Matrícula', 'Cidade', 'Superintendência', 'DSC_CLASSE', 'Mês do faturamento', '1º pagamento', 'Situação na base', 'Bruto', 'Líquido', 'Direto (água+esgoto)', 'Indireto (água+esgoto)', 'Direta água', 'Indireta água'],
+      ESTADO.AJ.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), cel(ESTADO.cls.get(x.cls) || x.cls), ym(x.ym), ym(x.payYm), cel(x.sit), num(x.b), num(x.l), num(x.d), num(x.i), num(x.da), num(x.ia)])));
+    z.file('4_faturamento_mes_cidade_classe.csv', csv(['Mês do faturamento', 'Cidade', 'Superintendência', 'DSC_CLASSE', 'Geral bruto', 'Geral líquido', 'Geral direta água', 'Geral direta esgoto', 'Geral indireta água', 'Geral indireta esgoto', 'Auditoria bruto', 'Auditoria líquido', 'Auditoria direta água', 'Auditoria direta esgoto', 'Auditoria indireta água', 'Auditoria indireta esgoto'],
+      [...ESTADO.agg.values()].sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : a.cid < b.cid ? -1 : 1).map(e => [ym(e.ym), cel(e.cid.toUpperCase()), cel(supDaCidade(e.cid)), cel(ESTADO.cls.get(e.cls) || e.cls), num(e.gb), num(e.gl), num(e.gda), num(e.gde), num(e.gia), num(e.gie), num(e.ab), num(e.al), num(e.ada), num(e.ade), num(e.aia), num(e.aie)])));
+    const blob = await z.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'sac_bases_compiladas_' + new Date().toISOString().slice(0, 10) + '.zip'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) { alert('Não foi possível gerar o arquivo: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Baixar bases compiladas (.zip)';
+};
 $('#btnCsv').onclick = () => {
   const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
   const rows = filtrado().filter(x => x.cat === 'fora' || x.cat === 'semfat');
