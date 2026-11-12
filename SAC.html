@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v27</title>
+<title>Águas do Rio | SAC v28</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -163,7 +163,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v27</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v28</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -254,8 +254,8 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
   </section>
   <section class="view" id="view-dados">
     <div class="card oculto" id="boxBaixar">
-      <div class="card-titulo"><h2>Bases compiladas</h2><button type="button" class="btn-acao" id="btnBaixarBases">Baixar bases compiladas (.zip)</button></div>
-      <p class="nota-secao">Um arquivo .zip com quatro CSV, sem filtro: matrículas implantadas cruzadas com faturamento e arrecadação, faturamento mensal das implantadas, ajuste do SAC e faturamento por mês, cidade e classe. Abre no Excel (separador ponto e vírgula).</p>
+      <div class="card-titulo"><h2>Base compilada</h2><button type="button" class="btn-acao" id="btnBaixarBases">Baixar base compilada (.csv)</button></div>
+      <p class="nota-secao">Um arquivo só, uma linha por matrícula implantada, sem filtro: implantação, faturamento, arrecadação e o que entra no resumo executivo (mês seguinte ao da implantação). Abre no Excel (separador ponto e vírgula). O 1º pagamento é o mês da arrecadação, que não traz o dia.</p>
     </div>
     <details class="card acc oculto" id="boxVal" open>
       <summary>Validação dos arquivos</summary>
@@ -305,7 +305,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v27';
+const VERSAO_SAC = 'v28';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -484,6 +484,14 @@ const MESES = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, 
 const NOME_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const pad2 = n => String(n).padStart(2, '0');
 function labelYm(ym) { const [a, m] = ym.split('-'); return NOME_MES[+m - 1] + '/' + a.slice(2); }
+function toData(v) {   // data completa 'aaaa-mm-dd', ou null
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') { if (v > 20000 && v < 80000) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate()); } return null; }
+  const t = String(v).trim(); let m;
+  if ((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t))) return m[3] + '-' + pad2(m[2]) + '-' + pad2(m[1]);
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t))) return m[1] + '-' + pad2(m[2]) + '-' + pad2(m[3]);
+  return null;
+}
 function toYm(v) {
   if (v == null || v === '') return null;
   if (typeof v === 'number') {
@@ -630,8 +638,9 @@ const LEITORES = {
       const ym = toYm(r[m.data]) || (m.mes != null ? toYm(r[m.mes]) : null); if (!ym) { semData++; return true; }
       st.lidas++; c.linhas++;
       let o = ESTADO.impl.get(mat);
-      if (!o) { o = { mat, ym, cidade: String(r[m.cidade] ?? '').trim(), sup: String(r[m.sup] ?? '').trim(), servico: m.servico != null ? String(r[m.servico] ?? '') : '', eco: 0, nOS: 0 }; ESTADO.impl.set(mat, o); }
+      if (!o) { o = { mat, ym, cidade: String(r[m.cidade] ?? '').trim(), sup: String(r[m.sup] ?? '').trim(), servico: m.servico != null ? String(r[m.servico] ?? '') : '', eco: 0, nOS: 0, data: null }; ESTADO.impl.set(mat, o); }
       else if (ym < o.ym) o.ym = ym;
+      const dt = toData(r[m.data]); if (dt && (!o.data || dt < o.data)) o.data = dt;
       o.nOS++; o.eco += m.eco != null ? toNum(r[m.eco]) : 1;
       return true;
     });
@@ -1170,29 +1179,32 @@ $('#btnMais').onclick = () => { tudo = !tudo; aplicar(); };
 ['fMes', 'fSup', 'fCid'].forEach(i => $('#' + i).onchange = aplicar);
 
 /* ---------- download das bases compiladas ---------- */
-$('#btnBaixarBases').onclick = async () => {
-  const btn = $('#btnBaixarBases'); btn.disabled = true; btn.textContent = 'Gerando...';
-  try {
-    const cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"', num = v => (Number(v) || 0).toFixed(2).replace('.', ','), ym = v => v ? labelYm(v) : '';
-    const csv = (cab, linhas) => '﻿' + [cab.join(';')].concat(linhas.map(l => l.join(';'))).join('\r\n');
-    const CAT = { sac: 'Pagou e está no SAC', fora: 'Pagou, base sem Ativa Faturando/Cortada', semfat: 'Pagou, sem linha no faturamento', np: 'Não pagou' };
-    const z = new JSZip();
-    z.file('1_matriculas_compiladas.csv', csv(['Matrícula', 'Cidade', 'Superintendência', 'Mês da implantação', 'Qtde OS', 'Faturada (ligação de água)', 'Valor da ligação (indireto água)', '1º faturamento da ligação', '1º faturamento direto de água', '1º pagamento', 'Meses até 1º faturamento direto', 'Meses até 1º pagamento', 'Situação mais recente', 'Classificação SAC'],
-      ESTADO.LIN.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), ym(x.ym), x.nOS || 0, x.bill ? 'Sim' : 'Não', num(x.valor), ym(x.billYm), ym(x.dirYm), ym(x.payYm), x.dirYm ? difMes(x.ym, x.dirYm) : '', x.payYm ? difMes(x.ym, x.payYm) : '', cel(x.sitAtual), cel(CAT[x.cat])])));
-    const fm = [];
-    for (const x of ESTADO.LIN) if (x.mes) for (const [m, mm] of [...x.mes].sort((a, b) => a[0] < b[0] ? -1 : 1))
-      fm.push([cel(x.mat), cel(x.cidade), cel(x.sup), ym(x.ym), ym(m), num(mm.ok.da), num(mm.ok.de), num(mm.ok.ia), num(mm.ok.ie), num(mm.nok.da), num(mm.nok.de), num(mm.nok.ia), num(mm.nok.ie)]);
-    z.file('2_faturamento_mensal_implantadas.csv', csv(['Matrícula', 'Cidade', 'Superintendência', 'Mês da implantação', 'Mês do faturamento',
-      'Auditoria: direta água', 'Auditoria: direta esgoto', 'Auditoria: indireta água', 'Auditoria: indireta esgoto', 'Fora: direta água', 'Fora: direta esgoto', 'Fora: indireta água', 'Fora: indireta esgoto'], fm));
-    z.file('3_ajuste_sac.csv', csv(['Matrícula', 'Cidade', 'Superintendência', 'DSC_CLASSE', 'Mês do faturamento', '1º pagamento', 'Situação na base', 'Bruto', 'Líquido', 'Direto (água+esgoto)', 'Indireto (água+esgoto)', 'Direta água', 'Indireta água'],
-      ESTADO.AJ.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), cel(ESTADO.cls.get(x.cls) || x.cls), ym(x.ym), ym(x.payYm), cel(x.sit), num(x.b), num(x.l), num(x.d), num(x.i), num(x.da), num(x.ia)])));
-    z.file('4_faturamento_mes_cidade_classe.csv', csv(['Mês do faturamento', 'Cidade', 'Superintendência', 'DSC_CLASSE', 'Geral bruto', 'Geral líquido', 'Geral direta água', 'Geral direta esgoto', 'Geral indireta água', 'Geral indireta esgoto', 'Auditoria bruto', 'Auditoria líquido', 'Auditoria direta água', 'Auditoria direta esgoto', 'Auditoria indireta água', 'Auditoria indireta esgoto'],
-      [...ESTADO.agg.values()].sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : a.cid < b.cid ? -1 : 1).map(e => [ym(e.ym), cel(e.cid.toUpperCase()), cel(supDaCidade(e.cid)), cel(ESTADO.cls.get(e.cls) || e.cls), num(e.gb), num(e.gl), num(e.gda), num(e.gde), num(e.gia), num(e.gie), num(e.ab), num(e.al), num(e.ada), num(e.ade), num(e.aia), num(e.aie)])));
-    const blob = await z.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = 'sac_bases_compiladas_' + new Date().toISOString().slice(0, 10) + '.zip'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  } catch (e) { alert('Não foi possível gerar o arquivo: ' + e.message); }
-  btn.disabled = false; btn.textContent = 'Baixar bases compiladas (.zip)';
+$('#btnBaixarBases').onclick = () => {
+  const cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"', num = v => (Number(v) || 0).toFixed(2).replace('.', ','), ym = v => v ? labelYm(v) : '';
+  const dBr = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '', cap = t => t.replace(/^./, c => c.toUpperCase());
+  const sac = new Set(CONFIG.situacoesSac), CAT = { sac: 'Pagou e está no SAC', fora: 'Pagou, base sem Ativa Faturando/Cortada', semfat: 'Pagou, sem linha no faturamento', np: 'Não pagou' };
+  const aj = new Map(); for (const x of ESTADO.AJ) { let o = aj.get(x.mat); if (!o) { o = { b: 0, da: 0, ia: 0, n: 0 }; aj.set(x.mat, o); } o.b += x.b; o.da += x.da; o.ia += x.ia; o.n++; }
+  const cab = ['Matrícula', 'Cidade', 'Superintendência', 'Data da implantação (1ª OS)', 'Mês da implantação', 'Qtde OS', 'Economias',
+    'Faturada (ligação de água)', 'Valor da ligação (indireto água)', 'Mês do 1º faturamento da ligação', 'Mês do 1º faturamento direto de água', 'Meses até o 1º faturamento direto de água',
+    'Pagou', 'Mês do 1º pagamento', 'Meses até o 1º pagamento', 'Situação mais recente na base', 'Classificação SAC (aba Resumo)',
+    'Mês de referência (mês seguinte)', 'Pagou até a referência', 'Situação no mês de referência', 'Etapa no resumo executivo',
+    'Ref.: direta água', 'Ref.: direta esgoto', 'Ref.: indireta água', 'Ref.: indireta esgoto', 'Ref.: faturamento total', 'Ref.: na auditoria (Ativa Faturando/Cortada)', 'Ref.: fora da auditoria',
+    'Faturamento total (todos os meses)', 'Ajuste do SAC total (todos os meses)', 'Ajuste do SAC: direta água', 'Ajuste do SAC: indireta água', 'Meses no ajuste do SAC'];
+  const linhas = ESTADO.LIN.map(x => {
+    const R = proxYm(x.ym), ss = x.sts && x.sts.get(R), mm = x.mes && x.mes.get(R), pagouRef = !!x.payYm && x.payYm <= R;
+    const noSac = !!ss && [...ss].some(t => sac.has(t)), etapa = !pagouRef ? 'Não pagou até a referência' : noSac ? 'Pagou e está como Ativa Faturando ou Cortada' : 'Pagou e está fora da auditoria';
+    const k4 = ['da', 'de', 'ia', 'ie'], ref = k4.map(k => mm ? mm.ok[k] + mm.nok[k] : 0), refOk = mm ? k4.reduce((a, k) => a + mm.ok[k], 0) : 0, refNok = mm ? k4.reduce((a, k) => a + mm.nok[k], 0) : 0;
+    let tot = 0; if (x.mes) for (const v of x.mes.values()) for (const k of k4) tot += v.ok[k] + v.nok[k];
+    const a = aj.get(x.mat) || { b: 0, da: 0, ia: 0, n: 0 };
+    return [cel(x.mat), cel(x.cidade), cel(x.sup), dBr(x.data), ym(x.ym), x.nOS || 0, x.eco || 0,
+      x.bill ? 'Sim' : 'Não', num(x.valor), ym(x.billYm), ym(x.dirYm), x.dirYm ? difMes(x.ym, x.dirYm) : '',
+      x.payYm ? 'Sim' : 'Não', ym(x.payYm), x.payYm ? difMes(x.ym, x.payYm) : '', cel(x.sitAtual), cel(CAT[x.cat]),
+      ym(R), pagouRef ? 'Sim' : 'Não', cel(ss ? [...ss].map(cap).join(', ') : ''), cel(etapa),
+      ...ref.map(num), num(refOk + refNok), num(refOk), num(refNok), num(tot), num(a.b), num(a.da), num(a.ia), a.n].join(';');
+  });
+  const csv = '﻿' + [cab.join(';')].concat(linhas).join('\r\n');
+  const el = document.createElement('a'); el.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  el.download = 'sac_base_compilada_' + new Date().toISOString().slice(0, 10) + '.csv'; el.click(); setTimeout(() => URL.revokeObjectURL(el.href), 4000);
 };
 $('#btnCsv').onclick = () => {
   const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
