@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v32</title>
+<title>Águas do Rio | SAC v33</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -148,7 +148,7 @@ td.drill:hover { background:#cfe3f0 !important; text-decoration:underline; }
 .kpi.drill:hover { background:#f2f8fc; }
 td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-claro); outline-offset:-2px; }
 #drillFundo { position:fixed; inset:0; z-index:30; background:rgba(16,40,64,.35); }
-#drill { position:fixed; top:0; right:0; bottom:0; z-index:31; width:min(760px,100vw); display:flex; flex-direction:column; background:#fff; border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(17,42,66,.18); }
+#drill { position:fixed; top:0; right:0; bottom:0; z-index:31; width:min(1080px,100vw); display:flex; flex-direction:column; background:#fff; border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(17,42,66,.18); }
 .drill-topo { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:12px 16px; background:linear-gradient(120deg, var(--navy), #174f70); color:#fff; }
 .drill-topo h2 { margin:2px 0 0; font-size:15px; font-weight:600; color:#fff; }
 .eyebrow-d { color:#9fe1e7; font-size:10px; letter-spacing:1.2px; font-weight:700; text-transform:uppercase; }
@@ -166,7 +166,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v32</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v33</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -313,7 +313,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v32';
+const VERSAO_SAC = 'v33';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -687,6 +687,7 @@ const LEITORES = {
       if (!ok) { const kq = ym + '|' + cid + '|' + cls; let q = F.nok.get(kq); if (!q) { q = { ym, cid, cidade: m.cidade != null ? String(r[m.cidade]).trim() : '', cls, b: 0, l: 0, d: 0, i: 0, da: 0, ia: 0, sit: '' }; F.nok.set(kq, q); } q.b += bm; q.l += lm; q.d += bd; q.i += bi; q.da += da; q.ia += ia; q.sit = sit; }
       if (direta.has(cls) && num(r, 'dirA') > 0 && ym >= ESTADO.impl.get(mat).ym && (!F.dirYm || ym < F.dirYm)) F.dirYm = ym;   // 1º faturamento direto de água a partir do mês da implantação
       if (cls === CONFIG.classeLigacaoAgua) {
+        if (!F.lig) F.lig = new Map(); let lg = F.lig.get(ym); if (!lg) { lg = { ok: 0, nok: 0 }; F.lig.set(ym, lg); } lg[ok ? 'ok' : 'nok'] += num(r, 'indAgua');
         ligNova++;
         const v = num(r, 'indAgua');
         if (v > 0) { F.bill = true; F.valor += v; if (!F.billYm || ym < F.billYm) F.billYm = ym; }
@@ -734,7 +735,7 @@ function cruzar() {
       }
     }
     if (payYm && F && !sac.has(norm(F.lastSit))) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), da: Math.max(0, q.da), ia: Math.max(0, q.ia), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
-    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, sts: F ? F.st : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat };
+    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, lig: F && F.lig ? F.lig : null, sts: F ? F.st : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
 
@@ -940,6 +941,9 @@ function renderExec() {
   sel.value = meses.includes(atual) ? atual : ([...meses].reverse().find(m => fatMeses.has(proxYm(m))) || meses[meses.length - 1]);
   const M = sel.value, R = proxYm(M), L = base.filter(x => x.ym === M);
   const sac = new Set(CONFIG.situacoesSac), z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), V = z(), G = z(), H = z();
+  const ligV = (x, ym, q) => { const g = x.lig && x.lig.get(ym); return g ? (q ? g[q] : g.ok + g.nok) : 0; };
+  const sitEm = (x, ym) => { const t = x.sts && x.sts.get(ym); return t && t.size ? [...t].map(v => v.replace(/^./, c => c.toUpperCase())).join(', ') : ''; };
+  const COLS_LIG = [['Indireta ligação ' + labelYm(M), x => ligV(x, M), 1], ['Indireta ligação ' + labelYm(R), x => ligV(x, R), 1], ['Situação em ' + labelYm(R), x => sitEm(x, R)]];
   let P = 0, A = 0, Q = 0, Qv = 0, Qs = 0; EXECQ = []; const LP = [], LA = [], LQ = [], LQv = [], LQs = [];
   for (const x of L) {
     if (!x.payYm || x.payYm > R) continue;                                  // pagou até o mês do faturamento
@@ -947,8 +951,7 @@ function renderExec() {
     const ss = x.sts && x.sts.get(R), noSac = !!ss && [...ss].some(t => sac.has(t));   // situação no mês do faturamento
     if (noSac) { A++; LA.push(x); continue; }
     Q++; LQ.push(x);
-    const mm = x.mes && x.mes.get(R); let v = 0;
-    if (mm) for (const [k] of COLS_EXEC) { V[k] += mm.nok[k] + mm.ok[k]; v += mm.nok[k] + mm.ok[k]; }
+    const v = ligV(x, R); V.ia += v;   // análise só na indireta de água da classe Ligações de Água
     if (v > 0) { Qv++; LQv.push(x); } else { Qs++; LQs.push(x); }
     EXECQ.push({ mat: x.mat, cidade: x.cidade, sup: x.sup, ym: x.ym, payYm: x.payYm, ref: R, sit: ss && ss.size ? [...ss][0].replace(/^./, c => c.toUpperCase()) : '', v });
   }
@@ -957,8 +960,9 @@ function renderExec() {
     G.da += e.gda; G.de += e.gde; G.ia += e.gia; G.ie += e.gie; H.da += e.ada; H.de += e.ade; H.ia += e.aia; H.ie += e.aie;
   }
   const soma = o => o.da + o.de + o.ia + o.ie, N = L.length, vt = soma(V);
-  const fatR = x => { const mm = x.mes && x.mes.get(R); return mm ? COLS_EXEC.reduce((a, [k]) => a + mm.ok[k] + mm.nok[k], 0) : 0; };
-  const ex = (id, txt, tit, rows, valor) => '<span class="' + genAttr('exec:' + id, { titulo: tit, grupo: 'Implantadas em ' + labelYm(M), rows, valor: valor ? fatR : null, valorRot: 'Faturado em ' + labelYm(R) }).slice(1) + '">' + txt + '</span>';
+  const fatR = x => ligV(x, R);
+  const ex = (id, txt, tit, rows, valor) => '<span class="' + genAttr('exec:' + id, { titulo: tit, grupo: 'Implantadas em ' + labelYm(M), rows: valor ? [...rows].sort((a, b) => fatR(b) - fatR(a)) : rows, cols: COLS_LIG }).slice(1) + '">' + txt + '</span>';
+  EXECSPEC = { titulo: 'Pagaram e estão fora da auditoria', grupo: 'Implantadas em ' + labelYm(M), rows: [...LQ].sort((a, b) => fatR(b) - fatR(a)), cols: COLS_LIG };
   const filtros = [['fSup', 'Superintendência'], ['fCid', 'Cidade']].map(([id, n]) => { const f = fs(id); return f ? n + ': ' + [...f].join(', ') : ''; }).filter(Boolean).join('; ');
   $('#execTitulo').textContent = 'Resumo executivo: implantações de ' + labelYm(M) + ' e impacto no faturamento de ' + labelYm(R);
   $('#execVer').disabled = !Q;
@@ -966,40 +970,33 @@ function renderExec() {
     '<div><small>1. Ligações implantadas em ' + labelYm(M) + '</small><strong>' + ex('N', fInt(N), 'Ligações implantadas', L) + '</strong><span class="sub-k">ligações executadas no mês</span></div>' +
     '<div><small>2. Pagaram até ' + labelYm(R) + '</small><strong>' + ex('P', fInt(P), 'Pagaram até ' + labelYm(R), LP) + '</strong><span class="sub-k">' + pp(P, N) + ' das implantadas</span></div>' +
     '<div><small>3. Pagaram e não estão como Ativa Faturando ou Cortada</small><strong class="dest">' + ex('Q', fInt(Q), 'Pagaram e estão fora da auditoria', LQ, 1) + '</strong><span class="sub-k">' + pp(Q, P) + ' das que pagaram</span></div>' +
-    '<div><small>4. Impacto no faturamento de ' + labelYm(R) + '</small><strong class="dest">' + ex('V', fMoeda(vt), 'Impacto no faturamento', LQv, 1) + '</strong><span class="sub-k">faturamento das matrículas do passo 3</span></div></div>';
+    '<div><small>4. Indireta da ligação em ' + labelYm(R) + ' fora do SAC</small><strong class="dest">' + ex('V', fMoeda(vt), 'Impacto no faturamento', LQv, 1) + '</strong><span class="sub-k">indireta de água (Ligações de Água) das matrículas do passo 3</span></div></div>';
   if (filtros) h += '<p>' + esc(filtros) + '.</p>';
   if (!fatMeses.has(R)) h += '<p class="dest">A base de faturamento ainda não tem ' + labelYm(R) + '. O impacto fica zerado até o arquivo desse mês entrar na pasta.</p>';
   h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(N) + '</b> ligações. Até ' + labelYm(R) + ', <b>' + fInt(P) + '</b> já pagaram. Dessas ' + fInt(P) + ', ' + fInt(A) + (A === 1 ? ' está' : ' estão') + ' como Ativa Faturando ou Cortada e ' + (A === 1 ? 'entra' : 'entram') + ' no SAC, e <span class="dest">' + fInt(Q) + '</span> ' + (Q === 1 ? 'não está' : 'não estão') + '. ' +
-    'O faturamento de ' + labelYm(R) + ' ' + (Q === 1 ? 'dessa matrícula' : 'dessas matrículas') + ' é de <span class="dest">' + fMoeda(vt) + '</span>: é o valor que entra no faturamento do SAC quando a situação ' + (Q === 1 ? 'dela' : 'delas') + ' for corrigida.</p>';
+    'A indireta de água da ligação em ' + labelYm(R) + ' ' + (Q === 1 ? 'dessa matrícula' : 'dessas matrículas') + ' é de <span class="dest">' + fMoeda(vt) + '</span>: é o valor que entra no faturamento do SAC quando a situação ' + (Q === 1 ? 'dela' : 'delas') + ' for corrigida.</p>';
   h += '<h3>Do implantado ao impacto</h3><table><thead><tr><th>Etapa</th><th>Ligações</th><th>% das implantadas</th><th>% das que pagaram</th></tr></thead><tbody>' +
     '<tr><td>Ligações implantadas em ' + labelYm(M) + '</td><td>' + ex('tN', fInt(N), 'Ligações implantadas', L) + '</td><td>' + pp(N, N) + '</td><td>-</td></tr>' +
     '<tr><td>Pagaram até ' + labelYm(R) + '</td><td>' + ex('tP', fInt(P), 'Pagaram até ' + labelYm(R), LP) + '</td><td>' + pp(P, N) + '</td><td>' + pp(P, P) + '</td></tr>' +
     '<tr><td>Dessas, já estão como Ativa Faturando ou Cortada</td><td>' + ex('tA', fInt(A), 'Pagaram e estão como Ativa Faturando ou Cortada', LA, 1) + '</td><td>' + pp(A, N) + '</td><td>' + pp(A, P) + '</td></tr>' +
     '<tr class="tot"><td>Dessas, não estão (fora da auditoria)</td><td>' + ex('tQ', fInt(Q), 'Pagaram e estão fora da auditoria', LQ, 1) + '</td><td>' + pp(Q, N) + '</td><td>' + pp(Q, P) + '</td></tr>' +
-    '<tr><td>Fora da auditoria e com faturamento em ' + labelYm(R) + '</td><td>' + ex('tQv', fInt(Qv), 'Fora da auditoria e com faturamento', LQv, 1) + '</td><td>' + pp(Qv, N) + '</td><td>' + pp(Qv, P) + '</td></tr>' +
-    '<tr><td>Fora da auditoria e sem faturamento em ' + labelYm(R) + '</td><td>' + ex('tQs', fInt(Qs), 'Fora da auditoria e sem faturamento', LQs) + '</td><td>' + pp(Qs, N) + '</td><td>' + pp(Qs, P) + '</td></tr></tbody></table>';
-  // amostra: só as implantadas no mês; faturamento do mês seguinte, reconhecido (Ativa Faturando/Cortada no mês) ou não
-  const amo = grupo => { const o = { n: grupo.length, dir: 0, ind: 0, rec: 0, nrec: 0, L: grupo, Lrec: [], Lnrec: [] };
-    for (const x of grupo) { const mm = x.mes && x.mes.get(R); if (!mm) continue; let r1 = 0, r2 = 0;
-      for (const k of ['da', 'de']) o.dir += mm.ok[k] + mm.nok[k]; for (const k of ['ia', 'ie']) o.ind += mm.ok[k] + mm.nok[k];
-      for (const [k] of COLS_EXEC) { r1 += mm.ok[k]; r2 += mm.nok[k]; } o.rec += r1; o.nrec += r2; if (r1 > 0) o.Lrec.push(x); if (r2 > 0) o.Lnrec.push(x); }
-    return o; };
+    '<tr><td>Fora da auditoria e com indireta da ligação em ' + labelYm(R) + '</td><td>' + ex('tQv', fInt(Qv), 'Fora da auditoria e com faturamento', LQv, 1) + '</td><td>' + pp(Qv, N) + '</td><td>' + pp(Qv, P) + '</td></tr>' +
+    '<tr><td>Fora da auditoria e sem indireta da ligação em ' + labelYm(R) + '</td><td>' + ex('tQs', fInt(Qs), 'Fora da auditoria e sem faturamento', LQs) + '</td><td>' + pp(Qs, N) + '</td><td>' + pp(Qs, P) + '</td></tr></tbody></table>';
+  // amostra: só as implantadas no mês; indireta de água da classe Ligações de Água no mês da implantação e no seguinte
+  const amo = grupo => { const o = { n: grupo.length, m: 0, r: 0, rec: 0, nrec: 0, L: grupo };
+    for (const x of grupo) { o.m += ligV(x, M); o.r += ligV(x, R); o.rec += ligV(x, R, 'ok'); o.nrec += ligV(x, R, 'nok'); } return o; };
   const LnP = L.filter(x => !(x.payYm && x.payYm <= R)), aP = amo(LP), aN = amo(LnP), aT = amo(L);
-  const vDir = x => { const mm = x.mes && x.mes.get(R); return mm ? mm.ok.da + mm.nok.da + mm.ok.de + mm.nok.de : 0; };
-  const vInd = x => { const mm = x.mes && x.mes.get(R); return mm ? mm.ok.ia + mm.nok.ia + mm.ok.ie + mm.nok.ie : 0; };
-  const vRec = x => { const mm = x.mes && x.mes.get(R); return mm ? COLS_EXEC.reduce((a, [k]) => a + mm.ok[k], 0) : 0; };
-  const vNrec = x => { const mm = x.mes && x.mes.get(R); return mm ? COLS_EXEC.reduce((a, [k]) => a + mm.nok[k], 0) : 0; };
-  const cx = (id, txt, tit, rows, fn, rot) => '<td>' + '<span class="' + genAttr('exec:' + id, { titulo: tit, grupo: 'Implantadas em ' + labelYm(M), rows, valor: fn, valorRot: rot }).slice(1) + '">' + txt + '</span></td>';
+  const cx = (id, txt, tit, rows, fn) => '<td><span class="' + genAttr('exec:' + id, { titulo: tit, grupo: 'Implantadas em ' + labelYm(M), rows: fn ? rows.filter(x => fn(x) > 0).sort((a, b) => fn(b) - fn(a)) : rows, cols: COLS_LIG }).slice(1) + '">' + txt + '</span></td>';
   const lA = (id, rot, a, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + rot + '</td>' + cx(id + 'n', fInt(a.n), rot, a.L) +
-    cx(id + 'd', fMoeda(a.dir), rot + ': direto em ' + labelYm(R), a.L.filter(x => vDir(x) > 0), vDir, 'Direto em ' + labelYm(R)) +
-    cx(id + 'i', fMoeda(a.ind), rot + ': indireto em ' + labelYm(R), a.L.filter(x => vInd(x) > 0), vInd, 'Indireto em ' + labelYm(R)) +
-    cx(id + 'r', fMoeda(a.rec), rot + ': reconhecido em ' + labelYm(R), a.Lrec, vRec, 'Reconhecido') +
-    cx(id + 'x', '<span class="dest">' + fMoeda(a.nrec) + '</span>', rot + ': não reconhecido em ' + labelYm(R), a.Lnrec, vNrec, 'Não reconhecido') + '</tr>';
-  h += '<h3>Faturamento de ' + labelYm(R) + ' das ligações implantadas em ' + labelYm(M) + ': foi reconhecido?</h3>' +
-    '<table><thead><tr><th>Ligações implantadas em ' + labelYm(M) + '</th><th>Matrículas</th><th>Direto em ' + labelYm(R) + '</th><th>Indireto em ' + labelYm(R) + '</th><th>Reconhecido (Ativa Faturando ou Cortada)</th><th>Não reconhecido</th></tr></thead><tbody>' +
+    cx(id + 'm', fMoeda(a.m), rot + ': indireta em ' + labelYm(M), a.L, x => ligV(x, M)) +
+    cx(id + 'r', fMoeda(a.r), rot + ': indireta em ' + labelYm(R), a.L, x => ligV(x, R)) +
+    cx(id + 'k', fMoeda(a.rec), rot + ': reconhecido em ' + labelYm(R), a.L, x => ligV(x, R, 'ok')) +
+    cx(id + 'x', '<span class="dest">' + fMoeda(a.nrec) + '</span>', rot + ': não reconhecido em ' + labelYm(R), a.L, x => ligV(x, R, 'nok')) + '</tr>';
+  h += '<h3>Indireta de água da ligação (DSC_CLASSE Ligações de Água): ' + labelYm(M) + ' e ' + labelYm(R) + '</h3>' +
+    '<table><thead><tr><th>Ligações implantadas em ' + labelYm(M) + '</th><th>Matrículas</th><th>Indireta em ' + labelYm(M) + ' (mês da implantação)</th><th>Indireta em ' + labelYm(R) + ' (mês seguinte)</th><th>Reconhecido em ' + labelYm(R) + '</th><th>Não reconhecido em ' + labelYm(R) + '</th></tr></thead><tbody>' +
     lA('p', 'Pagaram até ' + labelYm(R), aP) + lA('np', 'Não pagaram até ' + labelYm(R), aN) + lA('t', 'Total', aT, 'tot') + '</tbody></table>';
-  h += '<p>Das ligações que pagaram, ' + fMoeda(aP.rec) + ' do faturamento de ' + labelYm(R) + ' foi reconhecido na visão da auditoria e <span class="dest">' + fMoeda(aP.nrec) + '</span> não foi, porque a matrícula não estava como Ativa Faturando nem Cortada nesse mês.</p>';
-  h += '<p>Como ler: a análise usa só as ligações implantadas em ' + labelYm(M) + ', não a base inteira de faturamento. Pagou é ter arrecadação até ' + labelYm(R) + '. Reconhecido é o faturamento bruto de ' + labelYm(R) + ' (direto e indireto, água e esgoto) em linhas com situação Ativa Faturando ou Cortada. Clique nos números para ver as matrículas.</p>';
+  h += '<p>Das ligações que pagaram, a indireta de água da ligação em ' + labelYm(R) + ' soma ' + fMoeda(aP.r) + ': ' + fMoeda(aP.rec) + ' reconhecidos na visão da auditoria e <span class="dest">' + fMoeda(aP.nrec) + '</span> não reconhecidos, porque a linha não estava como Ativa Faturando nem Cortada.</p>';
+  h += '<p>Como ler: a análise usa só as ligações implantadas em ' + labelYm(M) + ', não a base inteira de faturamento. Pagou é ter arrecadação até ' + labelYm(R) + '. Os valores são só o faturamento bruto indireto de água nas linhas de DSC_CLASSE Ligações de Água. Reconhecido é o valor em linhas com situação Ativa Faturando ou Cortada. Clique nos números para ver as matrículas.</p>';
   $('#execTexto').innerHTML = h;
 }
 let EXECQ = [];
@@ -1019,7 +1016,8 @@ function desenharExec() {
   mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
 }
 $('#execMes').onchange = renderExec;
-$('#execVer').onclick = () => abrirDrillExec();
+let EXECSPEC = null;
+$('#execVer').onclick = () => abrirGen(EXECSPEC);
 $('#execImprimir').onclick = () => window.print();
 $('#execCopiar').onclick = async () => {
   const el = $('#execTexto'), html = '<h2>' + esc($('#execTitulo').textContent) + '</h2>' + el.innerHTML.replace(/class="dest"/g, 'style="color:#C2560C;font-weight:600"').replace(/<thead><tr>/, '<thead><tr style="background:#1A2740;color:#fff">');
@@ -1194,8 +1192,9 @@ function abrirGen(spec) {
 function desenharGen() {
   const sp = DRILL.spec, rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
   $('#drillTitulo').textContent = sp.titulo + ' (' + fInt(DRILL.rows.length) + ')' + (sp.valor ? ': ' + fMoeda(DRILL.rows.reduce((a, x) => a + sp.valor(x), 0)) : '');
-  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º fat. direto água</th><th>1º pagamento</th><th>Situação na base</th>' + (sp.valor ? '<th class="n">' + esc(sp.valorRot) + '</th>' : '') + '</tr></thead><tbody>' +
-    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + (x.data ? x.data.slice(8, 10) + '/' + x.data.slice(5, 7) + '/' + x.data.slice(0, 4) : labelYm(x.ym)) + '</td><td>' + (x.dirYm ? labelYm(x.dirYm) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td>' + (sp.valor ? '<td class="n">' + fMoeda(sp.valor(x)) + '</td>' : '') + '</tr>').join('') + '</tbody>';
+  const ext = sp.cols || [];
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º fat. direto água</th><th>1º pagamento</th><th>Situação na base</th>' + ext.map(c => '<th' + (c[2] ? ' class="n"' : '') + '>' + esc(c[0]) + '</th>').join('') + (sp.valor ? '<th class="n">' + esc(sp.valorRot) + '</th>' : '') + '</tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + (x.data ? x.data.slice(8, 10) + '/' + x.data.slice(5, 7) + '/' + x.data.slice(0, 4) : labelYm(x.ym)) + '</td><td>' + (x.dirYm ? labelYm(x.dirYm) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td>' + ext.map(c => '<td' + (c[2] ? ' class="n">' + fMoeda(c[1](x)) : '>' + esc(c[1](x) || '-')) + '</td>').join('') + (sp.valor ? '<td class="n">' + fMoeda(sp.valor(x)) + '</td>' : '') + '</tr>').join('') + '</tbody>';
   $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
   const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
   mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
@@ -1238,8 +1237,8 @@ $('#drillCsv').onclick = () => {
   const rows = drillFiltrado(), cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
   if (DRILL.modo === 'gen') {
     const sp = DRILL.spec, dBr = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '';
-    const csv = ['Matrícula;Cidade;Sup;Data da implantação;Mês da implantação;1º faturamento direto água;1º pagamento;Situação na base' + (sp.valor ? ';' + sp.valorRot : '')].concat(rows.map(x =>
-      [cel(x.mat), cel(x.cidade), cel(x.sup), dBr(x.data), labelYm(x.ym), x.dirYm ? labelYm(x.dirYm) : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual)].concat(sp.valor ? [sp.valor(x).toFixed(2).replace('.', ',')] : []).join(';'))).join('\r\n');
+    const csv = ['Matrícula;Cidade;Sup;Data da implantação;Mês da implantação;1º faturamento direto água;1º pagamento;Situação na base' + (sp.cols || []).map(c => ';' + c[0]).join('') + (sp.valor ? ';' + sp.valorRot : '')].concat(rows.map(x =>
+      [cel(x.mat), cel(x.cidade), cel(x.sup), dBr(x.data), labelYm(x.ym), x.dirYm ? labelYm(x.dirYm) : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual)].concat((sp.cols || []).map(c => c[2] ? c[1](x).toFixed(2).replace('.', ',') : cel(c[1](x)))).concat(sp.valor ? [sp.valor(x).toFixed(2).replace('.', ',')] : []).join(';'))).join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = 'sac_' + norm(sp.titulo + '_' + sp.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
   }
