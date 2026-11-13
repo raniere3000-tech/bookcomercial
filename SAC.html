@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v34</title>
+<title>Águas do Rio | SAC v35</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -166,7 +166,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v34</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v35</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -304,7 +304,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
       <button type="button" class="btn-just" id="drillFechar" aria-label="Fechar">✕</button>
     </div>
   </div>
-  <div class="drill-busca"><input type="search" id="drillBusca" placeholder="Filtrar por matrícula ou cidade" aria-label="Filtrar matrículas"><span id="drillCont"></span></div>
+  <div class="drill-busca"><input type="search" id="drillBusca" placeholder="Filtrar por matrícula, cidade ou subcategoria" aria-label="Filtrar matrículas"><span id="drillCont"></span></div>
   <div class="drill-corpo"><table id="drillTab"></table></div>
   <button type="button" class="btn-just mais oculto" id="drillMais"></button>
 </aside>
@@ -313,7 +313,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v34';
+const VERSAO_SAC = 'v35';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -1018,8 +1018,8 @@ function abrirDrillExec() {
 function desenharExec() {
   const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100, ref = rows.length ? labelYm(rows[0].ref) : '';
   $('#drillTitulo').textContent = 'Pagaram e fora da auditoria: ' + fMoeda(rows.reduce((a, x) => a + x.v, 0));
-  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th>Situação em ' + ref + '</th><th class="n">Faturado em ' + ref + '</th></tr></thead><tbody>' +
-    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td>' + esc(x.sit || 'Sem linha no mês') + '</td><td class="n">' + fMoeda(x.v) + '</td></tr>').join('') + '</tbody>';
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th>Situação em ' + ref + '</th><th class="n">Faturado em ' + ref + '</th></tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td>' + esc(x.sit || 'Sem linha no mês') + '</td><td class="n">' + fMoeda(x.v) + '</td></tr>').join('') + '</tbody>';
   $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
   const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
   mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
@@ -1071,8 +1071,8 @@ function aplicar() {
   const lista = rows.filter(x => x.cat === 'fora' || x.cat === 'semfat');
   const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
   const lim = tudo ? lista.length : 15;
-  $('#tabLista').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th class="n">Valor faturado</th><th>Situação atual na base</th><th>Motivo</th></tr></thead><tbody>' +
-    lista.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td class="n">' + fMoeda(x.valor) + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + cat[x.cat] + '</td></tr>').join('') + '</tbody>';
+  $('#tabLista').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th class="n">Valor faturado</th><th>Situação atual na base</th><th>Motivo</th></tr></thead><tbody>' +
+    lista.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td class="n">' + fMoeda(x.valor) + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + cat[x.cat] + '</td></tr>').join('') + '</tbody>';
   const mais = $('#btnMais'); mais.classList.toggle('oculto', lista.length <= 15);
   mais.textContent = tudo ? 'Mostrar só os 15 primeiros' : 'Mostrar todos (' + fInt(lista.length) + ')';
   $('#notaLista').textContent = fInt(lista.length) + ' matrícula(s)' + (tudo && lista.length > 2000 ? '. A tela mostra todas; o CSV traz o mesmo recorte.' : '.');
@@ -1168,8 +1168,8 @@ function desenharAjuste() {
   const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100, k = CHAVES[medida()][2];
   const soma = rows.reduce((a, x) => a + x[k], 0);
   $('#drillTitulo').textContent = 'Ajuste do SAC: ' + fMoeda(soma);
-  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Mês do faturamento</th><th>1º pagamento</th><th>Situação na base</th><th class="n">Valor do ajuste</th></tr></thead><tbody>' +
-    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td>' + esc(x.sit || '-') + '</td><td class="n">' + fMoeda(x[k]) + '</td></tr>').join('') + '</tbody>';
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Mês do faturamento</th><th>1º pagamento</th><th>Situação na base</th><th class="n">Valor do ajuste</th></tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td>' + esc(x.sit || '-') + '</td><td class="n">' + fMoeda(x[k]) + '</td></tr>').join('') + '</tbody>';
   $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
   const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
   mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
@@ -1202,8 +1202,8 @@ function desenharGen() {
   const sp = DRILL.spec, rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
   $('#drillTitulo').textContent = sp.titulo + ' (' + fInt(DRILL.rows.length) + ')' + (sp.valor ? ': ' + fMoeda(DRILL.rows.reduce((a, x) => a + sp.valor(x), 0)) : '');
   const ext = sp.cols || [];
-  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º fat. direto água</th><th>1º pagamento</th><th>Situação na base</th>' + ext.map(c => '<th' + (c[2] ? ' class="n"' : '') + '>' + esc(c[0]) + '</th>').join('') + (sp.valor ? '<th class="n">' + esc(sp.valorRot) + '</th>' : '') + '</tr></thead><tbody>' +
-    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + (x.data ? x.data.slice(8, 10) + '/' + x.data.slice(5, 7) + '/' + x.data.slice(0, 4) : labelYm(x.ym)) + '</td><td>' + (x.dirYm ? labelYm(x.dirYm) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td>' + ext.map(c => '<td' + (c[2] ? ' class="n">' + fMoeda(c[1](x)) : '>' + esc(c[1](x) || '-')) + '</td>').join('') + (sp.valor ? '<td class="n">' + fMoeda(sp.valor(x)) + '</td>' : '') + '</tr>').join('') + '</tbody>';
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º fat. direto água</th><th>1º pagamento</th><th>Situação na base</th>' + ext.map(c => '<th' + (c[2] ? ' class="n"' : '') + '>' + esc(c[0]) + '</th>').join('') + (sp.valor ? '<th class="n">' + esc(sp.valorRot) + '</th>' : '') + '</tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + (x.data ? x.data.slice(8, 10) + '/' + x.data.slice(5, 7) + '/' + x.data.slice(0, 4) : labelYm(x.ym)) + '</td><td>' + (x.dirYm ? labelYm(x.dirYm) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td>' + ext.map(c => '<td' + (c[2] ? ' class="n">' + fMoeda(c[1](x)) : '>' + esc(c[1](x) || '-')) + '</td>').join('') + (sp.valor ? '<td class="n">' + fMoeda(sp.valor(x)) + '</td>' : '') + '</tr>').join('') + '</tbody>';
   $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
   const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
   mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
@@ -1225,15 +1225,15 @@ function abrirDrill(t, k, m) {
 function fecharDrill() { $('#drillFundo').classList.add('oculto'); $('#drill').classList.add('oculto'); }
 function drillFiltrado() {
   const q = norm($('#drillBusca').value); if (!q) return DRILL.rows;
-  return DRILL.rows.filter(x => x.mat.includes(q) || norm(x.cidade).includes(q));
+  return DRILL.rows.filter(x => x.mat.includes(q) || norm(x.cidade).includes(q) || norm(subDe(x.mat)).includes(q));
 }
 function desenharDrill() {
   if (DRILL.modo === 'ajuste') return desenharAjuste();
   if (DRILL.modo === 'exec') return desenharExec();
   if (DRILL.modo === 'gen') return desenharGen();
   const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
-  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th class="n">Valor faturado</th><th>1º pagamento</th><th>Situação na base</th><th>Classificação</th></tr></thead><tbody>' +
-    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td class="n">' + (x.bill ? fMoeda(x.valor) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + ROT_CAT[x.cat] + '</td></tr>').join('') + '</tbody>';
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th class="n">Valor faturado</th><th>1º pagamento</th><th>Situação na base</th><th>Classificação</th></tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td class="n">' + (x.bill ? fMoeda(x.valor) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + ROT_CAT[x.cat] + '</td></tr>').join('') + '</tbody>';
   $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
   const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
   mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
