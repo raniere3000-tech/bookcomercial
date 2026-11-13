@@ -38,6 +38,7 @@ A versão aparece no topo da página, ao lado do título "DRE - Comercial" (ex.:
 
 | Versão | O que mudou |
 |---|---|
+| V26 | DRE Histórico: volta a linha Faturamento Bruto no topo, somando Faturamento de Água e de Esgoto (direto + indireto). Os dois grupos ficam dentro dela, como na aba DRE, e a linha também sai no PDF. |
 | V25 | Arquivos de Arrecadação com aba de explicação (ex.: "Informações" do Tabela_BI): a aba só é lida como Arrecadação quando o cabeçalho tem Cidade, Mes/ano e Arrecadacao_Acumulada. Antes, a aba "Informações" era lida e dava erro de colunas ausentes. |
 | V24 | DRE Histórico: a arrecadação passa a somar todas as cidades da superintendência que estão no arquivo de Arrecadação, inclusive as que não aparecem no Comercial. Antes, com o filtro LESTE, a arrecadação ficava vazia quando o Comercial não trazia cidades da LESTE. O filtro de cidades também lista essas cidades, e o botão da superintendência aparece mesmo quando ela só existe na Arrecadação. |
 | V23 | Ícone de DRE na aba do navegador (painel e página inicial): `icone-dre.svg`, com `icone-dre-32.png` e `icone-dre-180.png` para navegadores sem SVG e atalho no celular. Cores da paleta Águas do Rio (degradê `#102840` → `#174f70`, barra `#16a5b8`). |

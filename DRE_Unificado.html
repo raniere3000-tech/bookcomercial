@@ -420,8 +420,8 @@ const CONFIG = {
   }
 };
 
-const VERSAO_BOOK = 'V25';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
-const VERSAO = VERSAO_BOOK + ' · build 2026.11.10-b';
+const VERSAO_BOOK = 'V26';                                    // versão exibida ao lado do título — aumentar a cada alteração publicada (V2, V3…)
+const VERSAO = VERSAO_BOOK + ' · build 2026.11.13-a';
 /* ---------- progresso e detalhes (log) ---------- */
 const LOG = []; const CTX = { etapa: '', arquivo: '', linha: 0 };
 function log(msg, nivel) {
@@ -1360,7 +1360,8 @@ function renderRF() {
 /* Estrutura do DRE Histórico: [id, rótulo, chave, estilo, pai, tipo]
    estilos: sec (cinza, nível 0) · sub (azul, nível 1) · item (nível 2) · det (abertura, nível 3) · dest (destaque) */
 const HTREE = [
-  ['fatA', '(+) Faturamento de Água', 'fatA', 'sec', null, 'moeda'],
+  ['bruto', 'Faturamento Bruto', 'bruto', 'top', null, 'moeda'],   // soma de água e esgoto, direto + indireto
+  ['fatA', '(+) Faturamento de Água', 'fatA', 'sec', 'bruto', 'moeda'],
   ['dirA', 'Faturamento Direto de Água', 'dA', 'sub', 'fatA', 'moeda'],
   ['ecoA', 'Economias Faturadas de Água', 'ecoA', 'item', 'dirA', 'num'],
   ['volA', 'Volume Faturado de Água', 'volA', 'item', 'dirA', 'num'],
@@ -1375,7 +1376,7 @@ const HTREE = [
   ['iA6', 'Venda e Análise de Água', 'F_Venda e Análise de Água', 'det', 'indA', 'moeda'],
   ['iA7', 'Consertos e Reparos', 'F_Consertos e Reparos', 'det', 'indA', 'moeda'],
   ['iA8', 'Outras classes', 'F_Outras classes', 'det', 'indA', 'moeda'],
-  ['fatE', '(+) Faturamento de Esgoto', 'fatE', 'sec', null, 'moeda'],
+  ['fatE', '(+) Faturamento de Esgoto', 'fatE', 'sec', 'bruto', 'moeda'],
   ['dirE', 'Faturamento Direto de Esgoto', 'dE', 'sub', 'fatE', 'moeda'],
   ['ecoE', 'Economias Faturadas de Esgoto', 'ecoE', 'item', 'dirE', 'num'],
   ['volE', 'Volume Faturado de Esgoto', 'volE', 'item', 'dirE', 'num'],
@@ -1555,7 +1556,7 @@ function histSpec(ids) {
   const sel = ids || new Set(HTREE.filter(l => linhaVisivel(l[0])).map(l => l[0]));
   const { cols, all } = histCols(), accs = cols.map(c => histAcc(c.months)).concat([histAcc(all)]);
   const head = [['Econômico'].concat(cols.map(c => c.label), ['Total Geral'])], nCol = head[0].length;
-  const CORES = { sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
+  const CORES = { top: [174, 203, 221], sec: [217, 217, 217], sub: [201, 230, 245], item: [244, 244, 244], det: [250, 250, 250], dest: [244, 244, 244] };
   const prof = id => { let n = 0; for (let p = HPAI.get(id); p; p = HPAI.get(p)) n++; return n; };
   const estilos = [], idsL = [], body = [];
   HTREE.forEach(([id, nome, chave, estilo, , tipo]) => {
