@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v30</title>
+<title>Águas do Rio | SAC v31</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -166,7 +166,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v30</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v31</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -288,7 +288,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
         <li>Pagou: matrícula com arrecadação acumulada maior que zero, ou com dias de pagamento, na planilha de arrecadação.</li>
         <li>Deveria estar no SAC: pagou e, do mês do primeiro pagamento em diante, a base de faturamento não mostra Ativa Faturando nem Cortada, e a situação mais recente da matrícula na base também não é uma delas.</li>
         <li>Faturada: matrícula com linha de DSC_CLASSE Ligações de Água e faturamento indireto de água maior que zero.</li>
-        <li>Faturamento direto de água (gráficos): primeiro mês em que a matrícula tem faturamento bruto direto de água maior que zero nas classes Contas de Água ou Contas de Esgoto.</li>
+        <li>Faturamento direto de água (gráficos e base compilada): primeiro mês, a partir do mês da implantação, em que a matrícula tem faturamento bruto direto de água maior que zero nas classes Contas de Água ou Contas de Esgoto. Faturamento direto de meses anteriores à implantação não conta.</li>
         <li>Implantações: uma matrícula por linha, com OS repetidas ignoradas.</li>
         <li>Faturamento (resumo por mês): só entram linhas com matrícula, sem a linha de total do arquivo e sem classe 0 ou vazia.</li>
       </ul>
@@ -313,7 +313,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v30';
+const VERSAO_SAC = 'v31';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -685,7 +685,7 @@ const LEITORES = {
       { if (!F.mes) F.mes = new Map(); let mm = F.mes.get(ym); if (!mm) { mm = { ok: { da: 0, de: 0, ia: 0, ie: 0 }, nok: { da: 0, de: 0, ia: 0, ie: 0 } }; F.mes.set(ym, mm); }
         const z = ok ? mm.ok : mm.nok; if (direta.has(cls)) { z.da += num(r, 'dirA'); z.de += num(r, 'dirE'); } z.ia += num(r, 'indAgua'); z.ie += num(r, 'indEsg'); }
       if (!ok) { const kq = ym + '|' + cid + '|' + cls; let q = F.nok.get(kq); if (!q) { q = { ym, cid, cidade: m.cidade != null ? String(r[m.cidade]).trim() : '', cls, b: 0, l: 0, d: 0, i: 0, da: 0, ia: 0, sit: '' }; F.nok.set(kq, q); } q.b += bm; q.l += lm; q.d += bd; q.i += bi; q.da += da; q.ia += ia; q.sit = sit; }
-      if (direta.has(cls) && num(r, 'dirA') > 0 && (!F.dirYm || ym < F.dirYm)) F.dirYm = ym;   // 1º faturamento direto de água
+      if (direta.has(cls) && num(r, 'dirA') > 0 && ym >= ESTADO.impl.get(mat).ym && (!F.dirYm || ym < F.dirYm)) F.dirYm = ym;   // 1º faturamento direto de água a partir do mês da implantação
       if (cls === CONFIG.classeLigacaoAgua) {
         ligNova++;
         const v = num(r, 'indAgua');
