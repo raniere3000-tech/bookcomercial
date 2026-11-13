@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v29</title>
+<title>Águas do Rio | SAC v30</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -105,6 +105,7 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
   #view-exec { display:block !important; }
   #boxExec { border:0; box-shadow:none; margin:0; padding:0; }
 }
+.exec-texto .drill, .exec-kpis .drill { cursor:pointer; text-decoration:underline; text-decoration-color:rgba(73,102,140,.35); text-underline-offset:3px; }
 .sub-mes { color:var(--muted); font-size:11.5px; }
 .dest-l { color:var(--laranja-texto); font-weight:600; }
 .card h2 { font-size:14px; font-weight:600; margin:0 0 8px; color:var(--marinho); text-wrap:balance; }
@@ -165,7 +166,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v29</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v30</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -312,7 +313,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v29';
+const VERSAO_SAC = 'v30';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -837,8 +838,9 @@ function dicaGraf(box, html, ev) {
   let x = ev.clientX - rb.left + 12; if (x + t.offsetWidth > rb.width) x = ev.clientX - rb.left - t.offsetWidth - 12;
   t.style.left = Math.max(0, x) + 'px'; t.style.top = (ev.clientY - rb.top - t.offsetHeight - 8) + 'px';
 }
-function ligarDicas(el, dicas) {
+function ligarDicas(el, dicas, specs) {
   el.querySelectorAll('.hit').forEach(h => {
+    if (specs) { h.style.cursor = 'pointer'; h.onclick = () => abrirGen(specs[+h.dataset.i]); }
     h.onmousemove = e => dicaGraf(el.parentNode, dicas[+h.dataset.i], e);
     h.onmouseleave = () => dicaGraf(el.parentNode, '');
   });
@@ -849,7 +851,7 @@ function eixoY(W, ml, mt, ph, max, fmt) {
   return g;
 }
 function graficoCoorte(el, rows, teste, cor, rotSim, rotNao) {   // barras por mês de implantação: implantadas x etapa, com % embaixo
-  const coh = new Map(); for (const x of rows) { let o = coh.get(x.ym); if (!o) { o = { ym: x.ym, n: 0, p: 0 }; coh.set(x.ym, o); } o.n++; if (teste(x)) o.p++; }
+  const coh = new Map(); for (const x of rows) { let o = coh.get(x.ym); if (!o) { o = { ym: x.ym, n: 0, p: 0, L: [] }; coh.set(x.ym, o); } o.n++; o.L.push(x); if (teste(x)) o.p++; }
   const C = [...coh.values()].sort((a, b) => a.ym < b.ym ? -1 : 1), n = Math.max(1, C.length);
   const ml = 44, mt = 10, W2 = 1200, H2 = 260, mb2 = 44, ph2 = H2 - mt - mb2, pw2 = W2 - ml, mx2 = Math.max(1, ...C.map(o => o.n));
   const pot2 = Math.pow(10, Math.floor(Math.log10(mx2 / 4))), top2 = [1, 2, 2.5, 5, 10].map(k => k * pot2).find(k => k * 4 >= mx2) * 4;
@@ -864,12 +866,13 @@ function graficoCoorte(el, rows, teste, cor, rotSim, rotNao) {   // barras por m
     g2 += '<rect class="hit" data-i="' + i + '" x="' + (ml + i * bw2) + '" y="' + mt + '" width="' + bw2 + '" height="' + ph2 + '"/>';
     d2.push('<b>' + labelYm(o.ym) + '</b><br>Implantadas: ' + fInt(o.n) + '<br>' + rotSim + ': ' + fInt(o.p) + ' (' + fPct(o.p, o.n) + ')<br>' + rotNao + ': ' + fInt(o.n - o.p));
   });
-  el.innerHTML = '<svg viewBox="0 0 ' + W2 + ' ' + H2 + '" role="img" aria-label="Implantadas e ' + rotSim.toLowerCase() + ' por mês de implantação">' + g2 + '</svg>'; ligarDicas(el, d2);
+  el.innerHTML = '<svg viewBox="0 0 ' + W2 + ' ' + H2 + '" role="img" aria-label="Implantadas e ' + rotSim.toLowerCase() + ' por mês de implantação">' + g2 + '</svg>';
+  ligarDicas(el, d2.map(t => t + '<br><i>Clique para ver as matrículas</i>'), C.map(o => ({ titulo: 'Implantadas (' + rotSim.toLowerCase() + ' primeiro)', grupo: 'Implantadas em ' + labelYm(o.ym), rows: [...o.L].sort((a, b) => teste(b) - teste(a)) })));
 }
 function renderIndA(rows) {
-  const M = new Map(), novo = ym => ({ ym, n: 0, tot: 0, mi: 0, ms: 0, sac: 0, fora: 0, foraPag: 0 });
+  const M = new Map(), novo = ym => ({ ym, n: 0, tot: 0, mi: 0, ms: 0, sac: 0, fora: 0, foraPag: 0, L: [] });
   for (const x of rows) {
-    let o = M.get(x.ym); if (!o) { o = novo(x.ym); M.set(x.ym, o); } o.n++;
+    let o = M.get(x.ym); if (!o) { o = novo(x.ym); M.set(x.ym, o); } o.n++; o.L.push(x);
     if (!x.mes) continue;
     for (const v of x.mes.values()) o.tot += v.ok.ia + v.nok.ia;
     const a = x.mes.get(x.ym); if (a) o.mi += a.ok.ia + a.nok.ia;
@@ -877,18 +880,30 @@ function renderIndA(rows) {
     if (b) { o.ms += b.ok.ia + b.nok.ia; o.sac += b.ok.ia; o.fora += b.nok.ia; if (x.payYm && x.payYm <= R) o.foraPag += b.nok.ia; }
   }
   const L = [...M.values()].sort((a, b) => a.ym < b.ym ? -1 : 1), T = novo('');
-  L.forEach(o => { for (const k in o) if (k !== 'ym') T[k] += o[k]; });
-  const lin = (rot, o, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + rot + '</td><td class="n">' + fInt(o.n) + '</td><td class="n">' + fMoeda(o.tot) + '</td><td class="n">' + fMoeda(o.mi) + '</td><td class="n">' + fMoeda(o.ms) +
-    '</td><td class="n">' + fMoeda(o.sac) + '</td><td class="n">' + fMoeda(o.fora) + '</td><td class="n dest-l">' + fMoeda(o.foraPag) + '</td></tr>';
+  L.forEach(o => { for (const k in o) if (k !== 'ym' && k !== 'L') T[k] += o[k]; T.L.push(...o.L); });
+  const ia = (x, ym, q) => { const v = x.mes && x.mes.get(ym); return v ? (q === 'ok' ? v.ok.ia : q === 'nok' ? v.nok.ia : v.ok.ia + v.nok.ia) : 0; };
+  const V = {
+    n: ['Matrículas implantadas', null, null],
+    tot: ['Indireta água total', x => { let t = 0; if (x.mes) for (const v of x.mes.values()) t += v.ok.ia + v.nok.ia; return t; }, 'Indireta água (todos os meses)'],
+    mi: ['Indireta água no mês da implantação', x => ia(x, x.ym), 'Indireta no mês da implantação'],
+    ms: ['Indireta água no mês seguinte', x => ia(x, proxYm(x.ym)), 'Indireta no mês seguinte'],
+    sac: ['Mês seguinte: no SAC', x => ia(x, proxYm(x.ym), 'ok'), 'Indireta no SAC'],
+    fora: ['Mês seguinte: fora do SAC', x => ia(x, proxYm(x.ym), 'nok'), 'Indireta fora do SAC'],
+    foraPag: ['Mês seguinte: fora do SAC e já pagaram', x => x.payYm && x.payYm <= proxYm(x.ym) ? ia(x, proxYm(x.ym), 'nok') : 0, 'Indireta fora do SAC']
+  };
+  const cel = (o, k, txt, cls) => { const [tit, fn, rot] = V[k], rows = fn ? o.L.filter(x => fn(x) > 0) : o.L;
+    return genCel('indA:' + (o.ym || 'tot') + ':' + k, txt, { titulo: tit, grupo: o.ym ? 'Implantadas em ' + labelYm(o.ym) : 'Todos os meses de implantação', rows, valor: fn, valorRot: rot }, cls); };
+  const lin = (rot, o, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + rot + '</td>' + cel(o, 'n', fInt(o.n)) + cel(o, 'tot', fMoeda(o.tot)) + cel(o, 'mi', fMoeda(o.mi)) + cel(o, 'ms', fMoeda(o.ms)) +
+    cel(o, 'sac', fMoeda(o.sac)) + cel(o, 'fora', fMoeda(o.fora)) + cel(o, 'foraPag', fMoeda(o.foraPag), 'dest-l') + '</tr>';
   $('#tabIndA').innerHTML = '<thead><tr><th rowspan="2">Mês da implantação</th><th class="n" rowspan="2">Matrículas implantadas</th><th class="n" rowspan="2">Indireta água total</th><th class="n" rowspan="2">No mês da implantação</th><th colspan="4">No mês seguinte</th></tr>' +
     '<tr class="header-sub"><th class="n">Total</th><th class="n">No SAC</th><th class="n">Fora do SAC</th><th class="n">Fora do SAC e já pagaram</th></tr></thead><tbody>' +
     L.map(o => lin(labelYm(o.ym) + ' <span class="sub-mes">(seguinte: ' + labelYm(proxYm(o.ym)) + ')</span>', o)).join('') + lin('Total', T, 'linha-total') + '</tbody>';
 }
 function renderJornada(rows) {
-  const lagF = [], lagP = [], B = 7, cF = Array(B).fill(0), cP = Array(B).fill(0);
+  const lagF = [], lagP = [], B = 7, cF = Array(B).fill(0), cP = Array(B).fill(0), LB = Array.from({ length: B }, () => new Set());
   for (const x of rows) {
-    if (x.dirYm) { const d = Math.max(0, difMes(x.ym, x.dirYm)); lagF.push(d); cF[Math.min(d, B - 1)]++; }
-    if (x.payYm) { const d = Math.max(0, difMes(x.ym, x.payYm)); lagP.push(d); cP[Math.min(d, B - 1)]++; }
+    if (x.dirYm) { const d = Math.max(0, difMes(x.ym, x.dirYm)); lagF.push(d); cF[Math.min(d, B - 1)]++; LB[Math.min(d, B - 1)].add(x); }
+    if (x.payYm) { const d = Math.max(0, difMes(x.ym, x.payYm)); lagP.push(d); cP[Math.min(d, B - 1)]++; LB[Math.min(d, B - 1)].add(x); }
   }
   $('#notaJornada').textContent = 'Mediana até o 1º faturamento direto de água: ' + fMeses(mediana(lagF)) + ' (' + fInt(lagF.length) + ' de ' + fInt(rows.length) + ' implantadas). Mediana até o 1º pagamento: ' + fMeses(mediana(lagP)) + ' (' + fInt(lagP.length) + ' pagaram). Mês 0 é o próprio mês da implantação.';
   // barras agrupadas por defasagem
@@ -905,7 +920,8 @@ function renderJornada(rows) {
     g += '<rect class="hit" data-i="' + i + '" x="' + (ml + i * bw) + '" y="' + mt + '" width="' + bw + '" height="' + ph + '"/>';
     dicas.push('<b>' + (i === B - 1 ? (B - 1) + ' meses ou mais' : i === 0 ? 'No mês da implantação' : i + (i === 1 ? ' mês' : ' meses') + ' depois') + '</b><br>1º faturamento direto de água: ' + fInt(cF[i]) + ' (' + fPct(cF[i], lagF.length) + ')<br>1º pagamento: ' + fInt(cP[i]) + ' (' + fPct(cP[i], lagP.length) + ')');
   }
-  const el1 = $('#grafLag'); el1.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Quantidade de matrículas por meses entre implantação, 1º faturamento e 1º pagamento">' + g + '</svg>'; ligarDicas(el1, dicas);
+  const el1 = $('#grafLag'); el1.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Quantidade de matrículas por meses entre implantação, 1º faturamento e 1º pagamento">' + g + '</svg>';
+  ligarDicas(el1, dicas.map(t => t + '<br><i>Clique para ver as matrículas</i>'), LB.map((st, i) => ({ titulo: '1º faturamento direto ou 1º pagamento ' + (i === B - 1 ? (B - 1) + ' meses ou mais' : i + (i === 1 ? ' mês' : ' meses')) + ' depois da implantação', grupo: 'Meses depois da implantação: ' + (i === B - 1 ? (B - 1) + '+' : i), rows: [...st] })));
   graficoCoorte($('#grafCoorte'), rows, x => !!x.payYm, 'var(--g-pag)', 'Já pagaram', 'Ainda não pagaram');
   graficoCoorte($('#grafCoorteFat'), rows, x => !!x.dirYm, 'var(--g-dir)', 'Já faturadas (direto água)', 'Ainda sem faturamento direto');
 }
@@ -924,16 +940,16 @@ function renderExec() {
   sel.value = meses.includes(atual) ? atual : ([...meses].reverse().find(m => fatMeses.has(proxYm(m))) || meses[meses.length - 1]);
   const M = sel.value, R = proxYm(M), L = base.filter(x => x.ym === M);
   const sac = new Set(CONFIG.situacoesSac), z = () => ({ da: 0, de: 0, ia: 0, ie: 0 }), V = z(), G = z(), H = z();
-  let P = 0, A = 0, Q = 0, Qv = 0, Qs = 0; EXECQ = [];
+  let P = 0, A = 0, Q = 0, Qv = 0, Qs = 0; EXECQ = []; const LP = [], LA = [], LQ = [], LQv = [], LQs = [];
   for (const x of L) {
     if (!x.payYm || x.payYm > R) continue;                                  // pagou até o mês do faturamento
-    P++;
+    P++; LP.push(x);
     const ss = x.sts && x.sts.get(R), noSac = !!ss && [...ss].some(t => sac.has(t));   // situação no mês do faturamento
-    if (noSac) { A++; continue; }
-    Q++;
+    if (noSac) { A++; LA.push(x); continue; }
+    Q++; LQ.push(x);
     const mm = x.mes && x.mes.get(R); let v = 0;
     if (mm) for (const [k] of COLS_EXEC) { V[k] += mm.nok[k] + mm.ok[k]; v += mm.nok[k] + mm.ok[k]; }
-    if (v > 0) Qv++; else Qs++;
+    if (v > 0) { Qv++; LQv.push(x); } else { Qs++; LQs.push(x); }
     EXECQ.push({ mat: x.mat, cidade: x.cidade, sup: x.sup, ym: x.ym, payYm: x.payYm, ref: R, sit: ss && ss.size ? [...ss][0].replace(/^./, c => c.toUpperCase()) : '', v });
   }
   EXECQ.sort((p, q) => q.v - p.v);
@@ -941,31 +957,33 @@ function renderExec() {
     G.da += e.gda; G.de += e.gde; G.ia += e.gia; G.ie += e.gie; H.da += e.ada; H.de += e.ade; H.ia += e.aia; H.ie += e.aie;
   }
   const soma = o => o.da + o.de + o.ia + o.ie, N = L.length, vt = soma(V);
+  const fatR = x => { const mm = x.mes && x.mes.get(R); return mm ? COLS_EXEC.reduce((a, [k]) => a + mm.ok[k] + mm.nok[k], 0) : 0; };
+  const ex = (id, txt, tit, rows, valor) => '<span class="' + genAttr('exec:' + id, { titulo: tit, grupo: 'Implantadas em ' + labelYm(M), rows, valor: valor ? fatR : null, valorRot: 'Faturado em ' + labelYm(R) }).slice(1) + '">' + txt + '</span>';
   const filtros = [['fSup', 'Superintendência'], ['fCid', 'Cidade']].map(([id, n]) => { const f = fs(id); return f ? n + ': ' + [...f].join(', ') : ''; }).filter(Boolean).join('; ');
   $('#execTitulo').textContent = 'Resumo executivo: implantações de ' + labelYm(M) + ' e impacto no faturamento de ' + labelYm(R);
   $('#execVer').disabled = !Q;
   let h = '<div class="exec-kpis">' +
-    '<div><small>1. Ligações implantadas em ' + labelYm(M) + '</small><strong>' + fInt(N) + '</strong><span class="sub-k">ligações executadas no mês</span></div>' +
-    '<div><small>2. Pagaram até ' + labelYm(R) + '</small><strong>' + fInt(P) + '</strong><span class="sub-k">' + pp(P, N) + ' das implantadas</span></div>' +
-    '<div><small>3. Pagaram e não estão como Ativa Faturando ou Cortada</small><strong class="dest">' + fInt(Q) + '</strong><span class="sub-k">' + pp(Q, P) + ' das que pagaram</span></div>' +
-    '<div><small>4. Impacto no faturamento de ' + labelYm(R) + '</small><strong class="dest">' + fMoeda(vt) + '</strong><span class="sub-k">faturamento das matrículas do passo 3</span></div></div>';
+    '<div><small>1. Ligações implantadas em ' + labelYm(M) + '</small><strong>' + ex('N', fInt(N), 'Ligações implantadas', L) + '</strong><span class="sub-k">ligações executadas no mês</span></div>' +
+    '<div><small>2. Pagaram até ' + labelYm(R) + '</small><strong>' + ex('P', fInt(P), 'Pagaram até ' + labelYm(R), LP) + '</strong><span class="sub-k">' + pp(P, N) + ' das implantadas</span></div>' +
+    '<div><small>3. Pagaram e não estão como Ativa Faturando ou Cortada</small><strong class="dest">' + ex('Q', fInt(Q), 'Pagaram e estão fora da auditoria', LQ, 1) + '</strong><span class="sub-k">' + pp(Q, P) + ' das que pagaram</span></div>' +
+    '<div><small>4. Impacto no faturamento de ' + labelYm(R) + '</small><strong class="dest">' + ex('V', fMoeda(vt), 'Impacto no faturamento', LQv, 1) + '</strong><span class="sub-k">faturamento das matrículas do passo 3</span></div></div>';
   if (filtros) h += '<p>' + esc(filtros) + '.</p>';
   if (!fatMeses.has(R)) h += '<p class="dest">A base de faturamento ainda não tem ' + labelYm(R) + '. O impacto fica zerado até o arquivo desse mês entrar na pasta.</p>';
   h += '<p>Em ' + labelYm(M) + ' implantamos <b>' + fInt(N) + '</b> ligações. Até ' + labelYm(R) + ', <b>' + fInt(P) + '</b> já pagaram. Dessas ' + fInt(P) + ', ' + fInt(A) + (A === 1 ? ' está' : ' estão') + ' como Ativa Faturando ou Cortada e ' + (A === 1 ? 'entra' : 'entram') + ' no SAC, e <span class="dest">' + fInt(Q) + '</span> ' + (Q === 1 ? 'não está' : 'não estão') + '. ' +
     'O faturamento de ' + labelYm(R) + ' ' + (Q === 1 ? 'dessa matrícula' : 'dessas matrículas') + ' é de <span class="dest">' + fMoeda(vt) + '</span>: é o valor que entra no faturamento do SAC quando a situação ' + (Q === 1 ? 'dela' : 'delas') + ' for corrigida.</p>';
   h += '<h3>Do implantado ao impacto</h3><table><thead><tr><th>Etapa</th><th>Ligações</th><th>% das implantadas</th><th>% das que pagaram</th></tr></thead><tbody>' +
-    '<tr><td>Ligações implantadas em ' + labelYm(M) + '</td><td>' + fInt(N) + '</td><td>' + pp(N, N) + '</td><td>-</td></tr>' +
-    '<tr><td>Pagaram até ' + labelYm(R) + '</td><td>' + fInt(P) + '</td><td>' + pp(P, N) + '</td><td>' + pp(P, P) + '</td></tr>' +
-    '<tr><td>Dessas, já estão como Ativa Faturando ou Cortada</td><td>' + fInt(A) + '</td><td>' + pp(A, N) + '</td><td>' + pp(A, P) + '</td></tr>' +
-    '<tr class="tot"><td>Dessas, não estão (fora da auditoria)</td><td>' + fInt(Q) + '</td><td>' + pp(Q, N) + '</td><td>' + pp(Q, P) + '</td></tr>' +
-    '<tr><td>Fora da auditoria e com faturamento em ' + labelYm(R) + '</td><td>' + fInt(Qv) + '</td><td>' + pp(Qv, N) + '</td><td>' + pp(Qv, P) + '</td></tr>' +
-    '<tr><td>Fora da auditoria e sem faturamento em ' + labelYm(R) + '</td><td>' + fInt(Qs) + '</td><td>' + pp(Qs, N) + '</td><td>' + pp(Qs, P) + '</td></tr></tbody></table>';
+    '<tr><td>Ligações implantadas em ' + labelYm(M) + '</td><td>' + ex('tN', fInt(N), 'Ligações implantadas', L) + '</td><td>' + pp(N, N) + '</td><td>-</td></tr>' +
+    '<tr><td>Pagaram até ' + labelYm(R) + '</td><td>' + ex('tP', fInt(P), 'Pagaram até ' + labelYm(R), LP) + '</td><td>' + pp(P, N) + '</td><td>' + pp(P, P) + '</td></tr>' +
+    '<tr><td>Dessas, já estão como Ativa Faturando ou Cortada</td><td>' + ex('tA', fInt(A), 'Pagaram e estão como Ativa Faturando ou Cortada', LA, 1) + '</td><td>' + pp(A, N) + '</td><td>' + pp(A, P) + '</td></tr>' +
+    '<tr class="tot"><td>Dessas, não estão (fora da auditoria)</td><td>' + ex('tQ', fInt(Q), 'Pagaram e estão fora da auditoria', LQ, 1) + '</td><td>' + pp(Q, N) + '</td><td>' + pp(Q, P) + '</td></tr>' +
+    '<tr><td>Fora da auditoria e com faturamento em ' + labelYm(R) + '</td><td>' + ex('tQv', fInt(Qv), 'Fora da auditoria e com faturamento', LQv, 1) + '</td><td>' + pp(Qv, N) + '</td><td>' + pp(Qv, P) + '</td></tr>' +
+    '<tr><td>Fora da auditoria e sem faturamento em ' + labelYm(R) + '</td><td>' + ex('tQs', fInt(Qs), 'Fora da auditoria e sem faturamento', LQs) + '</td><td>' + pp(Qs, N) + '</td><td>' + pp(Qs, P) + '</td></tr></tbody></table>';
   h += '<h3>Impacto no faturamento de ' + labelYm(R) + ' das matrículas fora da auditoria</h3><table><thead><tr><th>Componente</th><th>Valor</th></tr></thead><tbody>' +
     COLS_EXEC.map(([k, n]) => '<tr><td>' + n + '</td><td>' + fMoeda(V[k]) + '</td></tr>').join('') + '<tr class="tot"><td>Total</td><td>' + fMoeda(vt) + '</td></tr></tbody></table>';
   h += '<h3>Efeito na visão da auditoria de ' + labelYm(R) + '</h3><table><thead><tr><th>Visão</th><th>Valor</th></tr></thead><tbody>' +
     '<tr><td>Faturamento bruto total da base (todas as matrículas)</td><td>' + fMoeda(soma(G)) + '</td></tr>' +
     '<tr><td>Visão da auditoria hoje (só Ativa Faturando e Cortada)</td><td>' + fMoeda(soma(H)) + '</td></tr>' +
-    '<tr><td>Impacto das matrículas fora da auditoria</td><td class="dest">' + fMoeda(vt) + '</td></tr>' +
+    '<tr><td>Impacto das matrículas fora da auditoria</td><td class="dest">' + ex('tV', fMoeda(vt), 'Impacto no faturamento', LQv, 1) + '</td></tr>' +
     '<tr class="tot"><td>Visão da auditoria corrigida</td><td>' + fMoeda(soma(H) + vt) + '</td></tr></tbody></table>';
   h += '<p>Como ler: pagou é ter arrecadação na planilha de arrecadação até ' + labelYm(R) + '. Fora da auditoria é a situação final em ' + labelYm(R) + ' diferente de Ativa Faturando e Cortada. Impacto é o faturamento bruto de ' + labelYm(R) + ' (direta e indireta, água e esgoto) dessas matrículas. O botão Ver as matrículas lista cada uma com o valor.</p>';
   $('#execTexto').innerHTML = h;
@@ -1147,11 +1165,33 @@ const METRICAS = {
 };
 const ROT_CAT = { sac: 'Pagou e está no SAC', fora: 'Pagou, base sem Ativa Faturando/Cortada', semfat: 'Pagou, sem linha no faturamento', np: 'Não pagou' };
 let DRILL = { rows: [], titulo: '', todos: false };
+/* drill genérico: qualquer número guarda a lista de matrículas (linhas de ESTADO.LIN) que o compõem */
+const GEN = new Map();
+function genAttr(id, spec) { GEN.set(id, spec); return ' drill" role="button" tabindex="0" data-m="gen" data-k="' + id + '" title="Ver matrículas'; }
+function genCel(id, txt, spec, cls) { return '<td class="n ' + (cls || '') + genAttr(id, spec) + '">' + txt + '</td>'; }
+function abrirGen(spec) {
+  if (!spec) return;
+  const rows = spec.valor ? [...spec.rows].sort((a, b) => spec.valor(b) - spec.valor(a)) : spec.rows;
+  DRILL = { rows, todos: false, modo: 'gen', spec, grupo: spec.grupo, metrica: spec.titulo };
+  $('#drillSub').textContent = spec.grupo; $('#drillBusca').value = '';
+  $('#drillFundo').classList.remove('oculto'); $('#drill').classList.remove('oculto');
+  desenharDrill(); $('#drillFechar').focus();
+}
+function desenharGen() {
+  const sp = DRILL.spec, rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
+  $('#drillTitulo').textContent = sp.titulo + ' (' + fInt(DRILL.rows.length) + ')' + (sp.valor ? ': ' + fMoeda(DRILL.rows.reduce((a, x) => a + sp.valor(x), 0)) : '');
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º fat. direto água</th><th>1º pagamento</th><th>Situação na base</th>' + (sp.valor ? '<th class="n">' + esc(sp.valorRot) + '</th>' : '') + '</tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + (x.data ? x.data.slice(8, 10) + '/' + x.data.slice(5, 7) + '/' + x.data.slice(0, 4) : labelYm(x.ym)) + '</td><td>' + (x.dirYm ? labelYm(x.dirYm) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td>' + (sp.valor ? '<td class="n">' + fMoeda(sp.valor(x)) + '</td>' : '') + '</tr>').join('') + '</tbody>';
+  $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
+  const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
+  mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
+}
 function linhasDrill(t, k, m) {
   return filtrado().filter(x => (t === 'tot' || (t === 'mes' ? x.ym === k : (x.sup || '(sem sup)') === k)) && METRICAS[m][1](x));
 }
 function abrirDrill(t, k, m) {
   if (m === 'ajuste') return abrirDrillAjuste(k);
+  if (m === 'gen') return abrirGen(GEN.get(k));
   const rows = linhasDrill(t, k, m);
   const grupo = t === 'tot' ? 'Todos os meses e superintendências' : (t === 'mes' ? labelYm(k) : k);
   DRILL = { rows, todos: false, grupo, metrica: METRICAS[m][0] };
@@ -1168,6 +1208,7 @@ function drillFiltrado() {
 function desenharDrill() {
   if (DRILL.modo === 'ajuste') return desenharAjuste();
   if (DRILL.modo === 'exec') return desenharExec();
+  if (DRILL.modo === 'gen') return desenharGen();
   const rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
   $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th class="n">Valor faturado</th><th>1º pagamento</th><th>Situação na base</th><th>Classificação</th></tr></thead><tbody>' +
     rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td class="n">' + (x.bill ? fMoeda(x.valor) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + ROT_CAT[x.cat] + '</td></tr>').join('') + '</tbody>';
@@ -1181,6 +1222,13 @@ $('#drillFechar').onclick = fecharDrill; $('#drillFundo').onclick = fecharDrill;
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#drill').classList.contains('oculto')) fecharDrill(); });
 $('#drillCsv').onclick = () => {
   const rows = drillFiltrado(), cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  if (DRILL.modo === 'gen') {
+    const sp = DRILL.spec, dBr = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '';
+    const csv = ['Matrícula;Cidade;Sup;Data da implantação;Mês da implantação;1º faturamento direto água;1º pagamento;Situação na base' + (sp.valor ? ';' + sp.valorRot : '')].concat(rows.map(x =>
+      [cel(x.mat), cel(x.cidade), cel(x.sup), dBr(x.data), labelYm(x.ym), x.dirYm ? labelYm(x.dirYm) : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual)].concat(sp.valor ? [sp.valor(x).toFixed(2).replace('.', ',')] : []).join(';'))).join('\r\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'sac_' + norm(sp.titulo + '_' + sp.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
+  }
   if (DRILL.modo === 'exec') {
     const csv = ['Matrícula;Cidade;Sup;Implantação;1º pagamento;Situação no mês do faturamento;Faturado no mês'].concat(rows.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x.v.toFixed(2).replace('.', ',')].join(';'))).join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
