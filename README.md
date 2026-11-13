@@ -85,3 +85,5 @@ Histórico anterior à renumeração:
 O Resumo executivo mostra um funil por mês de implantação: ligações implantadas, quantas pagaram até o mês do faturamento (mês seguinte), quantas dessas não estão como Ativa Faturando ou Cortada nesse mês e o faturamento bruto dessas matrículas, que é o impacto no SAC. O botão Ver as matrículas lista cada uma com o valor.
 
 Na aba Dados, o botão Baixar base compilada gera um CSV só, com uma linha por matrícula implantada e sem filtro: subcategoria, data e mês da implantação, 1º faturamento da ligação e direto de água, mês do 1º pagamento (a arrecadação não traz o dia), situação, etapa no resumo executivo, faturamento do mês seguinte em direta e indireta de água e de esgoto, e o ajuste do SAC.
+
+A aba Funil da ligação reproduz o slide de implantações: ligações implantadas no mês, quantas têm faturamento indireto de ligação (indireta de água da classe Ligações de Água) e o valor, quantas estão reconhecidas pelo SAC (situação atual Ativa Faturando ou Cortada) e quantas já pagaram e não foram reconhecidas. Cada cartão abre a lista de matrículas.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v35</title>
+<title>Águas do Rio | SAC v36</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -99,6 +99,20 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .exec-texto th:first-child, .exec-texto td:first-child { text-align:left; }
 .exec-texto thead th { background:var(--marinho); color:#fff; font-weight:600; }
 .exec-texto .dest { color:var(--laranja-texto); font-weight:600; }
+.funil-titulo { margin:16px 0 18px; font-size:17px; color:var(--azul-claro); }
+.funil-linha { display:grid; grid-template-columns:1fr auto 1fr auto 1fr auto 1fr; align-items:stretch; gap:10px; }
+.f-card { display:flex; flex-direction:column; min-height:270px; padding:24px 22px 18px; border-radius:14px; background:#e7f0f6; color:var(--azul-claro); }
+.f-card.drill { cursor:pointer; }
+.f-card.drill:hover { outline:2px solid var(--azul-claro); outline-offset:2px; }
+.f-card .f-n { font-size:58px; font-weight:700; line-height:1; color:var(--marinho); font-variant-numeric:tabular-nums; }
+.f-card .f-l { margin-top:12px; font-size:17px; line-height:1.3; }
+.f-card .f-v { margin-top:16px; font-size:26px; font-weight:700; color:var(--blue); font-variant-numeric:tabular-nums; }
+.f-card .f-nota { margin-top:auto; padding-top:14px; font-size:15px; font-style:italic; }
+.f-card.escuro { background:var(--marinho); color:#9fd4ea; }
+.f-card.escuro .f-n, .f-card.escuro .f-v { color:#fff; }
+.f-seta { align-self:center; color:var(--muted); font-size:22px; font-weight:700; }
+.funil-rodape { margin:22px 0 10px; font-size:12px; font-weight:700; letter-spacing:2.4px; text-transform:uppercase; color:var(--blue); }
+@media (max-width:900px) { .funil-linha { grid-template-columns:1fr; } .f-seta { justify-self:center; transform:rotate(90deg); } .f-card { min-height:0; } }
 @media print {
   body { background:#fff; }
   .top, .nav, .view:not(#view-exec), .acoes-exec, #view-exec .nota-secao, #drill, #drillFundo { display:none !important; }
@@ -166,7 +180,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v35</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v36</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -190,6 +204,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
   <button class="tab" data-view="fat" type="button">Faturamento</button>
   <button class="tab" data-view="lista" type="button">Fora do SAC</button>
   <button class="tab" data-view="exec" type="button">Resumo executivo</button>
+  <button class="tab" data-view="funil" type="button">Funil da ligação</button>
   <button class="tab" data-view="dados" type="button">Dados</button>
 </nav>
 <main>
@@ -260,6 +275,17 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     </div>
     <div class="card" id="vazio4"><h2>Resumo executivo</h2><p class="nota-secao">Conecte a pasta para gerar o resumo.</p></div>
   </section>
+  <section class="view" id="view-funil">
+    <div class="card oculto" id="boxFunil">
+      <div class="card-titulo"><h2>Funil da ligação</h2></div>
+      <div class="fsel claro"><span>Mês de implantação</span><select id="funMes" class="sel-claro"></select></div>
+      <p class="funil-titulo" id="funilTitulo"></p>
+      <div class="funil-linha" id="funilCorpo"></div>
+      <p class="funil-rodape" id="funilRodape"></p>
+      <p class="nota-secao" id="funilNota"></p>
+    </div>
+    <div class="card" id="vazio5"><h2>Funil da ligação</h2><p class="nota-secao">Conecte a pasta para ver o funil.</p></div>
+  </section>
   <section class="view" id="view-dados">
     <div class="card oculto" id="boxBaixar">
       <div class="card-titulo"><h2>Base compilada</h2><button type="button" class="btn-acao" id="btnBaixarBases">Baixar base compilada (.csv)</button></div>
@@ -313,7 +339,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v35';
+const VERSAO_SAC = 'v36';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -1024,6 +1050,43 @@ function desenharExec() {
   const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
   mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
 }
+/* ---------- funil da ligação: implantadas, com indireta, reconhecidas pelo SAC e pagas não reconhecidas ---------- */
+const MES_EXT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const mesExt = ym => { const [a, m] = ym.split('-'); return MES_EXT[+m - 1] + '/' + a; };
+function renderFunil() {
+  const tem = ESTADO.LIN.length > 0;
+  $('#boxFunil').classList.toggle('oculto', !tem); $('#vazio5').classList.toggle('oculto', tem);
+  if (!tem) return;
+  const b = fs('fSup'), c = fs('fCid'), base = ESTADO.LIN.filter(x => (!b || b.has(x.sup)) && (!c || c.has(x.cidade)));
+  const meses = [...new Set(ESTADO.LIN.map(x => x.ym))].sort(), sel = $('#funMes'), atual = sel.value;
+  sel.innerHTML = meses.map(m => '<option value="' + m + '">' + labelYm(m) + '</option>').join('');
+  sel.value = meses.includes(atual) ? atual : ([...meses].reverse().find(m => ESTADO.LIN.some(x => x.ym === m && x.bill)) || meses[meses.length - 1]);
+  const M = sel.value, L = base.filter(x => x.ym === M);
+  const tot = (x, q) => { let v = 0; if (x.lig) for (const g of x.lig.values()) v += q ? g[q] : g.ok + g.nok; return v; };   // indireta de água da classe Ligações de Água, todos os meses
+  const fat = L.filter(x => tot(x) > 0), rec = fat.filter(x => x.sitOk), nrec = fat.filter(x => !x.sitOk && x.payYm);   // reconhecida: situação atual Ativa Faturando ou Cortada
+  const soma = rows => rows.reduce((a, x) => a + tot(x), 0), vFat = soma(fat), vRec = soma(rec), vNrec = soma(nrec);
+  const COLS = [['Indireta da ligação', x => tot(x), 1]];
+  const grupo = 'Implantadas em ' + labelYm(M);
+  const spec = (id, titulo, rows, comValor) => genAttr('funil:' + id, { titulo, grupo, rows, cols: comValor ? [] : COLS, valor: comValor ? x => tot(x) : null, valorRot: 'Indireta da ligação' });
+  // composição das reconhecidas: situação na base e se pagaram
+  const gr = new Map(); for (const x of rec) { const k = (x.sitAtual || 'Reconhecida') + (x.payYm ? '' : ', sem pagamento'); gr.set(k, (gr.get(k) || 0) + 1); }
+  const comp = !gr.size ? '-' : gr.size === 1 ? [...gr.keys()][0] : [...gr].sort((p, q) => q[1] - p[1]).map(([k, n]) => fInt(n) + ' ' + k).join(' · ');
+  const filtrou = !!(b || c);
+  const card = (cls, id, titulo, rows, q, n, rot, valor, nota) => '<div class="f-card' + (cls ? ' ' + cls : '') + spec(id, titulo, rows, q) + '"><div class="f-n">' + fInt(n) + '</div><div class="f-l">' + rot + '</div>' + (valor == null ? '' : '<div class="f-v">' + fMoeda(valor) + '</div>') + '<div class="f-nota">' + esc(nota) + '</div></div>';
+  const seta = '<div class="f-seta" aria-hidden="true">❯</div>';
+  $('#funilTitulo').textContent = 'Ligações implantadas em ' + mesExt(M) + ' · faturamento indireto de ligação';
+  $('#funilCorpo').innerHTML =
+    card('', 'N', 'Ligações implantadas', L, false, L.length, 'implantações de ligações executadas', null, (filtrou ? 'Base filtrada' : 'Base total') + ' · ' + labelYm(M)) + seta +
+    card('', 'F', 'Ligações com faturamento indireto', fat, true, fat.length, fat.length === 1 ? 'ligação com faturamento indireto' : 'ligações com faturamento indireto', vFat, 'Faturamento indireto total') + seta +
+    card('', 'R', 'Ligações reconhecidas pelo SAC', rec, true, rec.length, rec.length === 1 ? 'ligação reconhecida pelo SAC' : 'ligações reconhecidas pelo SAC', vRec, comp) + seta +
+    card('escuro', 'P', 'Pagaram e não foram reconhecidos', nrec, true, nrec.length, nrec.length === 1 ? 'cliente já pagou e não foi reconhecido' : 'clientes já pagaram e não foram reconhecidos', vNrec, 'Deveriam estar na visão SAC');
+  const sobra = fat.length - rec.length - nrec.length;
+  const sup = [...new Set(base.map(x => x.sup).filter(Boolean))];
+  $('#funilRodape').textContent = 'Águas do Rio • ' + (sup.length === 1 ? 'Superintendência ' + sup[0] : 'Todas as superintendências');
+  $('#funilNota').textContent = 'Faturamento indireto: indireta de água das linhas de DSC_CLASSE Ligações de Água, em todos os meses. Reconhecida: situação atual da matrícula na base (último mês) é Ativa Faturando ou Cortada. Já pagaram: arrecadação na planilha de arrecadação. ' +
+    (sobra > 0 ? 'As outras ' + fInt(sobra) + (sobra === 1 ? ' ligação' : ' ligações') + ' com faturamento indireto (' + fMoeda(vFat - vRec - vNrec) + ') ainda não pagaram e não estão reconhecidas. ' : '') + 'Clique em um cartão para ver as matrículas.';
+}
+$('#funMes').onchange = renderFunil;
 $('#execMes').onchange = renderExec;
 let EXECSPEC = null;
 $('#execVer').onclick = () => abrirGen(EXECSPEC);
@@ -1048,7 +1111,7 @@ function resumir(rows) {
 function aplicar() {
   renderFat();
   const rows = filtrado(), t = resumir(rows);
-  renderIndA(rows); renderJornada(rows); renderExec(); $('#boxBaixar').classList.remove('oculto');
+  renderIndA(rows); renderJornada(rows); renderExec(); renderFunil(); $('#boxBaixar').classList.remove('oculto');
   $('#kpis').innerHTML = [
     ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', '', 'impl'],
     ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', '', 'bill'],
