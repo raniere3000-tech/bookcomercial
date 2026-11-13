@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v33</title>
+<title>Águas do Rio | SAC v34</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -166,7 +166,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v33</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v34</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -313,7 +313,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v33';
+const VERSAO_SAC = 'v34';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -545,6 +545,7 @@ function detectar(row) {
         const i = hs.findIndex(h => nomes.includes(h)); if (i >= 0) map[campo] = i;
       }
       for (const campo of TIPOS[k].req) if (map[campo] == null) faltando.push(TIPOS[k].cols[campo][0]);
+      const iSub = hs.findIndex(h => h.includes('subcategoria') || h.includes('sub_categoria')); if (iSub >= 0) map.subcat = iSub;   // subcategoria, em qualquer base
       return { tipo: k, map, faltando };
     }
   }
@@ -565,7 +566,7 @@ async function inspecionarAba(x, aba) {
    ===================================================================== */
 const DIAG = { impl: {}, fat: {}, arr: {} };
 const novoDesc = () => ({ somadas: 0, total: 0, classe0: 0, semCidade: 0, semMes: 0, sci: 0, semMat: { n: 0, b: 0, l: 0 } });
-const ESTADO = { desc: novoDesc(), agg: new Map(), cls: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
+const ESTADO = { desc: novoDesc(), agg: new Map(), cls: new Map(), subcat: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
 let dirHandle = null, ARQUIVOS = null;
 
 function setStatus(t, erro) { $('#status').innerHTML = erro ? '<span class="tag erro">Erro</span> ' + esc(t) : t; }
@@ -578,7 +579,7 @@ function aviso(texto, erro) {
 async function processar(files) {
   ARQUIVOS = files;
   DIAG.impl = {}; DIAG.fat = {}; DIAG.arr = {};
-  Object.assign(ESTADO, { desc: novoDesc(), agg: new Map(), cls: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
+  Object.assign(ESTADO, { desc: novoDesc(), agg: new Map(), cls: new Map(), subcat: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
   if (!files.length) { setStatus('Nenhum arquivo .xlsx ou .csv encontrado na pasta.', true); return; }
   const lista = [];
   for (let i = 0; i < files.length; i++) {
@@ -614,6 +615,12 @@ async function processar(files) {
 }
 
 /* Lê a matrícula e conta o que não deu para ler, para o diagnóstico */
+function setSub(mat, v, prio, ym) {   // guarda a subcategoria: faturamento (3) > arrecadação (2) > implantação (1); no empate, a do mês mais recente
+  const t = String(v ?? '').trim(); if (!t || t === '0') return;
+  const o = ESTADO.subcat.get(mat), y = ym || '';
+  if (!o || prio > o.p || (prio === o.p && y >= o.ym)) ESTADO.subcat.set(mat, { v: t, p: prio, ym: y });
+}
+const subDe = mat => { const o = ESTADO.subcat.get(mat); return o ? o.v : ''; };
 function lerMat(v, c) {
   const m = toMat(v);
   if (m === 'CIENTIFICA') { c.sci++; return null; }
@@ -650,6 +657,7 @@ const LEITORES = {
       else if (ym < o.ym) o.ym = ym;
       const dt = toData(r[m.data]); if (dt && (!o.data || dt < o.data)) o.data = dt;
       o.nOS++; o.eco += m.eco != null ? toNum(r[m.eco]) : 1;
+      if (m.subcat != null) setSub(mat, r[m.subcat], 1, ym);
       return true;
     });
     st.obs = obsLeitura(c, [dup ? dup + ' OS repetida(s) ignorada(s)' : '', semData ? semData + ' linha(s) sem data reconhecida' : ''].filter(Boolean));
@@ -679,7 +687,7 @@ const LEITORES = {
       g.gb += bm; g.gl += lm; g.gd += bd; g.gi += bi; g.gda += da; g.gia += ia; g.gde += de; g.gie += ie; if (ok) { g.ade += de; g.aie += ie; g.ab += bm; g.al += lm; g.ad += bd; g.ai += bi; g.ada += da; g.aia += ia; }
       st.lidas++; c.linhas++;
       if (!ESTADO.impl.has(mat)) return true;
-      c.casam.add(mat);
+      c.casam.add(mat); if (m.subcat != null) setSub(mat, r[m.subcat], 3, ym);
       let F = ESTADO.fat.get(mat); if (!F) { F = { bill: false, valor: 0, billYm: null, dirYm: null, st: new Map(), nok: new Map(), lastYm: '', lastSit: '' }; ESTADO.fat.set(mat, F); }
       if (sit) { let s = F.st.get(ym); if (!s) { s = new Set(); F.st.set(ym, s); } s.add(norm(sit)); if (ym >= F.lastYm) { F.lastYm = ym; F.lastSit = sit; } }
       { if (!F.mes) F.mes = new Map(); let mm = F.mes.get(ym); if (!mm) { mm = { ok: { da: 0, de: 0, ia: 0, ie: 0 }, nok: { da: 0, de: 0, ia: 0, ie: 0 } }; F.mes.set(ym, mm); }
@@ -709,6 +717,7 @@ const LEITORES = {
       if (!ESTADO.impl.has(mat)) return true;
       c.casam.add(mat);
       const ym = toYm(r[m.mes]); if (!ym) { c.semMes++; return true; }
+      if (m.subcat != null) setSub(mat, r[m.subcat], 2, ym);
       const pagou = toNum(r[m.arr]) > 0 || (m.dias != null && toNum(r[m.dias]) > 0);
       let A = ESTADO.arr.get(mat); if (!A) { A = { payYm: null }; ESTADO.arr.set(mat, A); }
       if (pagou && (!A.payYm || ym < A.payYm)) { if (!A.payYm) comPag++; A.payYm = ym; }
@@ -1237,24 +1246,24 @@ $('#drillCsv').onclick = () => {
   const rows = drillFiltrado(), cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
   if (DRILL.modo === 'gen') {
     const sp = DRILL.spec, dBr = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '';
-    const csv = ['Matrícula;Cidade;Sup;Data da implantação;Mês da implantação;1º faturamento direto água;1º pagamento;Situação na base' + (sp.cols || []).map(c => ';' + c[0]).join('') + (sp.valor ? ';' + sp.valorRot : '')].concat(rows.map(x =>
-      [cel(x.mat), cel(x.cidade), cel(x.sup), dBr(x.data), labelYm(x.ym), x.dirYm ? labelYm(x.dirYm) : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual)].concat((sp.cols || []).map(c => c[2] ? c[1](x).toFixed(2).replace('.', ',') : cel(c[1](x)))).concat(sp.valor ? [sp.valor(x).toFixed(2).replace('.', ',')] : []).join(';'))).join('\r\n');
+    const csv = ['Matrícula;Subcategoria;Cidade;Sup;Data da implantação;Mês da implantação;1º faturamento direto água;1º pagamento;Situação na base' + (sp.cols || []).map(c => ';' + c[0]).join('') + (sp.valor ? ';' + sp.valorRot : '')].concat(rows.map(x =>
+      [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), dBr(x.data), labelYm(x.ym), x.dirYm ? labelYm(x.dirYm) : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual)].concat((sp.cols || []).map(c => c[2] ? c[1](x).toFixed(2).replace('.', ',') : cel(c[1](x)))).concat(sp.valor ? [sp.valor(x).toFixed(2).replace('.', ',')] : []).join(';'))).join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = 'sac_' + norm(sp.titulo + '_' + sp.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
   }
   if (DRILL.modo === 'exec') {
-    const csv = ['Matrícula;Cidade;Sup;Implantação;1º pagamento;Situação no mês do faturamento;Faturado no mês'].concat(rows.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x.v.toFixed(2).replace('.', ',')].join(';'))).join('\r\n');
+    const csv = ['Matrícula;Subcategoria;Cidade;Sup;Implantação;1º pagamento;Situação no mês do faturamento;Faturado no mês'].concat(rows.map(x => [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x.v.toFixed(2).replace('.', ',')].join(';'))).join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = 'sac_fora_da_auditoria_' + norm(DRILL.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
   }
   if (DRILL.modo === 'ajuste') {
     const k = CHAVES[medida()][2];
-    const csv = ['Matrícula;Cidade;Sup;Mês do faturamento;1º pagamento;Situação na base;Valor do ajuste'].concat(rows.map(x => [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x[k].toFixed(2).replace('.', ',')].join(';'))).join('\r\n');
+    const csv = ['Matrícula;Subcategoria;Cidade;Sup;Mês do faturamento;1º pagamento;Situação na base;Valor do ajuste'].concat(rows.map(x => [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.sit), x[k].toFixed(2).replace('.', ',')].join(';'))).join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = 'sac_ajuste_' + norm(DRILL.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
   }
-  const csv = ['Matrícula;Cidade;Sup;Implantação;Valor faturado;1º pagamento;Situação na base;Classificação'].concat(rows.map(x =>
-    [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), x.bill ? x.valor.toFixed(2).replace('.', ',') : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual), cel(ROT_CAT[x.cat])].join(';'))).join('\r\n');
+  const csv = ['Matrícula;Subcategoria;Cidade;Sup;Implantação;Valor faturado;1º pagamento;Situação na base;Classificação'].concat(rows.map(x =>
+    [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), labelYm(x.ym), x.bill ? x.valor.toFixed(2).replace('.', ',') : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual), cel(ROT_CAT[x.cat])].join(';'))).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
   a.download = 'sac_' + norm(DRILL.metrica).replace(/\W+/g, '_') + '_' + norm(DRILL.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };
@@ -1270,7 +1279,7 @@ $('#btnBaixarBases').onclick = () => {
   const dBr = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '', cap = t => t.replace(/^./, c => c.toUpperCase());
   const sac = new Set(CONFIG.situacoesSac), CAT = { sac: 'Pagou e está no SAC', fora: 'Pagou, base sem Ativa Faturando/Cortada', semfat: 'Pagou, sem linha no faturamento', np: 'Não pagou' };
   const aj = new Map(); for (const x of ESTADO.AJ) { let o = aj.get(x.mat); if (!o) { o = { b: 0, da: 0, ia: 0, n: 0 }; aj.set(x.mat, o); } o.b += x.b; o.da += x.da; o.ia += x.ia; o.n++; }
-  const cab = ['Matrícula', 'Cidade', 'Superintendência', 'Data da implantação (1ª OS)', 'Mês da implantação', 'Qtde OS', 'Economias',
+  const cab = ['Matrícula', 'Subcategoria', 'Cidade', 'Superintendência', 'Data da implantação (1ª OS)', 'Mês da implantação', 'Qtde OS', 'Economias',
     'Faturada (ligação de água)', 'Valor da ligação (indireto água)', 'Mês do 1º faturamento da ligação', 'Mês do 1º faturamento direto de água', 'Meses até o 1º faturamento direto de água',
     'Pagou', 'Mês do 1º pagamento', 'Meses até o 1º pagamento', 'Situação mais recente na base', 'Classificação SAC (aba Resumo)',
     'Mês de referência (mês seguinte)', 'Pagou até a referência', 'Situação no mês de referência', 'Etapa no resumo executivo',
@@ -1282,7 +1291,7 @@ $('#btnBaixarBases').onclick = () => {
     const k4 = ['da', 'de', 'ia', 'ie'], ref = k4.map(k => mm ? mm.ok[k] + mm.nok[k] : 0), refOk = mm ? k4.reduce((a, k) => a + mm.ok[k], 0) : 0, refNok = mm ? k4.reduce((a, k) => a + mm.nok[k], 0) : 0;
     let tot = 0; if (x.mes) for (const v of x.mes.values()) for (const k of k4) tot += v.ok[k] + v.nok[k];
     const a = aj.get(x.mat) || { b: 0, da: 0, ia: 0, n: 0 };
-    return [cel(x.mat), cel(x.cidade), cel(x.sup), dBr(x.data), ym(x.ym), x.nOS || 0, x.eco || 0,
+    return [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), dBr(x.data), ym(x.ym), x.nOS || 0, x.eco || 0,
       x.bill ? 'Sim' : 'Não', num(x.valor), ym(x.billYm), ym(x.dirYm), x.dirYm ? difMes(x.ym, x.dirYm) : '',
       x.payYm ? 'Sim' : 'Não', ym(x.payYm), x.payYm ? difMes(x.ym, x.payYm) : '', cel(x.sitAtual), cel(CAT[x.cat]),
       ym(R), pagouRef ? 'Sim' : 'Não', cel(ss ? [...ss].map(cap).join(', ') : ''), cel(etapa),
@@ -1296,8 +1305,8 @@ $('#btnCsv').onclick = () => {
   const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
   const rows = filtrado().filter(x => x.cat === 'fora' || x.cat === 'semfat');
   const cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const csv = ['Matrícula;Cidade;Sup;Implantação;1º pagamento;Valor faturado;Situação atual;Motivo'].concat(rows.map(x =>
-    [cel(x.mat), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), String(x.valor.toFixed(2)).replace('.', ','), cel(x.sitAtual), cel(cat[x.cat])].join(';'))).join('\r\n');
+  const csv = ['Matrícula;Subcategoria;Cidade;Sup;Implantação;1º pagamento;Valor faturado;Situação atual;Motivo'].concat(rows.map(x =>
+    [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), String(x.valor.toFixed(2)).replace('.', ','), cel(x.sitAtual), cel(cat[x.cat])].join(';'))).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
   a.download = 'sac_fora_do_sac.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };
