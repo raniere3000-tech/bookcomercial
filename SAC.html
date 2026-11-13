@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v28</title>
+<title>Águas do Rio | SAC v29</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -105,6 +105,8 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
   #view-exec { display:block !important; }
   #boxExec { border:0; box-shadow:none; margin:0; padding:0; }
 }
+.sub-mes { color:var(--muted); font-size:11.5px; }
+.dest-l { color:var(--laranja-texto); font-weight:600; }
 .card h2 { font-size:14px; font-weight:600; margin:0 0 8px; color:var(--marinho); text-wrap:balance; }
 .card-titulo { display:flex; align-items:center; justify-content:space-between; gap:8px 10px; flex-wrap:wrap; margin-bottom:6px; }
 .nota-secao { margin:-4px 0 8px; font-size:11.5px; line-height:1.35; color:var(--azul-claro); }
@@ -163,7 +165,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v28</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v29</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -198,6 +200,11 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     </div>
     <div class="card" id="vazio"><h2>Resumo</h2><p class="nota-secao">Conecte a pasta para ver a análise.</p></div>
     <div class="card oculto" id="boxMes"><h2>Resumo por mês de implantação</h2><div class="tabela-wrap"><table id="tabMes"></table></div></div>
+    <div class="card oculto" id="boxIndA">
+      <h2>Indireta de água das ligações implantadas, por mês de implantação</h2>
+      <p class="nota-secao">Faturamento bruto indireto de água só das matrículas implantadas no mês. "Mês seguinte" é o mês depois da implantação, separado entre o que está no SAC (situação Ativa Faturando ou Cortada naquele mês) e o que está fora. A última coluna mostra quanto do que ficou fora é de matrícula que já tinha pagado.</p>
+      <div class="tabela-wrap"><table id="tabIndA"></table></div>
+    </div>
     <div class="card oculto" id="boxJornada">
       <h2>Da implantação ao faturamento e ao pagamento</h2>
       <p class="nota-secao" id="notaJornada"></p>
@@ -305,7 +312,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v28';
+const VERSAO_SAC = 'v29';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -810,7 +817,7 @@ function msMontar(id) {
 }
 ['fMes', 'fSup', 'fCid', 'fCls'].forEach(msMontar);
 function renderAnalise() {
-  const L = ESTADO.LIN; const caixas = ['boxAnalise', 'boxMes', 'boxJornada', 'boxSup', 'boxLista'];
+  const L = ESTADO.LIN; const caixas = ['boxAnalise', 'boxMes', 'boxIndA', 'boxJornada', 'boxSup', 'boxLista'];
   if (!L.length) renderFat();
   caixas.forEach(i => $('#' + i).classList.toggle('oculto', !L.length)); $('#vazio').classList.toggle('oculto', !!L.length); $('#vazio2').classList.toggle('oculto', !!L.length);
   if (!L.length) return;
@@ -858,6 +865,24 @@ function graficoCoorte(el, rows, teste, cor, rotSim, rotNao) {   // barras por m
     d2.push('<b>' + labelYm(o.ym) + '</b><br>Implantadas: ' + fInt(o.n) + '<br>' + rotSim + ': ' + fInt(o.p) + ' (' + fPct(o.p, o.n) + ')<br>' + rotNao + ': ' + fInt(o.n - o.p));
   });
   el.innerHTML = '<svg viewBox="0 0 ' + W2 + ' ' + H2 + '" role="img" aria-label="Implantadas e ' + rotSim.toLowerCase() + ' por mês de implantação">' + g2 + '</svg>'; ligarDicas(el, d2);
+}
+function renderIndA(rows) {
+  const M = new Map(), novo = ym => ({ ym, n: 0, tot: 0, mi: 0, ms: 0, sac: 0, fora: 0, foraPag: 0 });
+  for (const x of rows) {
+    let o = M.get(x.ym); if (!o) { o = novo(x.ym); M.set(x.ym, o); } o.n++;
+    if (!x.mes) continue;
+    for (const v of x.mes.values()) o.tot += v.ok.ia + v.nok.ia;
+    const a = x.mes.get(x.ym); if (a) o.mi += a.ok.ia + a.nok.ia;
+    const R = proxYm(x.ym), b = x.mes.get(R);
+    if (b) { o.ms += b.ok.ia + b.nok.ia; o.sac += b.ok.ia; o.fora += b.nok.ia; if (x.payYm && x.payYm <= R) o.foraPag += b.nok.ia; }
+  }
+  const L = [...M.values()].sort((a, b) => a.ym < b.ym ? -1 : 1), T = novo('');
+  L.forEach(o => { for (const k in o) if (k !== 'ym') T[k] += o[k]; });
+  const lin = (rot, o, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + rot + '</td><td class="n">' + fInt(o.n) + '</td><td class="n">' + fMoeda(o.tot) + '</td><td class="n">' + fMoeda(o.mi) + '</td><td class="n">' + fMoeda(o.ms) +
+    '</td><td class="n">' + fMoeda(o.sac) + '</td><td class="n">' + fMoeda(o.fora) + '</td><td class="n dest-l">' + fMoeda(o.foraPag) + '</td></tr>';
+  $('#tabIndA').innerHTML = '<thead><tr><th rowspan="2">Mês da implantação</th><th class="n" rowspan="2">Matrículas implantadas</th><th class="n" rowspan="2">Indireta água total</th><th class="n" rowspan="2">No mês da implantação</th><th colspan="4">No mês seguinte</th></tr>' +
+    '<tr class="header-sub"><th class="n">Total</th><th class="n">No SAC</th><th class="n">Fora do SAC</th><th class="n">Fora do SAC e já pagaram</th></tr></thead><tbody>' +
+    L.map(o => lin(labelYm(o.ym) + ' <span class="sub-mes">(seguinte: ' + labelYm(proxYm(o.ym)) + ')</span>', o)).join('') + lin('Total', T, 'linha-total') + '</tbody>';
 }
 function renderJornada(rows) {
   const lagF = [], lagP = [], B = 7, cF = Array(B).fill(0), cP = Array(B).fill(0);
@@ -984,7 +1009,7 @@ function resumir(rows) {
 function aplicar() {
   renderFat();
   const rows = filtrado(), t = resumir(rows);
-  renderJornada(rows); renderExec(); $('#boxBaixar').classList.remove('oculto');
+  renderIndA(rows); renderJornada(rows); renderExec(); $('#boxBaixar').classList.remove('oculto');
   $('#kpis').innerHTML = [
     ['Implantações realizadas', fInt(t.impl), fInt(t.os) + ' OS no período', '', 'impl'],
     ['Implantações faturadas', fInt(t.bill), fPct(t.bill, t.impl) + ' das implantadas', '', 'bill'],
