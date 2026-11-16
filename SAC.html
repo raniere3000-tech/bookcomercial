@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v36</title>
+<title>Águas do Rio | SAC v37</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -180,7 +180,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v36</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v37</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -190,6 +190,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
     </div>
     <div class="ferramentas">
       <button type="button" class="btn-top" id="btnPasta">📁 Conectar pasta</button>
+      <button type="button" class="btn-top" id="btnPastaArr" title="Pasta com os CSV/TXT de arrecadação do sistema comercial (Nº Ligação, Data Crédito, Val. Autenticado)">📁 Pasta da arrecadação</button>
       <button type="button" class="btn-top" id="btnReload" hidden>↻ Atualizar</button>
       <a class="btn-top" href="https://raniere3000-tech.github.io/bookcomercial/">🏠 Menu</a>
     </div>
@@ -339,7 +340,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v36';
+const VERSAO_SAC = 'v37';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -370,6 +371,9 @@ const TIPOS = {
   fat: { nome: 'Faturamento', chave: ['dsc_classe', 'baseinativacao_situacao_final'],
     cols: { mat: ['num_ligacao'], ym: ['anomes'], classe: ['dsc_classe'], sit: ['baseinativacao_situacao_final'], indAgua: ['faturamento_bruto_indireta_agua'], indEsg: ['faturamento_bruto_indireta_esgoto'], dirA: ['faturamento_bruto_direta_agua'], dirE: ['faturamento_bruto_direta_esgoto'], liq: ['r_faturamento_total_liquido'], cidade: ['cidade'], total: ['isgrandtotalrowtotal'] },
     req: ['mat', 'ym', 'classe', 'sit', 'indAgua'] },
+  arrf: { nome: 'Arrecadação (fonte)', chave: ['data_credito', 'val_autenticado'],
+    cols: { mat: ['n_ligacao', 'no_ligacao', 'num_ligacao', 'numero_ligacao', 'n_da_ligacao'], data: ['data_credito'], val: ['val_autenticado'], sub: ['utilizacao_sub_categ', 'utilizacao'] },
+    req: ['mat', 'data', 'val'] },
   impl: { nome: 'Implantações', chave: ['id_da_os', 'data_da_os'],
     cols: { mat: ['matricula'], data: ['data_da_os'], mes: ['mes'], os: ['id_da_os'], servico: ['servico'], sup: ['sup'], cidade: ['cidade'], eco: ['economias'] },
     req: ['mat', 'data', 'os', 'cidade', 'sup'] }
@@ -428,7 +432,7 @@ async function lerCsv(file, onRow) {
 }
 
 async function abrirXlsx(file) {
-  if (/\.csv$/i.test(file.name)) return { csv: true, file, abas: [{ nome: 'CSV', path: 'csv' }] };
+  if (/\.(csv|txt)$/i.test(file.name)) return { csv: true, file, abas: [{ nome: 'CSV', path: 'csv' }] };
   const zip = await JSZip.loadAsync(file);
   const shared = [], sst = zip.file('xl/sharedStrings.xml');
   if (sst) {
@@ -564,7 +568,7 @@ function toNum(v) {
 const HDR_MAX = 30;
 function detectar(row) {
   const hs = row.map(c => typeof c === 'string' ? hnorm(c) : '');
-  for (const k of ['arr', 'fat', 'impl']) {
+  for (const k of ['arrf', 'arr', 'fat', 'impl']) {
     if (TIPOS[k].chave.every(c => hs.includes(c))) {
       const map = {}, faltando = [];
       for (const [campo, nomes] of Object.entries(TIPOS[k].cols)) {
@@ -620,7 +624,7 @@ async function processar(files) {
       }
     } catch (e) { ESTADO.val.push({ arquivo: f.name, aba: '-', tipo: null, linhas: 0, status: 'erro', obs: 'Não foi possível abrir: ' + e.message }); }
   }
-  const ordem = { impl: 0, fat: 1, arr: 2 };
+  const ordem = { impl: 0, fat: 1, arr: 2, arrf: 2 };
   const reconhecidos = lista.filter(l => l.d).sort((a, b) => ordem[a.d.tipo] - ordem[b.d.tipo]);
   for (const l of lista.filter(l => !l.d)) ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: null, linhas: 0, status: 'aviso', obs: 'Cabeçalho não reconhecido, aba ignorada' });
   let feitos = 0;
@@ -633,7 +637,7 @@ async function processar(files) {
       ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: st.lidas, status: st.obs.length ? 'aviso' : 'ok', obs: st.obs.join('; ') || 'Colunas conferidas' });
     } catch (e) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Falha na leitura: ' + e.message }); }
   }
-  for (const k of ['impl', 'fat', 'arr']) if (!ESTADO.val.some(v => v.tipo === k && v.status !== 'erro')) ESTADO.avisos.push('Falta a planilha de ' + TIPOS[k].nome.toLowerCase() + ' na pasta.');
+  for (const k of ['impl', 'fat', 'arr']) if (!ESTADO.val.some(v => (v.tipo === k || (k === 'arr' && v.tipo === 'arrf')) && v.status !== 'erro')) ESTADO.avisos.push('Falta a planilha de ' + TIPOS[k].nome.toLowerCase() + ' na pasta.');
   supDaCidade.mapa = null; cruzar(); renderValidacao(); renderDiag(); renderDesc(); renderAnalise(); renderFat(); setProg(null);
   setStatus('Pasta lida: ' + files.length + ' arquivo(s) · ' + fInt(ESTADO.impl.size) + ' matrículas implantadas · atualizado em ' + new Date().toLocaleString('pt-BR'));
   const erros = ESTADO.val.filter(v => v.status === 'erro').length + ESTADO.avisos.length;
@@ -733,6 +737,29 @@ const LEITORES = {
     if (ESTADO.impl.size && !c.casam.size) ex.push('Nenhuma matrícula implantada foi encontrada neste arquivo');
     else if (ESTADO.impl.size && !ligNova) ex.push('Nenhuma linha de matrícula implantada com DSC_CLASSE Ligações de Água');
     st.obs = obsLeitura(c, ex); somar('fat', c); return st;
+  },
+  async arrf(l) {   // CSV/TXT da fonte: Nº Ligação, Data Crédito, Val. Autenticado (e Utilização (Sub. Categ.))
+    const m = l.d.map, st = { lidas: 0, obs: [] }, c = novoC(); let negat = 0;
+    const ymCred = v => { const t = String(v ?? '').trim(); let k;
+      if ((k = /^(\d{1,2})\/(\d{1,2})\/(\d{2})(?!\d)/.exec(t))) return '20' + k[3] + '-' + pad2(k[2]);   // 02/10/26
+      return toYm(v); };
+    await lerAba(l.x, l.aba.path, (r, n) => {
+      if (n <= l.d.hdr) return true;
+      const mat = lerMat(r[m.mat], c); if (!mat) return true;
+      st.lidas++; c.linhas++;
+      if (!ESTADO.impl.has(mat)) return true;
+      c.casam.add(mat);
+      const ym = ymCred(r[m.data]); if (!ym) { c.semMes++; return true; }
+      if (m.sub != null) setSub(mat, r[m.sub], 2, ym);
+      const v = toNum(r[m.val]); if (v < 0) negat++;
+      let A = ESTADO.arr.get(mat); if (!A) { A = { payYm: null }; ESTADO.arr.set(mat, A); }
+      if (v > 0 && (!A.payYm || ym < A.payYm)) A.payYm = ym;   // pagou: Val. Autenticado maior que zero no mês da Data Crédito
+      return true;
+    });
+    const ex = [];
+    if (ESTADO.impl.size && !c.casam.size) ex.push('Nenhuma matrícula implantada foi encontrada neste arquivo');
+    if (negat) ex.push(negat + ' linha(s) com valor negativo (estorno) não contam como pagamento');
+    st.obs = obsLeitura(c, ex); somar('arr', c); return st;
   },
   async arr(l) {
     const m = l.d.map, st = { lidas: 0, obs: [] }, c = novoC(); let comPag = 0;
@@ -1390,20 +1417,49 @@ async function coletar(handle, depth = 0) {
   }
   return out;
 }
+/* pasta da arrecadação: só CSV/TXT, sem as subpastas Duplicidades e One Page, sem cópias (mesmo nome, tamanho e data) */
+async function coletarArr(handle, depth = 0, vistos = new Set()) {
+  const out = [];
+  for await (const [name, h] of handle.entries()) {
+    if (h.kind === 'file' && /\.(csv|txt)$/i.test(name) && !name.startsWith('~$')) {
+      const f = await h.getFile(), k = f.name + '|' + f.size + '|' + f.lastModified;
+      if (!vistos.has(k)) { vistos.add(k); out.push(f); }
+    } else if (h.kind === 'directory' && depth < 6 && !/duplicidad|one ?page/i.test(norm(name))) out.push(...await coletarArr(h, depth + 1, vistos));
+  }
+  return out;
+}
+let arrHandle = null;
+async function permitir(h) { return (await h.queryPermission({ mode: 'read' })) === 'granted' || (await h.requestPermission({ mode: 'read' })) === 'granted'; }
+async function lerTudo() {
+  const a = dirHandle ? await coletar(dirHandle) : [];
+  const b = arrHandle ? await coletarArr(arrHandle) : [];
+  return a.concat(b);
+}
+function marcarArr() { const b = $('#btnPastaArr'); b.textContent = arrHandle ? '📁 Arrecadação: ' + arrHandle.name : '📁 Pasta da arrecadação'; }
 async function escolherPasta() {
   if (window.showDirectoryPicker) {
-    try { dirHandle = await window.showDirectoryPicker({ mode: 'read' }); await idb.set('dir', dirHandle); $('#btnReload').hidden = false; await processar(await coletar(dirHandle)); }
+    try { dirHandle = await window.showDirectoryPicker({ mode: 'read' }); await idb.set('dir', dirHandle); $('#btnReload').hidden = false; if (arrHandle && !(await permitir(arrHandle))) arrHandle = null; await processar(await lerTudo()); }
     catch (e) { if (e.name !== 'AbortError') setStatus('Erro ao abrir a pasta: ' + e.message, true); }
   } else $('#fileFallback').click();
 }
 async function atualizar() {
   if (!dirHandle) return escolherPasta();
   try {
-    if ((await dirHandle.queryPermission({ mode: 'read' })) !== 'granted' && (await dirHandle.requestPermission({ mode: 'read' })) !== 'granted') return setStatus('Permissão de leitura negada.', true);
-    await processar(await coletar(dirHandle));
+    if (!(await permitir(dirHandle))) return setStatus('Permissão de leitura negada.', true);
+    if (arrHandle && !(await permitir(arrHandle))) { arrHandle = null; marcarArr(); }
+    await processar(await lerTudo());
   } catch (e) { setStatus('Erro ao atualizar: ' + e.message, true); }
 }
 $('#btnPasta').onclick = escolherPasta;
+$('#btnPastaArr').onclick = async () => {
+  if (!window.showDirectoryPicker) return setStatus('Este navegador não permite escolher a pasta da arrecadação. Use o Chrome ou o Edge.', true);
+  try {
+    arrHandle = await window.showDirectoryPicker({ mode: 'read', id: 'sac-arrecadacao' }); await idb.set('dirArr', arrHandle); marcarArr();
+    if (dirHandle && !(await permitir(dirHandle))) return setStatus('Pasta da arrecadação conectada. Clique em <b>Atualizar</b> para ler as duas pastas.');
+    if (dirHandle) await processar(await lerTudo());
+    else setStatus('Pasta da arrecadação conectada. Agora conecte a pasta com implantações e faturamento.');
+  } catch (e) { if (e.name !== 'AbortError') setStatus('Erro ao abrir a pasta da arrecadação: ' + e.message, true); }
+};
 $('#btnReload').onclick = atualizar;
 const soXlsx = e => Array.from(e.target.files).filter(f => /\.(xlsx|xlsm|csv|xls|xlsb)$/i.test(f.name) && !f.name.startsWith('~$'));
 $('#fileFallback').onchange = async e => { await processar(soXlsx(e)); e.target.value = ''; };
@@ -1423,11 +1479,12 @@ document.querySelectorAll('.tabela-wrap').forEach(wrap => {
 
 (async function init() {
   if (!window.showDirectoryPicker) return;
+  const ha = await idb.get('dirArr'); if (ha) { arrHandle = ha; marcarArr(); }
   const h = await idb.get('dir');
   if (!h) return;
   dirHandle = h; $('#btnReload').hidden = false;
   try {
-    if ((await h.queryPermission({ mode: 'read' })) === 'granted') await processar(await coletar(h));
+    if ((await h.queryPermission({ mode: 'read' })) === 'granted' && (!ha || (await ha.queryPermission({ mode: 'read' })) === 'granted')) await processar(await lerTudo());
     else setStatus('Pasta anterior encontrada. Clique em <b>Atualizar</b> para reconectar.');
   } catch (e) {}
 })();
