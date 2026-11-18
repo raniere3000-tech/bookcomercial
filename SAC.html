@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v37</title>
+<title>Águas do Rio | SAC v38</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -180,7 +180,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v37</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v38</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -340,7 +340,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v37';
+const VERSAO_SAC = 'v38';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -372,8 +372,11 @@ const TIPOS = {
     cols: { mat: ['num_ligacao'], ym: ['anomes'], classe: ['dsc_classe'], sit: ['baseinativacao_situacao_final'], indAgua: ['faturamento_bruto_indireta_agua'], indEsg: ['faturamento_bruto_indireta_esgoto'], dirA: ['faturamento_bruto_direta_agua'], dirE: ['faturamento_bruto_direta_esgoto'], liq: ['r_faturamento_total_liquido'], cidade: ['cidade'], total: ['isgrandtotalrowtotal'] },
     req: ['mat', 'ym', 'classe', 'sit', 'indAgua'] },
   arrf: { nome: 'Arrecadação (fonte)', chave: ['data_credito', 'val_autenticado'],
-    cols: { mat: ['n_ligacao', 'no_ligacao', 'num_ligacao', 'numero_ligacao', 'n_da_ligacao'], data: ['data_credito'], val: ['val_autenticado'], sub: ['utilizacao_sub_categ', 'utilizacao'] },
+    cols: { mat: ['n_ligacao', 'no_ligacao', 'num_ligacao', 'numero_ligacao', 'n_da_ligacao'], data: ['data_credito'], val: ['val_autenticado'], sub: ['utilizacao_sub_categ', 'utilizacao'], contr: ['n_contrato', 'no_contrato', 'num_contrato', 'numero_contrato', 'contrato'] },
     req: ['mat', 'data', 'val'] },
+  ult: { nome: 'Último contrato', chave: ['seq_responsavel', 'num_ligacao'],
+    cols: { mat: ['num_ligacao'], seq: ['seq_responsavel'], flag: ['ultimo_contrato'] },
+    req: ['mat', 'seq'] },
   impl: { nome: 'Implantações', chave: ['id_da_os', 'data_da_os'],
     cols: { mat: ['matricula'], data: ['data_da_os'], mes: ['mes'], os: ['id_da_os'], servico: ['servico'], sup: ['sup'], cidade: ['cidade'], eco: ['economias'] },
     req: ['mat', 'data', 'os', 'cidade', 'sup'] }
@@ -568,7 +571,7 @@ function toNum(v) {
 const HDR_MAX = 30;
 function detectar(row) {
   const hs = row.map(c => typeof c === 'string' ? hnorm(c) : '');
-  for (const k of ['arrf', 'arr', 'fat', 'impl']) {
+  for (const k of ['arrf', 'arr', 'fat', 'ult', 'impl']) {
     if (TIPOS[k].chave.every(c => hs.includes(c))) {
       const map = {}, faltando = [];
       for (const [campo, nomes] of Object.entries(TIPOS[k].cols)) {
@@ -596,7 +599,7 @@ async function inspecionarAba(x, aba) {
    ===================================================================== */
 const DIAG = { impl: {}, fat: {}, arr: {} };
 const novoDesc = () => ({ somadas: 0, total: 0, classe0: 0, semCidade: 0, semMes: 0, sci: 0, semMat: { n: 0, b: 0, l: 0 } });
-const ESTADO = { desc: novoDesc(), agg: new Map(), cls: new Map(), subcat: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
+const ESTADO = { desc: novoDesc(), agg: new Map(), cls: new Map(), subcat: new Map(), ult: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] };
 let dirHandle = null, ARQUIVOS = null;
 
 function setStatus(t, erro) { $('#status').innerHTML = erro ? '<span class="tag erro">Erro</span> ' + esc(t) : t; }
@@ -609,7 +612,7 @@ function aviso(texto, erro) {
 async function processar(files) {
   ARQUIVOS = files;
   DIAG.impl = {}; DIAG.fat = {}; DIAG.arr = {};
-  Object.assign(ESTADO, { desc: novoDesc(), agg: new Map(), cls: new Map(), subcat: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
+  Object.assign(ESTADO, { desc: novoDesc(), agg: new Map(), cls: new Map(), subcat: new Map(), ult: new Map(), AJ: [], temLiq: false, impl: new Map(), fat: new Map(), arr: new Map(), osVistas: new Set(), val: [], avisos: [], LIN: [] });
   if (!files.length) { setStatus('Nenhum arquivo .xlsx ou .csv encontrado na pasta.', true); return; }
   const lista = [];
   for (let i = 0; i < files.length; i++) {
@@ -624,7 +627,7 @@ async function processar(files) {
       }
     } catch (e) { ESTADO.val.push({ arquivo: f.name, aba: '-', tipo: null, linhas: 0, status: 'erro', obs: 'Não foi possível abrir: ' + e.message }); }
   }
-  const ordem = { impl: 0, fat: 1, arr: 2, arrf: 2 };
+  const ordem = { impl: 0, fat: 1, ult: 1.5, arr: 2, arrf: 2 };
   const reconhecidos = lista.filter(l => l.d).sort((a, b) => ordem[a.d.tipo] - ordem[b.d.tipo]);
   for (const l of lista.filter(l => !l.d)) ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: null, linhas: 0, status: 'aviso', obs: 'Cabeçalho não reconhecido, aba ignorada' });
   let feitos = 0;
@@ -651,6 +654,7 @@ function setSub(mat, v, prio, ym) {   // guarda a subcategoria: faturamento (3) 
   if (!o || prio > o.p || (prio === o.p && y >= o.ym)) ESTADO.subcat.set(mat, { v: t, p: prio, ym: y });
 }
 const subDe = mat => { const o = ESTADO.subcat.get(mat); return o ? o.v : ''; };
+const normContr = v => String(v ?? '').trim().replace(/\.0+$/, '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');   // 0022597 e 22597 são o mesmo contrato
 function lerMat(v, c) {
   const m = toMat(v);
   if (m === 'CIENTIFICA') { c.sci++; return null; }
@@ -738,6 +742,19 @@ const LEITORES = {
     else if (ESTADO.impl.size && !ligNova) ex.push('Nenhuma linha de matrícula implantada com DSC_CLASSE Ligações de Água');
     st.obs = obsLeitura(c, ex); somar('fat', c); return st;
   },
+  async ult(l) {   // planilha com o último contrato (SEQ_RESPONSAVEL) de cada matrícula
+    const m = l.d.map, st = { lidas: 0, obs: [] }, c = novoC();
+    await lerAba(l.x, l.aba.path, (r, n) => {
+      if (n <= l.d.hdr) return true;
+      const mat = lerMat(r[m.mat], c); if (!mat) return true;
+      if (m.flag != null) { const f = norm(r[m.flag]); if (f && !['sim', 's', '1', 'true', 'x'].includes(f)) return true; }   // se houver a coluna ULTIMO_CONTRATO, vale só a linha marcada
+      const seq = normContr(r[m.seq]); if (!seq) return true;
+      st.lidas++; c.linhas++; if (ESTADO.impl.has(mat)) c.casam.add(mat);
+      ESTADO.ult.set(mat, seq);
+      return true;
+    });
+    st.obs = obsLeitura(c, ESTADO.impl.size && !c.casam.size ? ['Nenhuma matrícula implantada foi encontrada neste arquivo'] : []); return st;
+  },
   async arrf(l) {   // CSV/TXT da fonte: Nº Ligação, Data Crédito, Val. Autenticado (e Utilização (Sub. Categ.))
     const m = l.d.map, st = { lidas: 0, obs: [] }, c = novoC(); let negat = 0;
     const ymCred = v => { const t = String(v ?? '').trim(); let k;
@@ -754,6 +771,10 @@ const LEITORES = {
       const v = toNum(r[m.val]); if (v < 0) negat++;
       let A = ESTADO.arr.get(mat); if (!A) { A = { payYm: null }; ESTADO.arr.set(mat, A); }
       if (v > 0 && (!A.payYm || ym < A.payYm)) A.payYm = ym;   // pagou: Val. Autenticado maior que zero no mês da Data Crédito
+      if (v > 0 && m.contr != null) {   // matrícula + contrato: guarda os contratos que pagaram e o 1º mês pago no último contrato
+        const ct = normContr(r[m.contr]); if (ct) { if (!A.contr) A.contr = new Set(); A.contr.add(ct);
+          const u = ESTADO.ult.get(mat); if (u && ct === u && (!A.payUltYm || ym < A.payUltYm)) A.payUltYm = ym; }
+      }
       return true;
     });
     const ex = [];
@@ -786,7 +807,8 @@ function cruzar() {
   const sac = new Set(CONFIG.situacoesSac); ESTADO.AJ = [];
   ESTADO.LIN = [...ESTADO.impl.values()].map(o => {
     const F = ESTADO.fat.get(o.mat), A = ESTADO.arr.get(o.mat);
-    const payYm = A ? A.payYm : null;
+    const payYm = A ? A.payYm : null, ultC = ESTADO.ult.get(o.mat) || '', contrPag = A && A.contr ? [...A.contr].join(', ') : '', payUltYm = A && A.payUltYm ? A.payUltYm : null;
+    const pagUlt = !payYm ? 'Não pagou' : !ultC ? 'Sem último contrato na planilha' : !contrPag ? 'Sem contrato na arrecadação' : payUltYm ? 'Sim' : 'Não';
     let cat = 'np', sitAtual = F ? F.lastSit : '';
     if (payYm) {
       if (!F || !F.st.size) cat = 'semfat';
@@ -797,7 +819,7 @@ function cruzar() {
       }
     }
     if (payYm && F && !sac.has(norm(F.lastSit))) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), da: Math.max(0, q.da), ia: Math.max(0, q.ia), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
-    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, lig: F && F.lig ? F.lig : null, sts: F ? F.st : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat };
+    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, lig: F && F.lig ? F.lig : null, sts: F ? F.st : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat, ultC, contrPag, payUltYm, pagUlt };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
 
@@ -1161,8 +1183,8 @@ function aplicar() {
   const lista = rows.filter(x => x.cat === 'fora' || x.cat === 'semfat');
   const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
   const lim = tudo ? lista.length : 15;
-  $('#tabLista').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th class="n">Valor faturado</th><th>Situação atual na base</th><th>Motivo</th></tr></thead><tbody>' +
-    lista.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td class="n">' + fMoeda(x.valor) + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + cat[x.cat] + '</td></tr>').join('') + '</tbody>';
+  $('#tabLista').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º pagamento</th><th>Último contrato pagou?</th><th class="n">Valor faturado</th><th>Situação atual na base</th><th>Motivo</th></tr></thead><tbody>' +
+    lista.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + labelYm(x.ym) + '</td><td>' + labelYm(x.payYm) + '</td><td>' + esc(x.pagUlt || '-') + '</td><td class="n">' + fMoeda(x.valor) + '</td><td>' + esc(x.sitAtual || '-') + '</td><td>' + cat[x.cat] + '</td></tr>').join('') + '</tbody>';
   const mais = $('#btnMais'); mais.classList.toggle('oculto', lista.length <= 15);
   mais.textContent = tudo ? 'Mostrar só os 15 primeiros' : 'Mostrar todos (' + fInt(lista.length) + ')';
   $('#notaLista').textContent = fInt(lista.length) + ' matrícula(s)' + (tudo && lista.length > 2000 ? '. A tela mostra todas; o CSV traz o mesmo recorte.' : '.');
@@ -1292,8 +1314,8 @@ function desenharGen() {
   const sp = DRILL.spec, rows = drillFiltrado(), lim = DRILL.todos ? rows.length : 100;
   $('#drillTitulo').textContent = sp.titulo + ' (' + fInt(DRILL.rows.length) + ')' + (sp.valor ? ': ' + fMoeda(DRILL.rows.reduce((a, x) => a + sp.valor(x), 0)) : '');
   const ext = sp.cols || [];
-  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º fat. direto água</th><th>1º pagamento</th><th>Situação na base</th>' + ext.map(c => '<th' + (c[2] ? ' class="n"' : '') + '>' + esc(c[0]) + '</th>').join('') + (sp.valor ? '<th class="n">' + esc(sp.valorRot) + '</th>' : '') + '</tr></thead><tbody>' +
-    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + (x.data ? x.data.slice(8, 10) + '/' + x.data.slice(5, 7) + '/' + x.data.slice(0, 4) : labelYm(x.ym)) + '</td><td>' + (x.dirYm ? labelYm(x.dirYm) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td>' + ext.map(c => '<td' + (c[2] ? ' class="n">' + fMoeda(c[1](x)) : '>' + esc(c[1](x) || '-')) + '</td>').join('') + (sp.valor ? '<td class="n">' + fMoeda(sp.valor(x)) + '</td>' : '') + '</tr>').join('') + '</tbody>';
+  $('#drillTab').innerHTML = '<thead><tr><th>Matrícula</th><th>Subcategoria</th><th>Cidade</th><th>Sup</th><th>Implantação</th><th>1º fat. direto água</th><th>1º pagamento</th><th>Último contrato pagou?</th><th>Situação na base</th>' + ext.map(c => '<th' + (c[2] ? ' class="n"' : '') + '>' + esc(c[0]) + '</th>').join('') + (sp.valor ? '<th class="n">' + esc(sp.valorRot) + '</th>' : '') + '</tr></thead><tbody>' +
+    rows.slice(0, lim).map(x => '<tr><td>' + x.mat + '</td><td>' + esc(subDe(x.mat) || '-') + '</td><td>' + esc(x.cidade) + '</td><td>' + esc(x.sup) + '</td><td>' + (x.data ? x.data.slice(8, 10) + '/' + x.data.slice(5, 7) + '/' + x.data.slice(0, 4) : labelYm(x.ym)) + '</td><td>' + (x.dirYm ? labelYm(x.dirYm) : '-') + '</td><td>' + (x.payYm ? labelYm(x.payYm) : '-') + '</td><td>' + esc(x.pagUlt || '-') + '</td><td>' + esc(x.sitAtual || '-') + '</td>' + ext.map(c => '<td' + (c[2] ? ' class="n">' + fMoeda(c[1](x)) : '>' + esc(c[1](x) || '-')) + '</td>').join('') + (sp.valor ? '<td class="n">' + fMoeda(sp.valor(x)) + '</td>' : '') + '</tr>').join('') + '</tbody>';
   $('#drillCont').textContent = fInt(rows.length) + ' de ' + fInt(DRILL.rows.length);
   const mais = $('#drillMais'); mais.classList.toggle('oculto', rows.length <= 100);
   mais.textContent = DRILL.todos ? 'Mostrar só as 100 primeiras' : 'Mostrar todas (' + fInt(rows.length) + ')';
@@ -1336,8 +1358,8 @@ $('#drillCsv').onclick = () => {
   const rows = drillFiltrado(), cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
   if (DRILL.modo === 'gen') {
     const sp = DRILL.spec, dBr = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '';
-    const csv = ['Matrícula;Subcategoria;Cidade;Sup;Data da implantação;Mês da implantação;1º faturamento direto água;1º pagamento;Situação na base' + (sp.cols || []).map(c => ';' + c[0]).join('') + (sp.valor ? ';' + sp.valorRot : '')].concat(rows.map(x =>
-      [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), dBr(x.data), labelYm(x.ym), x.dirYm ? labelYm(x.dirYm) : '', x.payYm ? labelYm(x.payYm) : '', cel(x.sitAtual)].concat((sp.cols || []).map(c => c[2] ? c[1](x).toFixed(2).replace('.', ',') : cel(c[1](x)))).concat(sp.valor ? [sp.valor(x).toFixed(2).replace('.', ',')] : []).join(';'))).join('\r\n');
+    const csv = ['Matrícula;Subcategoria;Cidade;Sup;Data da implantação;Mês da implantação;1º faturamento direto água;1º pagamento;Último contrato (SEQ_RESPONSAVEL);Arrecadação do último contrato;Situação na base' + (sp.cols || []).map(c => ';' + c[0]).join('') + (sp.valor ? ';' + sp.valorRot : '')].concat(rows.map(x =>
+      [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), dBr(x.data), labelYm(x.ym), x.dirYm ? labelYm(x.dirYm) : '', x.payYm ? labelYm(x.payYm) : '', cel(x.ultC), cel(x.pagUlt), cel(x.sitAtual)].concat((sp.cols || []).map(c => c[2] ? c[1](x).toFixed(2).replace('.', ',') : cel(c[1](x)))).concat(sp.valor ? [sp.valor(x).toFixed(2).replace('.', ',')] : []).join(';'))).join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = 'sac_' + norm(sp.titulo + '_' + sp.grupo).replace(/\W+/g, '_') + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
   }
@@ -1371,7 +1393,7 @@ $('#btnBaixarBases').onclick = () => {
   const aj = new Map(); for (const x of ESTADO.AJ) { let o = aj.get(x.mat); if (!o) { o = { b: 0, da: 0, ia: 0, n: 0 }; aj.set(x.mat, o); } o.b += x.b; o.da += x.da; o.ia += x.ia; o.n++; }
   const cab = ['Matrícula', 'Subcategoria', 'Cidade', 'Superintendência', 'Data da implantação (1ª OS)', 'Mês da implantação', 'Qtde OS', 'Economias',
     'Faturada (ligação de água)', 'Valor da ligação (indireto água)', 'Mês do 1º faturamento da ligação', 'Mês do 1º faturamento direto de água', 'Meses até o 1º faturamento direto de água',
-    'Pagou', 'Mês do 1º pagamento', 'Meses até o 1º pagamento', 'Situação mais recente na base', 'Classificação SAC (aba Resumo)',
+    'Pagou', 'Mês do 1º pagamento', 'Meses até o 1º pagamento', 'Último contrato (SEQ_RESPONSAVEL)', 'Contrato(s) que pagaram', 'Arrecadação do último contrato', 'Mês do 1º pagamento no último contrato', 'Situação mais recente na base', 'Classificação SAC (aba Resumo)',
     'Mês de referência (mês seguinte)', 'Pagou até a referência', 'Situação no mês de referência', 'Etapa no resumo executivo',
     'Ref.: direta água', 'Ref.: direta esgoto', 'Ref.: indireta água', 'Ref.: indireta esgoto', 'Ref.: faturamento total', 'Ref.: na auditoria (Ativa Faturando/Cortada)', 'Ref.: fora da auditoria',
     'Faturamento total (todos os meses)', 'Ajuste do SAC total (todos os meses)', 'Ajuste do SAC: direta água', 'Ajuste do SAC: indireta água', 'Meses no ajuste do SAC'];
@@ -1383,7 +1405,7 @@ $('#btnBaixarBases').onclick = () => {
     const a = aj.get(x.mat) || { b: 0, da: 0, ia: 0, n: 0 };
     return [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), dBr(x.data), ym(x.ym), x.nOS || 0, x.eco || 0,
       x.bill ? 'Sim' : 'Não', num(x.valor), ym(x.billYm), ym(x.dirYm), x.dirYm ? difMes(x.ym, x.dirYm) : '',
-      x.payYm ? 'Sim' : 'Não', ym(x.payYm), x.payYm ? difMes(x.ym, x.payYm) : '', cel(x.sitAtual), cel(CAT[x.cat]),
+      x.payYm ? 'Sim' : 'Não', ym(x.payYm), x.payYm ? difMes(x.ym, x.payYm) : '', cel(x.ultC), cel(x.contrPag), cel(x.pagUlt), ym(x.payUltYm), cel(x.sitAtual), cel(CAT[x.cat]),
       ym(R), pagouRef ? 'Sim' : 'Não', cel(ss ? [...ss].map(cap).join(', ') : ''), cel(etapa),
       ...ref.map(num), num(refOk + refNok), num(refOk), num(refNok), num(tot), num(a.b), num(a.da), num(a.ia), a.n].join(';');
   });
@@ -1395,8 +1417,8 @@ $('#btnCsv').onclick = () => {
   const cat = { fora: 'Base sem Ativa Faturando/Cortada', semfat: 'Sem linha na base de faturamento' };
   const rows = filtrado().filter(x => x.cat === 'fora' || x.cat === 'semfat');
   const cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const csv = ['Matrícula;Subcategoria;Cidade;Sup;Implantação;1º pagamento;Valor faturado;Situação atual;Motivo'].concat(rows.map(x =>
-    [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), String(x.valor.toFixed(2)).replace('.', ','), cel(x.sitAtual), cel(cat[x.cat])].join(';'))).join('\r\n');
+  const csv = ['Matrícula;Subcategoria;Cidade;Sup;Implantação;1º pagamento;Último contrato (SEQ_RESPONSAVEL);Contrato(s) que pagaram;Arrecadação do último contrato;Valor faturado;Situação atual;Motivo'].concat(rows.map(x =>
+    [cel(x.mat), cel(subDe(x.mat)), cel(x.cidade), cel(x.sup), labelYm(x.ym), labelYm(x.payYm), cel(x.ultC), cel(x.contrPag), cel(x.pagUlt), String(x.valor.toFixed(2)).replace('.', ','), cel(x.sitAtual), cel(cat[x.cat])].join(';'))).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
   a.download = 'sac_fora_do_sac.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };
