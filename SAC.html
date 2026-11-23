@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v41</title>
+<title>Águas do Rio | SAC v42</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -134,6 +134,9 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .dest-l { color:var(--laranja-texto); font-weight:600; }
 .card[id] { position:relative; }
 .btn-quadro { position:absolute; top:10px; right:12px; z-index:2; min-height:32px; padding:0 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--azul-claro); font:600 11.5px var(--fonte); cursor:pointer; transition:background-color .12s; }
+.btn-graf { margin-left:10px; min-height:30px; padding:0 9px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--azul-claro); font:600 11px var(--fonte); cursor:pointer; vertical-align:middle; transition:background-color .12s; }
+.btn-graf:hover { background:var(--tint); color:var(--marinho); }
+@media print { .btn-graf { display:none !important; } }
 .btn-quadro.em-titulo { position:static; min-height:40px; }
 .btn-quadro:hover { background:var(--tint); color:var(--marinho); }
 @media (max-width:900px) { .btn-quadro { min-height:44px; } }
@@ -196,7 +199,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v41</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v42</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -306,7 +309,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
   </section>
   <section class="view" id="view-dados">
     <div class="card oculto" id="boxBaixar">
-      <div class="card-titulo"><h2>Base compilada</h2><div class="acoes-exec"><button type="button" class="btn-acao" id="btnBaixarQuadros">Baixar tabelas e gráficos (.zip)</button><button type="button" class="btn-acao" id="btnBaixarBases">Baixar base compilada (.csv)</button></div></div>
+      <div class="card-titulo"><h2>Base compilada</h2><div class="acoes-exec"><button type="button" class="btn-acao" id="btnBaixarAnalitico">Baixar analítico por matrícula (.xlsx)</button><button type="button" class="btn-acao" id="btnBaixarQuadros">Baixar tabelas e gráficos (.zip)</button><button type="button" class="btn-acao" id="btnBaixarBases">Baixar base compilada (.csv)</button></div></div>
       <p class="nota-secao">Um arquivo só, uma linha por matrícula implantada, sem filtro: implantação, faturamento, arrecadação e o que entra no resumo executivo (mês seguinte ao da implantação). Abre no Excel (separador ponto e vírgula). O 1º pagamento é o mês da arrecadação, que não traz o dia.</p>
     </div>
     <details class="card acc oculto" id="boxVal" open>
@@ -357,7 +360,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v41';
+const VERSAO_SAC = 'v42';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -658,7 +661,7 @@ async function processar(files) {
     } catch (e) { ESTADO.val.push({ arquivo: l.f.name, aba: l.aba.nome, tipo: l.d.tipo, linhas: 0, status: 'erro', obs: 'Falha na leitura: ' + e.message }); }
   }
   for (const k of ['impl', 'fat', 'arr']) if (!ESTADO.val.some(v => (v.tipo === k || (k === 'arr' && v.tipo === 'arrf')) && v.status !== 'erro')) ESTADO.avisos.push('Falta a planilha de ' + TIPOS[k].nome.toLowerCase() + ' na pasta.');
-  supDaCidade.mapa = null; cruzar(); renderValidacao(); renderDiag(); renderDesc(); renderAnalise(); renderFat(); setProg(null);
+  supDaCidade.mapa = null; AJMAT = null; cruzar(); renderValidacao(); renderDiag(); renderDesc(); renderAnalise(); renderFat(); setProg(null);
   setStatus('Pasta lida: ' + files.length + ' arquivo(s) · ' + fInt(ESTADO.impl.size) + ' matrículas implantadas · atualizado em ' + new Date().toLocaleString('pt-BR'));
   const erros = ESTADO.val.filter(v => v.status === 'erro').length + ESTADO.avisos.length;
   aviso(erros ? 'Pasta lida com ' + erros + ' ponto(s) de atenção. Veja a aba Dados.' : 'Pasta lida e analisada.', !!erros);
@@ -788,6 +791,8 @@ const LEITORES = {
       const v = toNum(r[m.val]); if (v < 0) negat++;
       let A = ESTADO.arr.get(mat); if (!A) { A = { payYm: null }; ESTADO.arr.set(mat, A); }
       if (v > 0 && (!A.payYm || ym < A.payYm)) A.payYm = ym;   // pagou: Val. Autenticado maior que zero no mês da Data Crédito
+      if (v > 0) { if (!A.last || ym > A.last) A.last = ym; (A.meses || (A.meses = new Set())).add(ym); }
+      A.tot = (A.tot || 0) + v; A.nLin = (A.nLin || 0) + 1;
       if (v > 0 && m.contr != null) {   // matrícula + contrato: guarda os contratos que pagaram e o 1º mês pago no último contrato
         const ct = normContr(r[m.contr]); if (ct) { if (!A.contr) A.contr = new Set(); A.contr.add(ct);
           const u = ESTADO.ult.get(mat); if (u && ct === u && (!A.payUltYm || ym < A.payUltYm)) A.payUltYm = ym; }
@@ -812,6 +817,7 @@ const LEITORES = {
       const pagou = toNum(r[m.arr]) > 0 || (m.dias != null && toNum(r[m.dias]) > 0);
       let A = ESTADO.arr.get(mat); if (!A) { A = { payYm: null }; ESTADO.arr.set(mat, A); }
       if (pagou && (!A.payYm || ym < A.payYm)) { if (!A.payYm) comPag++; A.payYm = ym; }
+      if (pagou) { if (!A.last || ym > A.last) A.last = ym; (A.meses || (A.meses = new Set())).add(ym); }
       return true;
     });
     const ex = [];
@@ -836,7 +842,7 @@ function cruzar() {
       }
     }
     if (payYm && F && !sac.has(norm(F.lastSit))) for (const q of F.nok.values()) if (q.ym >= payYm && Math.max(q.b, q.l, q.d, q.i) > 0) ESTADO.AJ.push({ mat: o.mat, cidade: q.cidade || o.cidade, cid: q.cid, cls: q.cls, sup: q.cid ? supDaCidade(q.cid) : o.sup, ym: q.ym, payYm, b: Math.max(0, q.b), l: Math.max(0, q.l), d: Math.max(0, q.d), i: Math.max(0, q.i), da: Math.max(0, q.da), ia: Math.max(0, q.ia), sit: q.sit });   // ajuste só soma: cancelamento da matrícula no mês não entra negativo
-    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, lig: F && F.lig ? F.lig : null, sts: F ? F.st : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat, ultC, contrPag, payUltYm, pagUlt };
+    return { ...o, bill: !!(F && F.bill), valor: F ? F.valor : 0, billYm: F ? F.billYm : null, dirYm: F ? F.dirYm : null, mes: F && F.mes ? F.mes : null, lig: F && F.lig ? F.lig : null, sts: F ? F.st : null, sitOk: !!(F && sac.has(norm(F.lastSit))), payYm, sitAtual, cat, ultC, contrPag, payUltYm, pagUlt, lastPayYm: A && A.last || null, mesesPag: A && A.meses ? A.meses.size : 0, totArr: A && A.nLin ? A.tot : null };
   }).sort((a, b) => a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : 0);
 }
 
@@ -1002,6 +1008,60 @@ function renderIndA(rows) {
     '<tr class="header-sub"><th class="n">Total</th><th class="n">No SAC</th><th class="n">Fora do SAC</th><th class="n">Fora do SAC e já pagaram</th></tr></thead><tbody>' +
     L.map(o => lin(labelYm(o.ym) + ' <span class="sub-mes">(seguinte: ' + labelYm(proxYm(o.ym)) + ')</span>', o)).join('') + lin('Total', T, 'linha-total') + '</tbody>';
 }
+/* ---------- Excel (.xlsx) feito no navegador, com JSZip: uma aba por lista, cabeçalho fixo e filtro ---------- */
+function colLetra(i) { let t = ''; i++; while (i) { const m = (i - 1) % 26; t = String.fromCharCode(65 + m) + t; i = Math.floor((i - 1) / 26); } return t; }
+async function gerarXlsx(abas) {
+  const xe = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  const z = new JSZip(), nomes = abas.map((a, i) => xe(a.nome.replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 31) || 'Aba ' + (i + 1)));
+  z.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' + abas.map((a, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('') + '</Types>');
+  z.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + nomes.map((n, i) => '<sheet name="' + n + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join('') + '</sheets></workbook>');
+  z.file('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + abas.map((a, i) => '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join('') + '<Relationship Id="rId' + (abas.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  z.file('xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1A2740"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+  abas.forEach((a, i) => {
+    const L = a.linhas, nc = L[0].length, w = L[0].map((h, j) => Math.min(48, Math.max(10, String(h).length + 2, ...L.slice(1, 200).map(l => String(l[j] ?? '').length + 2))));
+    const linhas = L.map((l, ri) => '<row r="' + (ri + 1) + '">' + l.map((v, ci) => {
+      const ref = colLetra(ci) + (ri + 1);
+      if (v == null || v === '') return '';
+      if (typeof v === 'number' && Number.isFinite(v)) return '<c r="' + ref + '"' + (ri ? (Number.isInteger(v) ? '' : ' s="2"') : ' s="1"') + '><v>' + v + '</v></c>';
+      return '<c r="' + ref + '" t="inlineStr"' + (ri ? '' : ' s="1"') + '><is><t xml:space="preserve">' + xe(v) + '</t></is></c>';
+    }).join('') + '</row>').join('');
+    z.file('xl/worksheets/sheet' + (i + 1) + '.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>' + w.map((x, j) => '<col min="' + (j + 1) + '" max="' + (j + 1) + '" width="' + x + '" customWidth="1"/>').join('') + '</cols><sheetData>' + linhas + '</sheetData><autoFilter ref="A1:' + colLetra(nc - 1) + L.length + '"/></worksheet>');
+  });
+  return z.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', compression: 'DEFLATE' });
+}
+/* analítico por matrícula: todos os campos que o painel usa para montar as telas */
+let AJMAT = null;   // ajuste do SAC por matrícula, montado no primeiro download
+function camposMatricula(x) {
+  const R = proxYm(x.ym), lig = (ym, q) => { const g = x.lig && x.lig.get(ym); return g ? (q ? g[q] : g.ok + g.nok) : 0; };
+  let ligTot = 0; if (x.lig) for (const g of x.lig.values()) ligTot += g.ok + g.nok;
+  let fatTot = 0; if (x.mes) for (const v of x.mes.values()) for (const k of ['da', 'de', 'ia', 'ie']) fatTot += v.ok[k] + v.nok[k];
+  const sR = x.sts && x.sts.get(R), aj = (AJMAT || (AJMAT = ESTADO.AJ.reduce((m, a) => m.set(a.mat, (m.get(a.mat) || 0) + a.b), new Map()))).get(x.mat) || 0;
+  const dBr = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '', ym = v => v ? labelYm(v) : '';
+  return [
+    ['Matrícula', x.mat], ['Subcategoria', subDe(x.mat)], ['Cidade', x.cidade], ['Superintendência', x.sup],
+    ['Data da implantação (1ª OS)', dBr(x.data)], ['Mês da implantação', ym(x.ym)], ['Qtde OS', x.nOS || 0], ['Economias', x.eco || 0],
+    ['Faturada (ligação de água)', x.bill ? 'Sim' : 'Não'], ['Mês do 1º faturamento da ligação', ym(x.billYm)], ['Indireta da ligação: total (todos os meses)', ligTot],
+    ['Indireta da ligação no mês da implantação', lig(x.ym)], ['Indireta da ligação no mês seguinte', lig(R)], ['Indireta da ligação no mês seguinte: reconhecida', lig(R, 'ok')], ['Indireta da ligação no mês seguinte: não reconhecida', lig(R, 'nok')],
+    ['Mês do 1º faturamento direto de água', ym(x.dirYm)], ['Meses até o 1º faturamento direto de água', x.dirYm ? difMes(x.ym, x.dirYm) : ''],
+    ['Pagou', x.payYm ? 'Sim' : 'Não'], ['Mês do 1º pagamento', ym(x.payYm)], ['Mês do último pagamento', ym(x.lastPayYm)], ['Meses até o 1º pagamento', x.payYm ? difMes(x.ym, x.payYm) : ''],
+    ['Meses com pagamento', x.mesesPag || 0], ['Total arrecadado (Val. Autenticado)', x.totArr == null ? '' : x.totArr],
+    ['Último contrato (SEQ_RESPONSAVEL)', x.ultC || ''], ['Contrato(s) que pagaram', x.contrPag || ''], ['Arrecadação do último contrato', x.pagUlt || ''], ['Mês do 1º pagamento no último contrato', ym(x.payUltYm)],
+    ['Situação mais recente na base', x.sitAtual || ''], ['Situação no mês seguinte à implantação', sR ? [...sR].map(t => t.replace(/^./, c => c.toUpperCase())).join(', ') : ''],
+    ['Classificação SAC', ROT_CAT[x.cat] || ''], ['Faturamento bruto total (todos os meses)', fatTot], ['Ajuste do SAC (bruto, todos os meses)', aj]
+  ];
+}
+function abaMatriculas(nome, rows, extra) {   // extra: [[coluna, x => valor], ...] colunas próprias do gráfico, antes das demais
+  const ex = extra || [], cab = ex.map(e => e[0]).concat(camposMatricula(rows[0] || ESTADO.LIN[0]).map(c => c[0]));
+  return { nome, linhas: [cab].concat(rows.map(x => ex.map(e => e[1](x)).concat(camposMatricula(x).map(c => c[1])))) };
+}
+const faixa = n => n == null || n === '' ? '' : n >= 6 ? '6 ou mais' : String(Math.max(0, n));
+const ANALITICO_GRAF = {
+  grafCoorteFat: () => abaMatriculas('Faturamento direto por mês', filtrado(), [['Barra azul: implantada', () => 'Sim'], ['Barra verde: já faturada (direto água)', x => x.dirYm ? 'Sim' : 'Não']]),
+  grafCoorte: () => abaMatriculas('Pagamento por mês', filtrado(), [['Barra azul: implantada', () => 'Sim'], ['Barra laranja: já pagou', x => x.payYm ? 'Sim' : 'Não']]),
+  grafLag: () => abaMatriculas('Meses até cada etapa', filtrado(), [['Faixa: meses até o 1º faturamento direto', x => x.dirYm ? faixa(difMes(x.ym, x.dirYm)) : 'Sem faturamento direto'], ['Faixa: meses até o 1º pagamento', x => x.payYm ? faixa(difMes(x.ym, x.payYm)) : 'Não pagou']])
+};
+async function baixarXlsx(abas, nome) { baixarBlob(await gerarXlsx(abas), nome + '_' + new Date().toISOString().slice(0, 10) + '.xlsx'); }
 /* ---------- download dos quadros: cada tabela, gráfico e cartão vira CSV, do jeito que está na tela ---------- */
 const DADOS_GRAF = new WeakMap();
 function celTxt(t) {   // valor pronto para o Excel em português: tira R$, setas e espaços; mantém vírgula decimal e %
@@ -1036,6 +1096,12 @@ const nomeArq = t => norm(t).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').s
 function baixarBlob(blob, nome) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
 function quadrosComDados() { return [...document.querySelectorAll('.card[id]')].filter(c => !/^vazio|^boxBaixar$/.test(c.id) && !c.classList.contains('oculto') && c.querySelector('table, figure.graf, .kpi, .f-card, .exec-kpis')); }
 function botoesDownload() {
+  for (const f of document.querySelectorAll('figure.graf')) {
+    const d = f.querySelector('[id]'); if (!d || !ANALITICO_GRAF[d.id] || f.querySelector('.btn-graf')) continue;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-graf'; b.textContent = '⬇ Excel por matrícula'; b.title = 'Baixar as matrículas deste gráfico, com todos os campos';
+    b.onclick = async () => { b.disabled = true; try { await baixarXlsx([ANALITICO_GRAF[d.id]()], 'sac_' + nomeArq(f.querySelector('figcaption').textContent)); } finally { b.disabled = false; } };
+    f.querySelector('figcaption').appendChild(b);
+  }
   for (const c of document.querySelectorAll('.card[id]')) {
     if (/^vazio|^boxBaixar$/.test(c.id) || c.querySelector(':scope > .btn-quadro')) continue;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-quadro'; b.title = 'Baixar os dados deste quadro (CSV)'; b.setAttribute('aria-label', 'Baixar os dados deste quadro em CSV'); b.textContent = '⬇ CSV';
@@ -1458,6 +1524,12 @@ $('#btnMais').onclick = () => { tudo = !tudo; aplicar(); };
 ['fMes', 'fSup', 'fCid'].forEach(i => $('#' + i).onchange = aplicar);
 
 /* ---------- download das bases compiladas ---------- */
+$('#btnBaixarAnalitico').onclick = async () => {
+  const b = $('#btnBaixarAnalitico'); b.disabled = true; b.textContent = 'Gerando...';
+  try { await baixarXlsx([abaMatriculas('Matrículas (todas)', ESTADO.LIN), ANALITICO_GRAF.grafCoorteFat(), ANALITICO_GRAF.grafCoorte(), ANALITICO_GRAF.grafLag()], 'sac_analitico_por_matricula'); }
+  catch (e) { alert('Não foi possível gerar o arquivo: ' + e.message); }
+  b.disabled = false; b.textContent = 'Baixar analítico por matrícula (.xlsx)';
+};
 $('#btnBaixarQuadros').onclick = async () => {
   const b = $('#btnBaixarQuadros'); b.disabled = true; b.textContent = 'Gerando...';
   try {

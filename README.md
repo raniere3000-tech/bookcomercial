@@ -90,6 +90,8 @@ Na pasta principal, uma planilha com `SEQ_RESPONSAVEL` e `NUM_LIGACAO` informa o
 
 Cada quadro do SAC (tabelas, gráficos, cartões do Funil e do Resumo executivo) tem um botão ⬇ CSV que baixa os números como estão na tela, com os filtros aplicados; nos gráficos, os dados de cada barra. Na aba Dados, Baixar tabelas e gráficos gera um .zip com um CSV por quadro.
 
+Cada gráfico do Resumo tem o botão ⬇ Excel por matrícula, que baixa um .xlsx com uma linha por matrícula do gráfico (com os filtros do cabeçalho), as colunas que dizem em que barra ela entra e todos os campos do cruzamento: implantação, faturamento da ligação e direto de água, 1º e último pagamento, meses com pagamento, total arrecadado, último contrato, situações e ajuste do SAC. Na aba Dados, Baixar analítico por matrícula (.xlsx) traz tudo num arquivo, com uma aba para todas as matrículas e uma por gráfico.
+
 Na aba Dados, o botão Baixar base compilada gera um CSV só, com uma linha por matrícula implantada e sem filtro: subcategoria, data e mês da implantação, 1º faturamento da ligação e direto de água, mês do 1º pagamento (a arrecadação não traz o dia), situação, etapa no resumo executivo, faturamento do mês seguinte em direta e indireta de água e de esgoto, e o ajuste do SAC.
 
 A aba Funil da ligação reproduz o slide de implantações: ligações implantadas no mês, quantas têm faturamento indireto de ligação (indireta de água da classe Ligações de Água) e o valor, quantas estão reconhecidas pelo SAC (situação atual Ativa Faturando ou Cortada) e quantas já pagaram e não foram reconhecidas. Cada cartão abre a lista de matrículas.
