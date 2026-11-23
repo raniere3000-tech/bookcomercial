@@ -88,6 +88,8 @@ O botão Pasta da arrecadação conecta uma segunda pasta só com os CSV/TXT da 
 
 Na pasta principal, uma planilha com `SEQ_RESPONSAVEL` e `NUM_LIGACAO` informa o último contrato de cada matrícula (se tiver a coluna `ULTIMO_CONTRATO`, valem só as linhas marcadas). O SAC cruza matrícula + `Nº Contrato` da arrecadação da fonte com esse contrato e mostra se o pagamento foi do último contrato: Sim, Não, Sem último contrato na planilha, Sem contrato na arrecadação ou Não pagou. A informação sai no painel de matrículas, na aba Fora do SAC e nos downloads.
 
+Cada quadro do SAC (tabelas, gráficos, cartões do Funil e do Resumo executivo) tem um botão ⬇ CSV que baixa os números como estão na tela, com os filtros aplicados; nos gráficos, os dados de cada barra. Na aba Dados, Baixar tabelas e gráficos gera um .zip com um CSV por quadro.
+
 Na aba Dados, o botão Baixar base compilada gera um CSV só, com uma linha por matrícula implantada e sem filtro: subcategoria, data e mês da implantação, 1º faturamento da ligação e direto de água, mês do 1º pagamento (a arrecadação não traz o dia), situação, etapa no resumo executivo, faturamento do mês seguinte em direta e indireta de água e de esgoto, e o ajuste do SAC.
 
 A aba Funil da ligação reproduz o slide de implantações: ligações implantadas no mês, quantas têm faturamento indireto de ligação (indireta de água da classe Ligações de Água) e o valor, quantas estão reconhecidas pelo SAC (situação atual Ativa Faturando ou Cortada) e quantas já pagaram e não foram reconhecidas. Cada cartão abre a lista de matrículas.

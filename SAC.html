@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Águas do Rio | SAC v40</title>
+<title>Águas do Rio | SAC v41</title>
 <link rel="icon" type="image/svg+xml" href="icone-dre.svg?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="icone-dre-32.png?v=1">
 <link rel="apple-touch-icon" sizes="180x180" href="icone-dre-180.png?v=1">
@@ -132,6 +132,12 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--fonte
 .exec-texto .drill, .exec-kpis .drill { cursor:pointer; text-decoration:underline; text-decoration-color:rgba(73,102,140,.35); text-underline-offset:3px; }
 .sub-mes { color:var(--muted); font-size:11.5px; }
 .dest-l { color:var(--laranja-texto); font-weight:600; }
+.card[id] { position:relative; }
+.btn-quadro { position:absolute; top:10px; right:12px; z-index:2; min-height:32px; padding:0 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--azul-claro); font:600 11.5px var(--fonte); cursor:pointer; transition:background-color .12s; }
+.btn-quadro.em-titulo { position:static; min-height:40px; }
+.btn-quadro:hover { background:var(--tint); color:var(--marinho); }
+@media (max-width:900px) { .btn-quadro { min-height:44px; } }
+@media print { .btn-quadro { display:none !important; } }
 .card h2 { font-size:14px; font-weight:600; margin:0 0 8px; color:var(--marinho); text-wrap:balance; }
 .card-titulo { display:flex; align-items:center; justify-content:space-between; gap:8px 10px; flex-wrap:wrap; margin-bottom:6px; }
 .nota-secao { margin:-4px 0 8px; font-size:11.5px; line-height:1.35; color:var(--azul-claro); }
@@ -190,7 +196,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <header class="top">
   <div class="top-linha">
     <div>
-      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v40</span></div>
+      <div class="eyebrow">Águas do Rio • Relatório Executivo <span class="versao" id="versao">v41</span></div>
       <h1>SAC: implantações de ligações</h1>
     </div>
     <div class="filtros">
@@ -300,7 +306,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
   </section>
   <section class="view" id="view-dados">
     <div class="card oculto" id="boxBaixar">
-      <div class="card-titulo"><h2>Base compilada</h2><button type="button" class="btn-acao" id="btnBaixarBases">Baixar base compilada (.csv)</button></div>
+      <div class="card-titulo"><h2>Base compilada</h2><div class="acoes-exec"><button type="button" class="btn-acao" id="btnBaixarQuadros">Baixar tabelas e gráficos (.zip)</button><button type="button" class="btn-acao" id="btnBaixarBases">Baixar base compilada (.csv)</button></div></div>
       <p class="nota-secao">Um arquivo só, uma linha por matrícula implantada, sem filtro: implantação, faturamento, arrecadação e o que entra no resumo executivo (mês seguinte ao da implantação). Abre no Excel (separador ponto e vírgula). O 1º pagamento é o mês da arrecadação, que não traz o dia.</p>
     </div>
     <details class="card acc oculto" id="boxVal" open>
@@ -351,7 +357,7 @@ td.drill:focus-visible, .kpi.drill:focus-visible { outline:2px solid var(--azul-
 <script>
 'use strict';
 // Versão do SAC: aumentar a cada alteração publicada (v6, v7…)
-const VERSAO_SAC = 'v40';
+const VERSAO_SAC = 'v41';
 document.getElementById('versao').textContent = VERSAO_SAC;
 document.title = 'Águas do Rio | SAC ' + VERSAO_SAC;
 
@@ -962,6 +968,7 @@ function graficoCoorte(el, rows, teste, cor, rotSim, rotNao) {   // barras por m
     g2 += '<rect class="hit" data-i="' + i + '" x="' + (ml + i * bw2) + '" y="' + mt + '" width="' + bw2 + '" height="' + ph2 + '"/>';
     d2.push('<b>' + labelYm(o.ym) + '</b><br>Implantadas: ' + fInt(o.n) + '<br>' + rotSim + ': ' + fInt(o.p) + ' (' + fPct(o.p, o.n) + ')<br>' + rotNao + ': ' + fInt(o.n - o.p));
   });
+  DADOS_GRAF.set(el, [['Mês da implantação', 'Implantadas', rotSim, rotNao, '% ' + rotSim.toLowerCase()]].concat(C.map(o => [labelYm(o.ym), o.n, o.p, o.n - o.p, fPct(o.p, o.n)])));
   el.innerHTML = '<svg viewBox="0 0 ' + W2 + ' ' + H2 + '" role="img" aria-label="Implantadas e ' + rotSim.toLowerCase() + ' por mês de implantação">' + g2 + '</svg>';
   ligarDicas(el, d2.map(t => t + '<br><i>Clique para ver as matrículas</i>'), C.map(o => ({ titulo: 'Implantadas (' + rotSim.toLowerCase() + ' primeiro)', grupo: 'Implantadas em ' + labelYm(o.ym), rows: [...o.L].sort((a, b) => teste(b) - teste(a)) })));
 }
@@ -995,6 +1002,48 @@ function renderIndA(rows) {
     '<tr class="header-sub"><th class="n">Total</th><th class="n">No SAC</th><th class="n">Fora do SAC</th><th class="n">Fora do SAC e já pagaram</th></tr></thead><tbody>' +
     L.map(o => lin(labelYm(o.ym) + ' <span class="sub-mes">(seguinte: ' + labelYm(proxYm(o.ym)) + ')</span>', o)).join('') + lin('Total', T, 'linha-total') + '</tbody>';
 }
+/* ---------- download dos quadros: cada tabela, gráfico e cartão vira CSV, do jeito que está na tela ---------- */
+const DADOS_GRAF = new WeakMap();
+function celTxt(t) {   // valor pronto para o Excel em português: tira R$, setas e espaços; mantém vírgula decimal e %
+  t = String(t ?? '').replace(/\s+/g, ' ').trim().replace(/^[▲▼]\s*/, '');
+  if (/^-?R\$\s?-?[\d.]+(,\d+)?$/.test(t)) t = t.replace(/R\$\s?/, '');
+  return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+function linhasTabela(tb) {
+  const out = [];
+  for (const tr of tb.rows) { const l = []; for (const c of tr.cells) { const n = c.colSpan || 1; for (let i = 0; i < n; i++) l.push(i ? '' : c.textContent); } out.push(l); }
+  return out;
+}
+function linhasQuadro(card) {   // junta tudo o que o quadro mostra: cartões, gráficos e tabelas, em blocos com título
+  const out = [], tit = (card.querySelector('h2, summary') || {}).textContent || '';
+  out.push([tit.trim()]);
+  const bloco = (nome, linhas) => { if (!linhas.length) return; out.push([]); if (nome) out.push([nome]); out.push(...linhas); };
+  const kp = [...card.querySelectorAll('.kpi')].map(k => [k.querySelector('.rot')?.textContent, k.querySelector('.val')?.textContent, k.querySelector('.sub')?.textContent]);
+  bloco('Indicadores', kp.length ? [['Indicador', 'Valor', 'Detalhe']].concat(kp) : []);
+  const ek = [...card.querySelectorAll('.exec-kpis > div')].map(k => [...k.children].map(c => c.textContent));
+  bloco('Indicadores', ek);
+  const fc = [...card.querySelectorAll('.f-card')].map(k => [k.querySelector('.f-l')?.textContent, k.querySelector('.f-n')?.textContent, k.querySelector('.f-v')?.textContent || '', k.querySelector('.f-nota')?.textContent]);
+  bloco('Cartões', fc.length ? [['Cartão', 'Quantidade', 'Valor', 'Nota']].concat(fc) : []);
+  for (const f of card.querySelectorAll('figure.graf')) { const d = f.querySelector('[id]'); bloco(f.querySelector('figcaption')?.textContent, d && DADOS_GRAF.get(d) || []); }
+  for (const tb of card.querySelectorAll('table')) {
+    let h = tb.previousElementSibling; while (h && !/^H3$/.test(h.tagName) && h.tagName !== 'TABLE') h = h.previousElementSibling;
+    bloco(h && h.tagName === 'H3' ? h.textContent : '', linhasTabela(tb));
+  }
+  return out;
+}
+const csvLinhas = linhas => '﻿' + linhas.map(l => l.map(celTxt).join(';')).join('\r\n');
+const nomeArq = t => norm(t).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 60) || 'quadro';
+function baixarBlob(blob, nome) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+function quadrosComDados() { return [...document.querySelectorAll('.card[id]')].filter(c => !/^vazio|^boxBaixar$/.test(c.id) && !c.classList.contains('oculto') && c.querySelector('table, figure.graf, .kpi, .f-card, .exec-kpis')); }
+function botoesDownload() {
+  for (const c of document.querySelectorAll('.card[id]')) {
+    if (/^vazio|^boxBaixar$/.test(c.id) || c.querySelector(':scope > .btn-quadro')) continue;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-quadro'; b.title = 'Baixar os dados deste quadro (CSV)'; b.setAttribute('aria-label', 'Baixar os dados deste quadro em CSV'); b.textContent = '⬇ CSV';
+    b.onclick = e => { e.preventDefault(); e.stopPropagation(); const l = linhasQuadro(c); baixarBlob(new Blob([csvLinhas(l)], { type: 'text/csv;charset=utf-8' }), 'sac_' + nomeArq(l[0][0]) + '.csv'); };
+    const ct = c.querySelector(':scope > .card-titulo');
+    if (ct) { b.classList.add('em-titulo'); (ct.querySelector('.acoes-seg, .acoes-exec') || ct).appendChild(b); } else c.prepend(b);
+  }
+}
 function renderJornada(rows) {
   const lagF = [], lagP = [], B = 7, cF = Array(B).fill(0), cP = Array(B).fill(0), LB = Array.from({ length: B }, () => new Set());
   for (const x of rows) {
@@ -1016,6 +1065,7 @@ function renderJornada(rows) {
     g += '<rect class="hit" data-i="' + i + '" x="' + (ml + i * bw) + '" y="' + mt + '" width="' + bw + '" height="' + ph + '"/>';
     dicas.push('<b>' + (i === B - 1 ? (B - 1) + ' meses ou mais' : i === 0 ? 'No mês da implantação' : i + (i === 1 ? ' mês' : ' meses') + ' depois') + '</b><br>1º faturamento direto de água: ' + fInt(cF[i]) + ' (' + fPct(cF[i], lagF.length) + ')<br>1º pagamento: ' + fInt(cP[i]) + ' (' + fPct(cP[i], lagP.length) + ')');
   }
+  DADOS_GRAF.set($('#grafLag'), [['Meses depois da implantação', 'Matrículas com 1º faturamento direto de água', 'Matrículas com 1º pagamento']].concat(cF.map((v, i) => [i === B - 1 ? (B - 1) + ' ou mais' : String(i), v, cP[i]])));
   const el1 = $('#grafLag'); el1.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Quantidade de matrículas por meses entre implantação, 1º faturamento e 1º pagamento">' + g + '</svg>';
   ligarDicas(el1, dicas.map(t => t + '<br><i>Clique para ver as matrículas</i>'), LB.map((st, i) => ({ titulo: '1º faturamento direto ou 1º pagamento ' + (i === B - 1 ? (B - 1) + ' meses ou mais' : i + (i === 1 ? ' mês' : ' meses')) + ' depois da implantação', grupo: 'Meses depois da implantação: ' + (i === B - 1 ? (B - 1) + '+' : i), rows: [...st] })));
   graficoCoorte($('#grafCoorte'), rows, x => !!x.payYm, 'var(--g-pag)', 'Já pagaram', 'Ainda não pagaram');
@@ -1408,6 +1458,16 @@ $('#btnMais').onclick = () => { tudo = !tudo; aplicar(); };
 ['fMes', 'fSup', 'fCid'].forEach(i => $('#' + i).onchange = aplicar);
 
 /* ---------- download das bases compiladas ---------- */
+$('#btnBaixarQuadros').onclick = async () => {
+  const b = $('#btnBaixarQuadros'); b.disabled = true; b.textContent = 'Gerando...';
+  try {
+    const z = new JSZip(), usados = new Map();
+    // abre as abas uma vez para todos os quadros estarem desenhados com os filtros atuais
+    for (const c of quadrosComDados()) { const l = linhasQuadro(c); let n = nomeArq(l[0][0]); const k = (usados.get(n) || 0) + 1; usados.set(n, k); if (k > 1) n += '_' + k; z.file(n + '.csv', csvLinhas(l)); }
+    baixarBlob(await z.generateAsync({ type: 'blob', compression: 'DEFLATE' }), 'sac_tabelas_e_graficos_' + new Date().toISOString().slice(0, 10) + '.zip');
+  } catch (e) { alert('Não foi possível gerar o arquivo: ' + e.message); }
+  b.disabled = false; b.textContent = 'Baixar tabelas e gráficos (.zip)';
+};
 $('#btnBaixarBases').onclick = () => {
   const cel = v => '"' + String(v ?? '').replace(/"/g, '""') + '"', num = v => (Number(v) || 0).toFixed(2).replace('.', ','), ym = v => v ? labelYm(v) : '';
   const dBr = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '', cap = t => t.replace(/^./, c => c.toUpperCase());
@@ -1521,6 +1581,7 @@ document.querySelectorAll('.tabela-wrap').forEach(wrap => {
   wrap.addEventListener('mousemove', e => { if (!down) return; e.preventDefault(); wrap.scrollLeft = sl - (e.pageX - wrap.offsetLeft - x0) * 1.5; });
 });
 
+botoesDownload();
 (async function init() {
   if (!window.showDirectoryPicker) return;
   const ha = await idb.get('dirArr'); if (ha) { arrHandle = ha; marcarArr(); }
